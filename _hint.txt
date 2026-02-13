@@ -12,3 +12,6 @@ plugins: [
     },
   }),
 ],
+
+
+vsce package
