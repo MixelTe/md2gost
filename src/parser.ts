@@ -1,5 +1,6 @@
 import { Doc, tableRow, type DocNode, type NodeTable } from "./doc";
 import fs from "fs/promises";
+import { trimStart } from "./utils";
 
 export async function parseMD(file: string)
 {
@@ -7,9 +8,10 @@ export async function parseMD(file: string)
 	const doc = new Doc();
 	const sec = doc.sections[0]!;
 
-	function parseList(text: string, ordered: boolean, level: number = 0)
+	function parseList(text: string, parts: string[], ordered: boolean, level: number = 0)
 	{
-		const node: DocNode = { type: "list", ordered, items: [{ type: "listItem", text }] };
+		const startIndex = isFinite(parseInt(parts[0])) ? parseInt(parts[0]) : 1;
+		const node: DocNode = { type: "list", ordered, startIndex, items: [{ type: "listItem", text }] };
 		const P: Prefix = ordered ? "1)" : "*";
 		function skipEmptyLines()
 		{
@@ -48,7 +50,7 @@ export async function parseMD(file: string)
 				else if (ln.prefix == "*" || ln.prefix == "1)")
 				{
 					lineI++;
-					node.items.push(parseList(ln.text, ln.prefix == "1)", level + 1));
+					node.items.push(parseList(ln.text, ln.parts, ln.prefix == "1)", level + 1));
 					continue;
 				}
 				else break;
@@ -108,8 +110,8 @@ export async function parseMD(file: string)
 			case "####": doc.appendTitle(text, 4); break;
 			case "#####": doc.appendTitle(text, 5); break;
 			case "######": doc.appendTitle(text, 6); break;
-			case "*": doc.appendNode(parseList(text, false)); break;
-			case "1)": doc.appendNode(parseList(text, true)); break;
+			case "*": doc.appendNode(parseList(text, parts, false)); break;
+			case "1)": doc.appendNode(parseList(text, parts, true)); break;
 			case "Img": doc.appendNode(parseImg(parts)); break;
 			case "Code": doc.appendNode(parseCode(text)); break;
 			case "Comment": break;
@@ -151,7 +153,7 @@ function parseLine(line: string): { prefix: Prefix, text: string, level: number,
 		level++;
 	}
 	if (level > 0) return { prefix: "\t", text: line.trim(), level, parts: [] };
-	const splited = line.trim().split(" ");
+	const splited = line.trim().split(/\s/);
 	let prefix = splited[0]!.toLowerCase();
 	let text = splited.slice(1).join(" ");
 	let parts: string[] = [];
@@ -166,7 +168,15 @@ function parseLine(line: string): { prefix: Prefix, text: string, level: number,
 		};
 	}
 	if (prefix == "-") prefix = "*";
-	if ((prefix.endsWith(".") || prefix.endsWith(")")) && isFinite(parseInt(prefix.slice(0, -1)))) prefix = "1)";
+	if (prefix.endsWith(".") || prefix.endsWith(")"))
+	{
+		const index = parseInt(prefix.slice(0, -1))
+		if (isFinite(index))
+		{
+			prefix = "1)";
+			parts = [`${index}`];
+		}
+	}
 	if (prefix.startsWith("```")) return { prefix: "Code", text: line.trim().slice(3), level, parts };
 	if (prefix.startsWith("<!--")) return { prefix: "Comment", text: line.trim().slice("<!--".length).trim(), level, parts };
 	if (["#", "##", "###", "####", "#####", "######", "*", "1)", "!!section"].includes(prefix))
@@ -197,7 +207,16 @@ function findDocs(nodes: DocNode[])
 
 function findTables(nodes: DocNode[])
 {
-	const re_sep = /(\s*-+\s*\|)+\s*-+\s*/;
+	const re_sep = /^(\s*-+\s*\|)+\s*-+\s*$/;
+	const re_empty_line = /^\|(\s*\|)*$/;
+	const trim = (line: string) =>
+	{
+		line = line.trim();
+		if (re_empty_line.test(line)) return line;
+		if (line.at(0) == "|") line = line.slice(1);
+		if (line.at(-1) == "|") line = line.slice(0, -1);
+		return line.trim();
+	}
 
 	for (let i = 0; i < nodes.length; i++)
 	{
@@ -205,15 +224,15 @@ function findTables(nodes: DocNode[])
 		if (node.type != "text") continue;
 		const lines = node.text.split("\n");
 		if (lines.length < 3) continue;
-		const sep = lines[1]!;
+		const sep = trim(lines[1]!);
 		if (!re_sep.test(sep)) continue;
 		const colN = sep.split("|").length;
-		const header = lines[0]!.split("|").map(v => v.trim());
+		const header = trim(lines[0]!).split("|").map(v => v.trim());
 		if (header.length != colN) continue;
 		const rows = [tableRow(...header)];
 		for (const line of lines.slice(2))
 		{
-			const row = line.split("|").map(v => v.trim());
+			const row = trim(line).split("|").map(v => v.trim());
 			if (row.length != colN) break;
 			rows.push(tableRow(...row));
 		}

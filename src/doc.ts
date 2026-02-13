@@ -70,6 +70,7 @@ export interface NodeList
 {
 	type: "list",
 	ordered?: boolean,
+	startIndex: number,
 	items: (NodeListItem | NodeList)[],
 	alternativeStyle?: boolean,
 }

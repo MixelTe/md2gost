@@ -105,19 +105,26 @@ export async function serializeDocx(doc: Doc, fout: string, workdir: string, ass
 					};
 					numbering.push(list);
 					const items: FileChild[] = [];
+					let addMargin = prevChild instanceof Table;
 					renderList(node);
 					function renderList(node: NodeList, level: number = 0)
 					{
-						addListItemLevel(list.levels, level, !!node.ordered, !!node.alternativeStyle);
+						addListItemLevel(list.levels, level, node.startIndex, !!node.ordered, !!node.alternativeStyle);
 						for (const item of node.items)
 						{
 							if (item.type == "list") renderList({ ...item, alternativeStyle: !!node.alternativeStyle }, level + 1);
 							else
+							{
 								items.push(new Paragraph({
 									children: renderText(item.text),
 									style: STYLE_list,
-									numbering: { reference: id, level }
+									numbering: { reference: id, level },
+									spacing: {
+										...(addMargin ? { before: 8 * 20 } : {}),
+									}
 								}));
+								addMargin = false;
+							}
 						}
 					}
 					return items;
@@ -235,7 +242,7 @@ export async function serializeDocx(doc: Doc, fout: string, workdir: string, ass
 	fs.writeFileSync(fout, buffer);
 }
 
-function addListItemLevel(levels: IListItemLevel[], level: number, ordered: boolean, alternativeStyle: boolean)
+function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: number, ordered: boolean, alternativeStyle: boolean)
 {
 	if (levels.find(v => v.level == level)) return;
 	levels.sort((a, b) => a.level - b.level);
@@ -252,6 +259,7 @@ function addListItemLevel(levels: IListItemLevel[], level: number, ordered: bool
 	levels.push({
 		level,
 		format,
+		start: startIndex,
 		text: ordered ? (alternativeStyle ? `%${level + 1}.` : `%${level + 1})`) : "\u2012",
 		style: {
 			paragraph: {
