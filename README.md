@@ -1,71 +1,136 @@
-# md2gost README
+# md2gost
 
-This is the README for your extension "md2gost". After writing up a brief description, we recommend including the following sections.
+Расширение, позволяющее преобразовывать Markdown-файлы в документы **DOCX** и **PDF**, стараясь соблюдать требования ГОСТа для написания отчётов и курсовых работ.
 
-## Features
+Расширение работает с файлами формата `.g.md` и добавляет удобные кнопки для быстрого экспорта прямо из редактора.
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+## Возможности
 
-For example if there is an image subfolder under your extension project workspace:
+* Экспорт Markdown → **DOCX**
+* Экспорт Markdown → **PDF**
+* Вставка содержимого других DOCX-файлов с заменой текста (например, титульник с заменой темы)
 
-\!\[feature X\]\(images/feature-x.png\)
+## Требования
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+* Установленный **Microsoft Word**. (Без него работает лишь частично)
 
-## Requirements
+## Как использовать
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+1. Создайте и откройте файл с расширением `.g.md`.
+2. В панели редактора появятся кнопки экспорта в DOCX и PDF
+![screenshot](./imgs/screenshot_icons.png)
 
-## Extension Settings
+## Поддерживаемый синтаксис
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+### Текст
+Пустая строка разделяет параграфы. В отличие от обычного Markdown перенос строки сохраняется в параграфе.
 
-For example:
+### Заголовки
 
-This extension contributes the following settings:
+```
+# Заголовок первого уровня
+## Заголовок второго уровня
+### и т. д.
+```
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+### Списки
+При экспорте автоматически добавляются запятые/точка с запятой у элементов и точка у последнего элемента
+```
+Не нумерованный список:
+* Первое
+* Второе
+- Можно чертой
 
-## Known Issues
+Нумерованный список:
+1. Первое
+1. Второе
+2) Можно скобкой
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+Вложенный список:
+1. Первое
+	* подпункт 1
+	* подпункт 2
+2. Второе
+```
 
-## Release Notes
+### Картинки
+Картинкам можно задать размер, указав его в фигурных скобках.
+В тексте подписи можно вставить перенос строки с помощью `\n` (т.к. поддерживается только однострочное объявление картинки).
+```
+![подпись](путь/к/файлу.png)
+![подпись](путь/к/файлу.png){ширина x высота}
 
-Users appreciate release notes as you update your extension.
+![Рисунок 1.1 - Пример](image.png)
+![Рисунок 1.2 - С указанием ширины](image.png){340}
+![Рисунок 1.3 - С указанием высоты](image.png){x265}
+![Рисунок 1.4 - С указанием размера](image.png){340x265}
+![Рисунок 1.5 - Важные зарисовки, с очень длинным названием, \nкоторое не умещается в одну строку](image.png){340}
+```
 
-### 1.0.0
 
-Initial release of ...
+### Листинг
+В отличие от обычного Markdown после кода языка в первой строке пишется заголовок листинга (при разрыве листинга на несколько страниц заголовок продублируется автоматически)
+````
+```html Листинг 1.1 - Шаблон html страницы
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+</body>
+</html>
+```
+````
 
-### 1.0.1
+### Таблицы
+Параграф перед таблицей считается её подписью
+```
+Таблица 1 - Результат анализа
 
-Fixed issue #.
+Заголовок 1 | Заголовок 2 | Заголовок 3
+------------|-------------|------------
+текст       | текст       | текст
+текст       | текст       | текст
+```
 
-### 1.1.0
+### Коментарии
+Текст, который исчезнет при экспорте. Поддерживаются только однострочные комментарии.
+```
+<!-- Коментарий -->
+<!-- в две строки -->
+```
 
-Added features X, Y, and Z.
 
----
+### Разрыв секции
 
-## Following extension guidelines
+Создаёт разрыв секции в документе:
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+```
+!!section
+Секция без нумерации страниц
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+!!section from 3
+Секция с нумерацией страниц начиная с 3
+```
 
-## Working with Markdown
+### Вставка другого DOCX
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+Вставляет содержимое DOCX-файла с возможностью передачи параметров:
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+```md
+!!(путь/к/фалу.docx){"поле": "значение"}
 
-## For more information
+!!(title.docx){
+	"taskN": "1",
+	"topic": "Сбалансированные деревья поиска",
+	"group": "КЛМН-00-00",
+	"name": "Иванов П.С.",
+}
+```
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+В импортируемом DOCX-файле полями считается любой текст в двойных фигурных скобках, пример: `{{поле}}`
 
-**Enjoy!**
+![screenshot](imgs/screenshot_doc_include.png)
