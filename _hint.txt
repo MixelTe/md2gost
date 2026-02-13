@@ -1,0 +1,14 @@
+npm install --save-dev esbuild-plugin-copy
+
+const { copy } = require('esbuild-plugin-copy');
+
+// Inside your esbuild.context object:
+plugins: [
+  copy({
+    resolveFrom: 'cwd',
+    assets: {
+      from: ['./assets/**/*'],
+      to: ['./dist/assets'],
+    },
+  }),
+],
