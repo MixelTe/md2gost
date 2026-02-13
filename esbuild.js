@@ -1,4 +1,5 @@
 const esbuild = require("esbuild");
+const fs = require("node:fs");
 const { copy } = require('esbuild-plugin-copy');
 
 const production = process.argv.includes('--production');
@@ -34,6 +35,7 @@ async function main()
 		entryPoints: [
 			'src/extension.ts'
 		],
+		metafile: true,
 		bundle: true,
 		format: 'cjs',
 		minify: production,
@@ -46,13 +48,13 @@ async function main()
 		plugins: [
 			/* add to the end of plugins array */
 			esbuildProblemMatcherPlugin,
-			copy({
-				resolveFrom: 'cwd',
-				assets: {
-					from: ['./assets/**/*'],
-					to: ['./dist/assets'],
-				},
-			}),
+			// copy({
+			// 	resolveFrom: 'cwd',
+			// 	assets: {
+			// 		from: ['./assets/**/*'],
+			// 		to: ['./dist/assets'],
+			// 	},
+			// }),
 		],
 	});
 	if (watch)
@@ -60,7 +62,9 @@ async function main()
 		await ctx.watch();
 	} else
 	{
-		await ctx.rebuild();
+		const result = await ctx.rebuild();
+		if (result.metafile)
+			fs.writeFileSync('esbuild-meta.json', JSON.stringify(result.metafile))
 		await ctx.dispose();
 	}
 }

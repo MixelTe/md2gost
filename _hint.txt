@@ -14,4 +14,6 @@ plugins: [
 ],
 
 
+https://esbuild.github.io/analyze/
+
 vsce package

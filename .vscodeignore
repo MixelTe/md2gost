@@ -13,5 +13,6 @@ vsc-extension-quickstart.md
 **/*.ts
 **/.vscode-test.*
 resources/**
-assets/**
+# assets/**
 _hint.txt
+esbuild-meta.json
