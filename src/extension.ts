@@ -43,7 +43,7 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean)
 					assets,
 					file,
 					renderPDF
-				)
+				);
 				vscode.window.showInformationMessage(`File rendered to ${fname}`);
 			}
 			catch (x)
@@ -63,5 +63,5 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean)
 			// 	await new Promise(resolve => setTimeout(resolve, 1000));
 			// }
 		}
-	)
+	);
 }

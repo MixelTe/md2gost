@@ -1,4 +1,4 @@
-import { Doc, tableRow, type DocNode, type NodeTable } from "./doc"
+import { Doc, tableRow, type DocNode, type NodeTable } from "./doc";
 import fs from "fs/promises";
 
 export async function parseMD(file: string)
@@ -135,7 +135,7 @@ export async function parseMD(file: string)
 	findDocs(sec.nodes);
 	findTables(sec.nodes);
 
-	return doc
+	return doc;
 }
 
 const re_img = /!\[(.*)\]\((.*)\)({(.*)})?/;
@@ -143,7 +143,7 @@ const re_img = /!\[(.*)\]\((.*)\)({(.*)})?/;
 type Prefix = "" | "#" | "##" | "###" | "####" | "#####" | "######" | "*" | "1)" | "\t" | "Img" | "Code" | "Comment" | "!!section";
 function parseLine(line: string): { prefix: Prefix, text: string, level: number, parts: string[] }
 {
-	let level = 0
+	let level = 0;
 	while (line.startsWith("    ") || line.startsWith("\t"))
 	{
 		if (line.startsWith("    ")) line = line = line.slice(4);
@@ -215,7 +215,7 @@ function findTables(nodes: DocNode[])
 		{
 			const row = line.split("|").map(v => v.trim());
 			if (row.length != colN) break;
-			rows.push(tableRow(...row))
+			rows.push(tableRow(...row));
 		}
 		if (rows.length < 2) continue;
 		const table: NodeTable = { type: "table", rows };

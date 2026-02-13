@@ -70,7 +70,7 @@ export async function serializeDocx(doc: Doc, fout: string, workdir: string, ass
 					],
 				}),
 			},
-		})
+		});
 
 		function renderNode(node: DocNode, prevChild?: FileChild): FileChild | FileChild[]
 		{

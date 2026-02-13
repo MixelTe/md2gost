@@ -23,7 +23,7 @@ export function enrichDoc(doc: Doc)
 				nextNode.noIndent = true;
 				nextNode.text = trimEnd(nextNode.text, ".").toUpperCase();
 			}
-			section.nodes.splice(i + 1, 0, { type: "text", text: "Отчет x с., x рис., x табл., x лист., x источн." })
+			section.nodes.splice(i + 1, 0, { type: "text", text: "Отчет x с., x рис., x табл., x лист., x источн." });
 			while (i + 1 < section.nodes.length && section.nodes[i + 1]?.type != "title") i++;
 			section.nodes.splice(i + 1, 0, { type: "pageBreak" });
 		}
@@ -107,7 +107,7 @@ export function enrichDoc(doc: Doc)
 			{
 				const isLongList = 5 < Math.max(...list.items.filter(v => v.type == "listItem").map(v => v.text.split(/\s+/).length));
 				const hasSublist = list.items.some(v => v.type == "list");
-				const ending = isLongList || hasSublist || isSubList ? ";" : ","
+				const ending = isLongList || hasSublist || isSubList ? ";" : ",";
 				for (let i = 0; i < list.items.length; i++)
 				{
 					const item = list.items[i]!;

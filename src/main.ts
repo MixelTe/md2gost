@@ -12,14 +12,14 @@ const DISABLE_MACRO = false;
 
 export async function render(progress: SetProgressFn, assets: string, file: string, renderPDF: boolean)
 {
-	// progress(10, "Trying to understand your scribbles")
-	progress(10, "Пытаемся понять, что вы тут написали...")
+	// progress(10, "Trying to understand your scribbles");
+	progress(10, "Пытаемся понять, что вы тут написали...");
 	const fin = path.resolve(file);
 	const doc = await parseMD(fin);
 	console.log(doc);
 
-	// progress(10, "Trying to understand your scribbles")
-	progress(10, "Колдуем над синтаксисом...")
+	// progress(10, "Trying to understand your scribbles");
+	progress(10, "Колдуем над синтаксисом...");
 	enrichDoc(doc);
 	console.log(doc);
 
@@ -32,13 +32,13 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 		throw new Error(`Output file is busy or locked: ${ftmp}`);
 	if (await checkIfFileIsBlocked(fout))
 		throw new Error(`Output file is busy or locked: ${fout}`);
-	// progress(10, "Rendering to docx")
-	progress(10, choice("Материализуем бумажный артефакт...", "Куем DOCX в текстовой кузнице...", "Плетем полотно документа...", "Трансмутируем простые символы в величественные страницы..."))
-	await serializeDocx(doc, ftmp, fdir, assets)
+	// progress(10, "Rendering to docx");
+	progress(10, choice("Материализуем бумажный артефакт...", "Куем DOCX в текстовой кузнице...", "Плетем полотно документа...", "Трансмутируем простые символы в величественные страницы..."));
+	await serializeDocx(doc, ftmp, fdir, assets);
 	if (renderPDF || hasReasonForRunningMacros(doc))
 	{
-		// progress(20, "Running complex macros")
-		progress(20, choice("Пробуждаем древних духов VBA...", "Призываем дух Ворда из бездны офисного пакета..."))
+		// progress(20, "Running complex macros");
+		progress(20, choice("Пробуждаем древних духов VBA...", "Призываем дух Ворда из бездны офисного пакета..."));
 		const tmpfolder = path.join(fdir, ".md2gost_out");
 		if (renderPDF) fs.rmSync(tmpfolder, { recursive: true, force: true });
 		await runDocxMacro(progress, assets, fdir, ftmp, fout, renderPDF);
@@ -46,7 +46,7 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 		if (renderPDF)
 		{
 			// progress(40, "Combine all together")
-			progress(40, choice("Склеиваем всё синей изолентой...", "Скрепляем печатями судьбы последнюю страницу...", "Сплавляем финальный артефакт из множества осколков..."))
+			progress(40, choice("Склеиваем всё синей изолентой...", "Скрепляем печатями судьбы последнюю страницу...", "Сплавляем финальный артефакт из множества осколков..."));
 			if (!fs.existsSync(tmpfolder))
 				throw new Error(`PDF render error`);
 			const files = fs.readdirSync(tmpfolder).sort().map(f => path.join(tmpfolder, f));
@@ -97,8 +97,8 @@ function runDocxMacro(progress: SetProgressFn, assets: string, cwd: string, fin:
 				"1": choice("Подклеиваем \"продолжение листинга\" на разорванные страницы...", "Укрепляем стены секций связующими словами...", "Наносим руны преемственности на разрывы страниц..."),
 				// "2": "Rendering to PDF",
 				"2": choice("Собираем документы и превращаем их в PDF-свитки...", "Обращаем живое слово в незыблемый камень PDF...", "Навеки запечатлеваем свитки в кристаллах памяти..."),
-			}[m[1]] || "Make some work")
-			console.log(`PS: ${data}`)
+			}[m[1]] || "Make some work");
+			console.log(`PS: ${data}`);
 		});
 		child.stderr.on("data", (data) => console.error(`PS: ${data}`));
 
