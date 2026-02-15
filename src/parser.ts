@@ -170,7 +170,7 @@ function parseLine(line: string): { prefix: Prefix, text: string, level: number,
 	if (prefix == "-") prefix = "*";
 	if (prefix.endsWith(".") || prefix.endsWith(")"))
 	{
-		const index = parseInt(prefix.slice(0, -1))
+		const index = parseInt(prefix.slice(0, -1));
 		if (isFinite(index))
 		{
 			prefix = "1)";
@@ -216,7 +216,7 @@ function findTables(nodes: DocNode[])
 		if (line.at(0) == "|") line = line.slice(1);
 		if (line.at(-1) == "|") line = line.slice(0, -1);
 		return line.trim();
-	}
+	};
 
 	for (let i = 0; i < nodes.length; i++)
 	{

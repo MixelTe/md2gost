@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { render } from "./main";
+import { openFile } from "./utils";
 
 export function activate(context: vscode.ExtensionContext)
 {
@@ -44,7 +45,12 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean)
 					file,
 					renderPDF
 				);
-				vscode.window.showInformationMessage(`File rendered to ${fname}`);
+				progress.report({ increment: 100, message: "Done!" });
+				vscode.window.showInformationMessage(`File rendered to ${fname}`, "Open").then(v =>
+				{
+					if (v != "Open") return;
+					openFile(fname);
+				});
 			}
 			catch (x)
 			{

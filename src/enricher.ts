@@ -1,5 +1,5 @@
 import { tableRow, type Doc, type DocNode, type NodeList } from "./doc";
-import { trimEnd } from "./utils";
+import { toCapitalCase, trimEnd } from "./utils";
 
 export function enrichDoc(doc: Doc)
 {
@@ -30,6 +30,7 @@ export function enrichDoc(doc: Doc)
 		else if (node.type == "title" && node.text.toUpperCase() == "ОГЛАВЛЕНИЕ")
 		{
 			node.level = 0;
+			node.text = node.text.toUpperCase();
 			section.nodes.splice(i + 1, 0, { type: "tableOfContents" });
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ")
@@ -117,7 +118,8 @@ export function enrichDoc(doc: Doc)
 					else
 					{
 						const end = itemNext?.type == "list" ? ":" : isLastItem && isLast ? "." : ending;
-						item.text = item.text.slice(0, 1).toLowerCase() + item.text.slice(1);
+						if (item.text.slice(1, 2) == item.text.slice(1, 2).toLowerCase())  // second letter is lowercase
+							item.text = toCapitalCase(item.text);
 						item.text = trimEnd(item.text, ".", ",", ';', ":", "!") + end;
 					}
 				}

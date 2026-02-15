@@ -235,7 +235,7 @@ export async function serializeDocx(doc: Doc, fout: string, workdir: string, ass
 	const docx = new Document({
 		sections,
 		externalStyles: fs.readFileSync(path.join(assets, "styles.xml"), { encoding: "utf8" }),
-		features: { updateFields: true },
+		// features: { updateFields: true },
 		numbering: { config: numbering },
 	});
 	const buffer = await Packer.toBuffer(docx);
@@ -275,7 +275,7 @@ function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: n
 function renderText(text: string): ParagraphChild[]
 {
 	return text.split("\n").map((p, i) => new TextRun({
-		text: p.replaceAll(" - ", " \u2013 ").replaceAll(/\s+/g, " "),
+		text: p.replaceAll("—", "-").replaceAll(" - ", " \u2013 ").replaceAll(/\s+/g, " "),
 		language: { value: "ru-RU" },
 		...(i == 0 ? {} : { break: 1 }),
 	}));

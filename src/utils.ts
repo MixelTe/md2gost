@@ -48,12 +48,16 @@ export function trimStart(str: string, ...chs: string[])
 	return str;
 }
 
+export function toCapitalCase(str: string)
+{
+	return str.slice(0, 1).toLowerCase() + str.slice(1);
+}
+
 export type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 export type DeepWriteable<T> = { -readonly [P in keyof T]: DeepWriteable<T[P]> };
 export type SetProgressFn = (increment: number, message: string) => void;
 
 import fs from "fs/promises";
-
 export async function checkIfFileIsBlocked(path: string)
 {
 	let file;
@@ -73,4 +77,23 @@ export async function checkIfFileIsBlocked(path: string)
 	{
 		if (file) await file.close();
 	}
+}
+
+import { exec } from "child_process";
+export function openFile(path: string)
+{
+	const command =
+		process.platform === "win32" ? `start "" "${path}"` // Windows
+			: process.platform === "darwin" ? `open "${path}"` // macOS
+				: `xdg-open "${path}"`; // Linux
+
+	exec(command, (err, stdout, stderr) =>
+	{
+		if (err)
+		{
+			console.error(`exec error: ${err}`);
+			return;
+		}
+	});
+
 }

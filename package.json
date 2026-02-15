@@ -3,7 +3,7 @@
   "displayName": "md2gost",
   "description": "Converts markdown to docx format, trying to comply with GOST standards",
   "icon": "./imgs/icon.png",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "MixelTe",
   "repository": {
     "url": "https://github.com/MixelTe/md2gost",
@@ -22,7 +22,6 @@
       {
         "command": "md2gost.render_pdf",
         "title": "Render current file to pdf",
-        "enablement": "resourceFilename =~ /\\.g\\.md$/",
         "icon": {
           "dark": "imgs/ghost_white.svg",
           "light": "imgs/ghost.svg"
@@ -31,7 +30,6 @@
       {
         "command": "md2gost.render_docx",
         "title": "Render current file to docx only",
-        "enablement": "resourceFilename =~ /\\.g\\.md$/",
         "icon": {
           "dark": "imgs/ghost_small_white.svg",
           "light": "imgs/ghost_small.svg"
