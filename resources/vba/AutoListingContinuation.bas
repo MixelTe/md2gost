@@ -1,4 +1,5 @@
 Sub AutoListingContinuation()
+    On Error GoTo ErrorHandler
 
     Dim doc As Document
     Set doc = ActiveDocument
@@ -12,6 +13,8 @@ Sub AutoListingContinuation()
 
     codeStart = False
     listingNumber = ""
+
+    UpdateAllFields
 
     For i = 1 To doc.Paragraphs.Count
 
@@ -50,8 +53,10 @@ Sub AutoListingContinuation()
 
     Next i
 
-    MsgBox "Готово", vbInformation
-
+    ' MsgBox "Готово", vbInformation
+    Exit Sub
+ErrorHandler:
+    LogError "Error #" & Err.Number & ": " & Err.Description
 End Sub
 
 Function ExtractListingNumber(text As String) As String
@@ -110,5 +115,3 @@ Sub InsertContinuation(p As Paragraph, listingNumber As String)
     ' contPara.Range.InsertParagraphAfter
 
 End Sub
-
-

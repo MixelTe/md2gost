@@ -40,9 +40,16 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 		// progress(20, "Running complex macros");
 		progress(20, phrase_runMacros());
 		const tmpfolder = path.join(fdir, ".md2gost_out");
-		if (renderPDF) fs.rmSync(tmpfolder, { recursive: true, force: true });
+		fs.rmSync(tmpfolder, { recursive: true, force: true });
 		await runDocxMacro(progress, assets, fdir, ftmp, fout, renderPDF);
 		fs.unlinkSync(ftmp);
+		const errorTxt = path.join(tmpfolder, "error.txt")
+		if (fs.existsSync(errorTxt))
+		{
+			const err = fs.readFileSync(errorTxt);
+			fs.rmSync(tmpfolder, { recursive: true, force: true });
+			throw new Error(`VBA error: ${err}`);
+		}
 		if (renderPDF)
 		{
 			// progress(40, "Combine all together")

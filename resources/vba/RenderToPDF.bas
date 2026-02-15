@@ -1,4 +1,6 @@
 Sub RenderSegmentsToPDF()
+    On Error GoTo ErrorHandler
+
     Dim mainDoc As Document
     Set mainDoc = ActiveDocument
 
@@ -14,6 +16,9 @@ Sub RenderSegmentsToPDF()
     Dim startRange As Range
     Set startRange = mainDoc.Range(0, 0)
 
+    UpdateAllFields
+    mainDoc.Repaginate
+
     Dim i As Long
     For i = 1 To mainDoc.Paragraphs.Count
         Set p = mainDoc.Paragraphs(i)
@@ -23,7 +28,7 @@ Sub RenderSegmentsToPDF()
 
         If Not includeData Is Nothing Then
             ' Export text BEFORE include
-            If ExportRangeAsPDF(mainDoc, startRange.Start, p.Range.Start, outDir, segIndex) Then
+            If ExportPagesAsPDF(mainDoc, startRange.Start, p.Range.Start, outDir, segIndex) Then
                 segIndex = segIndex + 1
             End If
 
@@ -40,10 +45,13 @@ Sub RenderSegmentsToPDF()
 
     ' Export trailing content
     If startRange.End < mainDoc.Content.End Then
-        ExportRangeAsPDF mainDoc, startRange.Start, mainDoc.Content.End, outDir, segIndex
+        ExportPagesAsPDF mainDoc, startRange.Start, mainDoc.Content.End, outDir, segIndex
     End If
     ' Selection.SetRange Start:=0, End:=1
     ' Selection.Copy
+    Exit Sub
+ErrorHandler:
+    LogError "Error #" & Err.Number & ": " & Err.Description
 End Sub
 Function ParseIncludeSyntax(txt As String) As Object
     On Error GoTo Fail
@@ -114,62 +122,33 @@ Function SkipTrailingSectionBreaks(doc As Document, pos As Long) As Long
 
     SkipTrailingSectionBreaks = pos
 End Function
-Function ExportRangeAsPDF(srcDoc As Document, startPos As Long, endPos As Long, _
-                     outDir As String, index As Integer) As Boolean
+Function ExportPagesAsPDF(srcDoc As Document, startPos As Long, endPos As Long, _
+                          outDir As String, index As Integer) As Boolean
+    If endPos >= srcDoc.Content.End Then
+        endPos = srcDoc.Content.End - 1
+    End If
 
     If startPos >= endPos Then
-        ExportRangeAsPDF = False
+        ExportPagesAsPDF = False
         Exit Function
     End If
-    ExportRangeAsPDF = True
 
-    Dim tmpDoc As Document
-    Set tmpDoc = Documents.Add(Template:=srcDoc.AttachedTemplate.FullName, Visible:=False)
+    Dim fromPage As Long, toPage As Long
+    fromPage = srcDoc.Range(startPos, startPos).Information(wdActiveEndPageNumber)
+    toPage   = srcDoc.Range(endPos, endPos).Information(wdActiveEndPageNumber)
 
-    ' srcDoc.Range(startPos, endPos).Copy
-    ' tmpDoc.Content.Paste
-    ' tmpDoc.Content.PasteAndFormat wdFormatOriginalFormatting
-    ' tmpDoc.Content.FormattedText = srcDoc.Range(startPos, endPos).FormattedText
-
-    Dim r As Range
-    Set r = srcDoc.Range(startPos, endPos)
-
-    ' Strip trailing paragraph mark to prevent list continuation
-    ' If Right(r.Text, 1) = vbCr Then
-    '     r.End = r.End - 1
-    ' End If
-    tmpDoc.Content.FormattedText = r.FormattedText
-
-    ' ' Safety: remove orphan empty list paragraph
-    ' If tmpDoc.Paragraphs.Count > 0 Then
-    '     If tmpDoc.Paragraphs.Last.Range.Text = vbCr Then
-    '         tmpDoc.Paragraphs.Last.Range.Delete
-    '     End If
-    ' End If
-    ' --- HARD STOP list inheritance ---
-    With tmpDoc.Paragraphs.Last.Range
-        .ListFormat.RemoveNumbers
-        .ParagraphFormat.Reset
-        .Style = tmpDoc.Styles(wdStyleNormal)
-    End With
-    ' --- ADD DUMMY PARAGRAPH (CRITICAL) ---
-    ' tmpDoc.Content.Paragraphs.Add
-    ' Dim dummy As Paragraph
-    ' Set dummy = tmpDoc.Content.Paragraphs.Add
-
-    ' With dummy.Range
-    '     .Text = " " & vbCr
-    '     .ListFormat.RemoveNumbers
-    '     .ParagraphFormat.Reset
-    '     .Style = tmpDoc.Styles(wdStyleNormal)
-    '     .Font.Hidden = True
-    ' End With
 
     Dim pdfPath As String
     pdfPath = outDir & Format(index, "000") & "-main.pdf"
 
-    tmpDoc.ExportAsFixedFormat pdfPath, wdExportFormatPDF
-    tmpDoc.Close False
+    srcDoc.ExportAsFixedFormat _
+        OutputFileName:=pdfPath, _
+        ExportFormat:=wdExportFormatPDF, _
+        Range:=wdExportFromTo, _
+        From:=fromPage, _
+        To:=toPage
+
+    ExportPagesAsPDF = True
 End Function
 Sub RenderIncludeToPDF(info As Object, outDir As String, index As Integer)
     Dim doc As Document
