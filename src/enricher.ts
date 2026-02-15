@@ -118,8 +118,6 @@ export function enrichDoc(doc: Doc)
 					else
 					{
 						const end = itemNext?.type == "list" ? ":" : isLastItem && isLast ? "." : ending;
-						if (item.text.slice(1, 2) == item.text.slice(1, 2).toLowerCase())  // second letter is lowercase
-							item.text = toCapitalCase(item.text);
 						item.text = trimEnd(item.text, ".", ",", ';', ":", "!") + end;
 					}
 				}
