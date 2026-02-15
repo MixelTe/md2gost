@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
+## [0.1.7] - 2026-02-15
+### Fixed
+- fix AutoListingContinuation
+
 ## [0.1.6] - 2026-02-15
 ### Fixed
 - greatly fix PDF render

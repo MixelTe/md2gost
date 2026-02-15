@@ -1016,10 +1016,10 @@
 <w:basedOn w:val="a2"/>
 <w:link w:val="aff"/>
 <w:qFormat/>
-<w:rsid w:val="0071225F"/>
+<w:rsid w:val="00B70A2E"/>
 <w:pPr>
 <w:keepNext/>
-<w:spacing w:after="0"/>
+<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>
 <w:ind w:firstLine="0"/>
 </w:pPr>
 </w:style>
@@ -1039,7 +1039,7 @@
 <w:name w:val="Листинг_Подпись Знак"/>
 <w:basedOn w:val="a3"/>
 <w:link w:val="afe"/>
-<w:rsid w:val="0071225F"/>
+<w:rsid w:val="00B70A2E"/>
 <w:rPr>
 <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
 <w:sz w:val="28"/>

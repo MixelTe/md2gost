@@ -43,7 +43,7 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 		fs.rmSync(tmpfolder, { recursive: true, force: true });
 		await runDocxMacro(progress, assets, fdir, ftmp, fout, renderPDF);
 		fs.unlinkSync(ftmp);
-		const errorTxt = path.join(tmpfolder, "error.txt")
+		const errorTxt = path.join(tmpfolder, "error.txt");
 		if (fs.existsSync(errorTxt))
 		{
 			const err = fs.readFileSync(errorTxt);

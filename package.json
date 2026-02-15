@@ -3,7 +3,7 @@
   "displayName": "md2gost",
   "description": "Converts markdown to docx format, trying to comply with GOST standards",
   "icon": "./imgs/icon.png",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "publisher": "MixelTe",
   "repository": {
     "url": "https://github.com/MixelTe/md2gost",

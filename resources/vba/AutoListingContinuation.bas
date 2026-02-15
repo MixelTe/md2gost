@@ -86,23 +86,74 @@ Function IsContinuationAlreadyInserted(p As Paragraph) As Boolean
     End If
 End Function
 Sub InsertContinuation(p As Paragraph, listingNumber As String)
-
+    Dim prev As Paragraph
+    Dim prevPrev As Paragraph
     Dim r As Range
     Dim contPara As Paragraph
 
-    ' Вставляем пустой абзац ПЕРЕД кодом
-    Set r = p.Range
+    On Error Resume Next
+    Set prev = p.Previous
+    If prev Is Nothing Then Exit Sub
+
+    Set prevPrev = prev.Previous
+    On Error GoTo 0
+
+    ' --- СЛУЧАЙ 1 ---
+    ' Предыдущий абзац — первый код после подписи
+    If Not prevPrev Is Nothing Then
+        If prevPrev.Style = "Листинг_Подпись" Then
+
+            ' Разрыв страницы перед подписью
+            Set r = prevPrev.Range
+            r.Collapse wdCollapseStart
+            r.InsertBreak Type:=wdPageBreak
+
+            Exit Sub
+        End If
+    End If
+
+    ' --- СЛУЧАЙ 2 ---
+    ' Код продолжается не сразу после подписи
+    ' Разрыв страницы перед prev
+
+    ' Set r = prev.Range
+    ' r.Collapse wdCollapseStart
+    ' r.MoveStart Unit:=wdCharacter, Count:=-1
+
+    ' ' Теперь r выделяет только знак абзаца (перенос строки) перед листингом.
+    ' ' Заменяем его на: Разрыв страницы + Текст продолжения + Новый перенос строки
+    ' r.Text = Chr(12) & "Продолжение листинга " & listingNumber & vbCr
+
+
+    ' Set r = prev.Range
+    ' r.Collapse wdCollapseStart
+    ' r.InsertBreak Type:=wdPageBreak
+
+    ' ' Вставляем continuation после разрыва
+    ' r.InsertBefore "Продолжение листинга " & listingNumber & vbCr
+
+    ' Set contPara = prev.Previous
+
+    ' ' Назначаем стиль
+    ' On Error Resume Next
+    ' contPara.Style = "Листинг_Продолжение"
+    ' If Err.Number <> 0 Then
+    '     contPara.Style = "Листинг_Подпись"
+    '     Err.Clear
+    ' End If
+    ' On Error GoTo 0
+
+    Set r = prev.Range
     r.Collapse wdCollapseStart
-    r.InsertParagraphBefore
 
-    ' Работаем строго с новым абзацем
-    Set contPara = p.Previous
-    contPara.Range.InsertParagraphAfter
+    ' 1. Вставляем текст продолжения с переносом строки ПЕРЕД листингом.
+    ' Это создает новый независимый абзац.
+    r.InsertBefore "Продолжение листинга " & listingNumber & vbCr
 
-    ' Заполняем текст
-    contPara.Range.text = "Продолжение листинга " & listingNumber
+    ' 2. Теперь находим этот новый абзац (он стал предыдущим для prev)
+    Set contPara = prev.Previous
 
-    ' Назначаем стиль
+    ' 3. Назначаем стиль (теперь он применится только к этому абзацу)
     On Error Resume Next
     contPara.Style = "Листинг_Продолжение"
     If Err.Number <> 0 Then
@@ -111,7 +162,25 @@ Sub InsertContinuation(p As Paragraph, listingNumber As String)
     End If
     On Error GoTo 0
 
-    ' ГАРАНТИЯ разделения с кодом
-    ' contPara.Range.InsertParagraphAfter
+    ' 4. Вставляем разрыв страницы В НАЧАЛО этого нового абзаца.
+    ' Так мы перенесем "Продолжение..." на новую страницу,
+    ' оставив предыдущий текст со своим стилем на старой.
+    Set r = contPara.Range
+    r.Collapse wdCollapseStart
+    contPara.PageBreakBefore = True
+
+End Sub
+Sub CleanListingContinuations()
+
+    Dim p As Paragraph
+    Dim txt As String
+
+    For Each p In ActiveDocument.Paragraphs
+        txt = Trim(p.Range.Text)
+
+        If txt Like "Продолжение листинга*" Then
+            p.Range.Delete
+        End If
+    Next p
 
 End Sub
