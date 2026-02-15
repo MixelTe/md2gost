@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
+## [0.1.4] - 2026-02-15
+### Fixed
+- fix readme
+
 ## [0.1.3] - 2026-02-15
 ### Added
 - replacing "ai" dashes with common dash
