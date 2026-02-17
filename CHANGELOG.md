@@ -13,6 +13,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
+## [0.4.0] - 2026-02-17
+### Added
+- new rule to set title of document: `!!rule title My great title`
+- new rule to set author of document: `!!rule author My name`
+
 ## [0.3.1] - 2026-02-17
 ### Fixed
 - syntax highlighting: remove bold style

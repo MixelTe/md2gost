@@ -240,6 +240,8 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 		externalStyles: fs.readFileSync(path.join(assets, "styles.xml"), { encoding: "utf8" }),
 		// features: { updateFields: true },
 		numbering: { config: numbering },
+		title: doc.title,
+		creator: doc.author,
 	});
 	const buffer = await Packer.toBuffer(docx);
 	fs.writeFileSync(fout, buffer);

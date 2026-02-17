@@ -61,7 +61,7 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 				throw new Error(`PDF render error`);
 			const files = fs.readdirSync(tmpfolder).sort().map(f => path.join(tmpfolder, f));
 			const fout = path.join(fdir, fname + ".pdf");
-			await mergePDFs(files, fout);
+			await mergePDFs(files, fout, doc.title, doc.author);
 			fs.rmSync(tmpfolder, { recursive: true, force: true });
 			return fout;
 		}
@@ -128,9 +128,11 @@ function runDocxMacro(progress: SetProgressFn, assets: string, cwd: string, fin:
 }
 
 
-async function mergePDFs(files: string[], fout: string)
+async function mergePDFs(files: string[], fout: string, title: string | undefined, author: string | undefined)
 {
 	const mergedPdf = await PDFDocument.create();
+	if (title) mergedPdf.setTitle(title, { showInWindowTitleBar: true });
+	if (author) mergedPdf.setAuthor(author);
 	for (const file of files)
 	{
 		const buffer = fs.readFileSync(file);

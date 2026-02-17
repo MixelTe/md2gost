@@ -1,4 +1,4 @@
-import { Doc, tableRow, type DocNode, type NodeListItem, type NodeTable, type Rune, type Runify } from "./doc";
+import { Doc, tableRow, type DocNode, type NodeListItem, type NodeTable, type Rune, type RunicDoc, type Runify } from "./doc";
 import fs from "fs/promises";
 
 export async function parseMD(file: string)
@@ -97,10 +97,21 @@ export async function parseMD(file: string)
 	}
 	function apllyRule(text: string)
 	{
-		text = text.trim().toLowerCase();
-		if (text == "highlight code")
+		text = text.trim();
+		const textl = text.toLowerCase();
+		if (textl == "highlight code")
 		{
 			doc.codeHighlighting = true;
+			return;
+		}
+		if (textl.startsWith("title"))
+		{
+			doc.title = text.slice("title".length).trim();
+			return;
+		}
+		if (textl.startsWith("author"))
+		{
+			doc.author = text.slice("author".length).trim();
 			return;
 		}
 		console.error(`Wrong rule: "${text}"`);
@@ -259,7 +270,7 @@ function findTables(nodes: DocNode[])
 	}
 }
 
-export function runifyDoc<T extends Doc>(doc: T): Runify<T>
+export function runifyDoc(doc: Doc): RunicDoc
 {
 	function runifyNode(node: DocNode | NodeListItem)
 	{
@@ -275,7 +286,7 @@ export function runifyDoc<T extends Doc>(doc: T): Runify<T>
 	doc.sections.forEach(section =>
 		section.nodes.forEach(runifyNode)
 	);
-	return doc as Runify<T>;
+	return doc as RunicDoc;
 }
 
 function runifyText(text: string): Rune[]

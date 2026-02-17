@@ -2,6 +2,8 @@ export class Doc
 {
 	public sections: DocSection[] = [{ pageStart: 1, nodes: [] }];
 	public codeHighlighting = false;
+	public title: string | undefined;
+	public author: string | undefined;
 
 	public appendText(text: string)
 	{
@@ -48,7 +50,9 @@ export type Runify<T> = {
 	[key in keyof T]: key extends "text" | "title" ? Rune[] : Runify<T[key]>;
 };
 
-export type RunicDoc = Runify<Doc>;
+export type RunicDoc = {
+	[key in keyof Doc]: key extends "sections" ? Runify<Doc[key]> : Doc[key];
+};
 export type RunicNode = Runify<DocNode>;
 
 export interface NodeText
