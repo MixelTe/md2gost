@@ -269,7 +269,7 @@ export function runifyDoc<T extends Doc>(doc: T): Runify<T>
 function runifyText(text: string): Rune[]
 {
 	return text.replaceAll(/\s*<br>\s*/g, "\n")
-		.replaceAll("—", "-").replaceAll(" - ", " \u2013 ").replaceAll(/\s+/g, " ")
+		.replaceAll("—", "-").replaceAll(" - ", " \u2013 ")
 		.split(/(\[.*\]\(.*\))/g)
 		.map(p =>
 		{
@@ -278,7 +278,7 @@ function runifyText(text: string): Rune[]
 			return { text: m[1], link: m[2] } as Rune;
 		})
 		.map(rune => rune.text.split("\n").map((p, i) => ({
-			text: p,
+			text: p.replaceAll(/\s+/g, " "),
 			linebreak: i > 0,
 			link: rune.link,
 		}) as Rune)).flat()

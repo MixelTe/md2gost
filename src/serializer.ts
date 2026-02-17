@@ -291,8 +291,8 @@ function renderText(text: string | Rune[], small: boolean = false): ParagraphChi
 			...(rune.linebreak ? { break: 1 } : {}),
 			...(rune.bold ? { bold: true } : {}),
 			...(rune.italic ? { italics: true } : {}),
+			...(link ? { color: "0563c1", underline: { type: "single" } } : {}),
 			...(rune.color ? { color: rune.color } : {}),
-			...(link ? { style: "Hyperlink" } : {}),
 			...(small ? { size: 24 } : {}),
 		});
 	}

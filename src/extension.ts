@@ -20,9 +20,14 @@ export function activate(context: vscode.ExtensionContext)
 
 export function deactivate() { }
 
-
+let rendering = false;
 function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean)
 {
+	if (rendering)
+	{
+		vscode.window.showErrorMessage("Already rendering");
+		return;
+	}
 	const file = uri ? uri.fsPath : vscode.window.activeTextEditor?.document.fileName;
 	if (!file)
 	{
@@ -39,6 +44,7 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean)
 		{
 			try
 			{
+				rendering = true;
 				const fname = await render(
 					(increment, message) => progress.report({ increment, message }),
 					assets,
@@ -55,6 +61,10 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean)
 			catch (x)
 			{
 				vscode.window.showErrorMessage(`Error occured: ${x}`);
+			}
+			finally
+			{
+				rendering = false;
 			}
 			// token.onCancellationRequested(() =>
 			// {
