@@ -1,6 +1,5 @@
-import { Doc, tableRow, type DocNode, type NodeTable } from "./doc";
+import { Doc, tableRow, type DocNode, type NodeListItem, type NodeTable, type Rune, type Runify } from "./doc";
 import fs from "fs/promises";
-import { trimStart } from "./utils";
 
 export async function parseMD(file: string)
 {
@@ -79,7 +78,7 @@ export async function parseMD(file: string)
 	function parseCode(text: string)
 	{
 		const header = text.split(" ");
-		const node: DocNode = { type: "code", lang: header[0]!, name: header.slice(1).join(" "), text: "" };
+		const node: DocNode = { type: "code", lang: header[0]!, title: header.slice(1).join(" "), code: "" };
 		text = "";
 		while (lineI < lines.length)
 		{
@@ -87,7 +86,7 @@ export async function parseMD(file: string)
 			if (ln.startsWith("```")) break;
 			text += "\n" + ln;
 		}
-		node.text = text.trim();
+		node.code = text.trim();
 		return node;
 	}
 	function parseSection(text: string): DocNode
@@ -246,4 +245,63 @@ function findTables(nodes: DocNode[])
 			table.title = prev.text;
 		}
 	}
+}
+
+export function runifyDoc<T extends Doc>(doc: T): Runify<T>
+{
+	function runifyNode(node: DocNode | NodeListItem)
+	{
+		if ("text" in node)
+			node.text = runifyText(node.text) as any;
+		if ("title" in node && node.title)
+			node.title = runifyText(node.title) as any;
+		if (node.type == "table")
+			node.rows.forEach(row => row.forEach(runifyNode))
+		if (node.type == "list")
+			node.items.forEach(runifyNode)
+	}
+	doc.sections.forEach(section =>
+		section.nodes.forEach(runifyNode)
+	);
+	return doc as Runify<T>;
+}
+
+function runifyText(text: string): Rune[]
+{
+	return text.replaceAll(/\s*<br>\s*/g, "\n")
+		.replaceAll("—", "-").replaceAll(" - ", " \u2013 ").replaceAll(/\s+/g, " ")
+		.split(/(\[.*\]\(.*\))/g)
+		.map(p =>
+		{
+			const m = /\[(.*)\]\((.*)\)/.exec(p);
+			if (!m) return { text: p } as Rune;
+			return { text: m[1], link: m[2] } as Rune;
+		})
+		.map(rune => rune.text.split("\n").map((p, i) => ({
+			text: p,
+			linebreak: i > 0,
+			link: rune.link,
+		}) as Rune)).flat()
+		.map(rune => rune.text.split("***").map((p, i) => ({
+			text: p,
+			linebreak: i == 0 && rune.linebreak,
+			link: rune.link,
+			bold: i % 2 == 1,
+			italic: i % 2 == 1,
+		}) as Rune)).flat()
+		.map(rune => rune.text.split("**").map((p, i) => ({
+			text: p,
+			linebreak: i == 0 && rune.linebreak,
+			link: rune.link,
+			bold: i % 2 == 1 || rune.bold,
+			italic: rune.italic,
+		}) as Rune)).flat()
+		.map(rune => rune.text.split("*").map((p, i) => ({
+			text: p,
+			linebreak: i == 0 && rune.linebreak,
+			link: rune.link,
+			bold: rune.bold,
+			italic: i % 2 == 1 || rune.italic,
+		}) as Rune)).flat()
+		;
 }

@@ -32,6 +32,24 @@ export type DocNode =
 	NodeText | NodeTitle | NodePageBreak | NodeTableOfContents | NodeTable
 	| NodeList | NodeImage | NodeCode | NodeExternalDoc | NodeSectionBreak;
 
+export interface Rune
+{
+	text: string,
+	anchor?: string,
+	link?: string,
+	color?: string,
+	bold?: boolean,
+	italic?: boolean,
+	linebreak?: boolean,
+}
+
+export type Runify<T> = {
+	[key in keyof T]: key extends "text" | "title" ? Rune[] : Runify<T[key]>;
+};
+
+export type RunicDoc = Runify<Doc>;
+export type RunicNode = Runify<DocNode>;
+
 export interface NodeText
 {
 	type: "text",
@@ -94,8 +112,8 @@ export interface NodeCode
 {
 	type: "code",
 	lang: string,
-	name: string,
-	text: string,
+	title: string,
+	code: string,
 }
 
 export interface NodeExternalDoc

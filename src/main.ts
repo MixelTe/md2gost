@@ -1,12 +1,12 @@
 import path from "path";
-import { parseMD } from "./parser";
+import { parseMD, runifyDoc } from "./parser";
 import { serializeDocx } from "./serializer";
 import { checkIfFileIsBlocked, choice, lt, trimEnd, type SetProgressFn } from "./utils";
 import { enrichDoc } from "./enricher";
 import { execSync, spawn, spawnSync } from "child_process";
 import fs from "fs";
 import { PDFDocument } from "pdf-lib";
-import type { Doc } from "./doc";
+import type { Doc, RunicDoc } from "./doc";
 
 const DISABLE_MACRO = false;
 
@@ -23,6 +23,9 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 	enrichDoc(doc);
 	console.log(doc);
 
+	const runicDoc = runifyDoc(doc);
+	console.log(runicDoc);
+
 	const p = path.parse(fin);
 	const fdir = p.dir;
 	const fname = trimEnd(p.name, ".g");
@@ -34,8 +37,8 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 		throw new Error(`Output file is busy or locked: ${fout}`);
 	// progress(10, "Rendering to docx");
 	progress(10, phrase_renderDocx());
-	await serializeDocx(doc, ftmp, fdir, assets);
-	if (renderPDF || hasReasonForRunningMacros(doc))
+	await serializeDocx(runicDoc, ftmp, fdir, assets);
+	if (renderPDF || hasReasonForRunningMacros(runicDoc))
 	{
 		// progress(20, "Running complex macros");
 		progress(20, phrase_runMacros());
@@ -70,7 +73,7 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 	return fout;
 }
 
-function hasReasonForRunningMacros(doc: Doc)
+function hasReasonForRunningMacros(doc: RunicDoc)
 {
 	if (DISABLE_MACRO) return false;
 	return doc.sections.some(s => s.nodes.some(n => n.type == "code"));

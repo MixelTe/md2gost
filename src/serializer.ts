@@ -1,6 +1,6 @@
 import * as fs from "fs";
-import { AlignmentType, Document, Footer, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun } from "docx";
-import type { Doc, DocNode, NodeList } from "./doc";
+import { AlignmentType, Document, Footer, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark } from "docx";
+import type { DocNode, NodeList, Rune, RunicDoc, RunicNode, Runify } from "./doc";
 import type { DeepWriteable } from "./utils";
 import { imageSize } from 'image-size';
 import path from "path";
@@ -11,7 +11,7 @@ const STYLE_code = "af6";
 
 type IListItem = DeepWriteable<INumberingOptions>["config"][number];
 type IListItemLevel = IListItem["levels"][number]
-export async function serializeDocx(doc: Doc, fout: string, workdir: string, assets: string)
+export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string, assets: string)
 {
 	const getPath = (fname: string) => path.join(workdir, fname);
 	const sections: ISectionOptions[] = [];
@@ -72,7 +72,7 @@ export async function serializeDocx(doc: Doc, fout: string, workdir: string, ass
 			},
 		});
 
-		function renderNode(node: DocNode, prevChild?: FileChild): FileChild | FileChild[]
+		function renderNode(node: RunicNode, prevChild?: FileChild): FileChild | FileChild[]
 		{
 			switch (node.type)
 			{
@@ -107,7 +107,7 @@ export async function serializeDocx(doc: Doc, fout: string, workdir: string, ass
 					const items: FileChild[] = [];
 					let addMargin = prevChild instanceof Table;
 					renderList(node);
-					function renderList(node: NodeList, level: number = 0)
+					function renderList(node: Runify<NodeList>, level: number = 0)
 					{
 						addListItemLevel(list.levels, level, node.startIndex, !!node.ordered, !!node.alternativeStyle);
 						for (const item of node.items)
@@ -141,13 +141,11 @@ export async function serializeDocx(doc: Doc, fout: string, workdir: string, ass
 						new Table({
 							rows: node.rows.map((row, rowI) => new TableRow({
 								tableHeader: rowI == 0,
+								cantSplit: true,
 								children: row.map(item => new TableCell({
 									children: item.type != "text" ? renderNodeL(item) : [
 										new Paragraph({
-											children: [new TextRun({
-												text: item.text,
-												...(node.normalFontSize ? {} : { size: 24 }),
-											})],
+											children: renderText(item.text, !node.normalFontSize),
 											alignment: rowI == 0 ? "center" : "left",
 											indent: { firstLine: 0 },
 											spacing: { after: 0, line: 240 * 1.25 },
@@ -201,10 +199,10 @@ export async function serializeDocx(doc: Doc, fout: string, workdir: string, ass
 				case "code":
 					return [
 						new Paragraph({
-							children: renderText(node.name),
+							children: renderText(node.title),
 							style: STYLE_code_title,
 						}),
-						...node.text.split("\n").map(p =>
+						...node.code.split("\n").map(p =>
 							new Paragraph({
 								children: [new TextRun(p)],
 								style: STYLE_code,
@@ -221,7 +219,7 @@ export async function serializeDocx(doc: Doc, fout: string, workdir: string, ass
 					throw new Error("switch default");
 			}
 		}
-		function renderNodeL(node: DocNode, prevChild?: FileChild)
+		function renderNodeL(node: RunicNode, prevChild?: FileChild)
 		{
 			const r = renderNode(node, prevChild);
 			if (r instanceof Array) return r;
@@ -272,13 +270,34 @@ function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: n
 	});
 }
 
-function renderText(text: string): ParagraphChild[]
+function renderText(text: string | Rune[], small: boolean = false): ParagraphChild[]
 {
-	return text.split("\n").map((p, i) => new TextRun({
-		text: p.replaceAll("—", "-").replaceAll(" - ", " \u2013 ").replaceAll(/\s+/g, " "),
-		language: { value: "ru-RU" },
-		...(i == 0 ? {} : { break: 1 }),
-	}));
+	function renderRune(rune: Rune, link: boolean = false): ParagraphChild
+	{
+		if (rune.anchor) return new Bookmark({
+			id: rune.anchor,
+			children: [renderRune({ ...rune, anchor: undefined })],
+		})
+		if (rune.link)
+		{
+			const children = [renderRune({ ...rune, link: undefined }, true)];
+			return rune.link.startsWith("#") ?
+				new InternalHyperlink({ children, anchor: rune.link.slice(1) }) :
+				new ExternalHyperlink({ children, link: rune.link });
+		}
+		return new TextRun({
+			text: rune.text,
+			language: { value: "ru-RU" },
+			...(rune.linebreak ? { break: 1 } : {}),
+			...(rune.bold ? { bold: true } : {}),
+			...(rune.italic ? { italics: true } : {}),
+			...(rune.color ? { color: rune.color } : {}),
+			...(link ? { style: "Hyperlink" } : {}),
+			...(small ? { size: 24 } : {}),
+		});
+	}
+	if (typeof text == "string") text = [{ text }];
+	return text.map(r => renderRune(r));
 }
 // const docx = new Document({
 // 	sections,

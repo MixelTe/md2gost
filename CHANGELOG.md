@@ -13,6 +13,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
+## [0.2.0] - 2026-02-17
+### Added
+- break line by `<br>`
+- text decorations parsing: bold, italic, links
+### Fixed
+- disable row spliting in table
+
 ## [0.1.7] - 2026-02-15
 ### Fixed
 - fix AutoListingContinuation
