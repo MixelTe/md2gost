@@ -1,5 +1,6 @@
 import { Doc, tableRow, type DocNode, type NodeListItem, type NodeTable, type Rune, type RunicDoc, type Runify } from "./doc";
 import fs from "fs/promises";
+import { hslToHex } from "./utils";
 
 export async function parseMD(file: string)
 {
@@ -99,22 +100,11 @@ export async function parseMD(file: string)
 	{
 		text = text.trim();
 		const textl = text.toLowerCase();
-		if (textl == "highlight code")
-		{
-			doc.codeHighlighting = true;
-			return;
-		}
-		if (textl.startsWith("title"))
-		{
-			doc.title = text.slice("title".length).trim();
-			return;
-		}
-		if (textl.startsWith("author"))
-		{
-			doc.author = text.slice("author".length).trim();
-			return;
-		}
-		console.error(`Wrong rule: "${text}"`);
+		if (textl == "highlight code") doc.codeHighlighting = true;
+		else if (textl == "rainbow") doc.rainbow = true;
+		else if (textl.startsWith("title")) doc.title = text.slice("title".length).trim();
+		else if (textl.startsWith("author")) doc.author = text.slice("author".length).trim();
+		else console.error(`Wrong rule: "${text}"`);
 	}
 
 	let lineI = 0;
@@ -275,9 +265,9 @@ export function runifyDoc(doc: Doc): RunicDoc
 	function runifyNode(node: DocNode | NodeListItem)
 	{
 		if ("text" in node)
-			node.text = runifyText(node.text) as any;
+			node.text = runifyText(node.text, doc.rainbow) as any;
 		if ("title" in node && node.title)
-			node.title = runifyText(node.title) as any;
+			node.title = runifyText(node.title, doc.rainbow) as any;
 		if (node.type == "table")
 			node.rows.forEach(row => row.forEach(runifyNode));
 		if (node.type == "list")
@@ -289,7 +279,8 @@ export function runifyDoc(doc: Doc): RunicDoc
 	return doc as RunicDoc;
 }
 
-function runifyText(text: string): Rune[]
+let rainbowI = 0;
+function runifyText(text: string, rainbow = false): Rune[]
 {
 	return text.replaceAll(/\s*<br>\s*/g, "\n")
 		.replaceAll("—", "-").replaceAll(" - ", " \u2013 ")
@@ -326,6 +317,14 @@ function runifyText(text: string): Rune[]
 			link: rune.link,
 			bold: rune.bold,
 			italic: i % 2 == 1 || rune.italic,
+		}) as Rune)).flat()
+		.map(rune => !rainbow ? [rune] : rune.text.split("").map((p, i) => ({
+			text: p,
+			linebreak: i == 0 && rune.linebreak,
+			link: rune.link,
+			bold: rune.bold,
+			italic: rune.italic,
+			color: hslToHex(rainbowI++ % 360, 100, 50),
 		}) as Rune)).flat()
 		;
 }

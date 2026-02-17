@@ -226,3 +226,8 @@
 !!rule title Мой отчёт
 !!rule author Иванов П.С.
 ```
+
+### Что-то ещё
+```
+!!rule rainbow
+```

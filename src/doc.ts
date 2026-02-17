@@ -2,6 +2,7 @@ export class Doc
 {
 	public sections: DocSection[] = [{ pageStart: 1, nodes: [] }];
 	public codeHighlighting = false;
+	public rainbow = false;
 	public title: string | undefined;
 	public author: string | undefined;
 
