@@ -256,9 +256,9 @@ export function runifyDoc<T extends Doc>(doc: T): Runify<T>
 		if ("title" in node && node.title)
 			node.title = runifyText(node.title) as any;
 		if (node.type == "table")
-			node.rows.forEach(row => row.forEach(runifyNode))
+			node.rows.forEach(row => row.forEach(runifyNode));
 		if (node.type == "list")
-			node.items.forEach(runifyNode)
+			node.items.forEach(runifyNode);
 	}
 	doc.sections.forEach(section =>
 		section.nodes.forEach(runifyNode)
@@ -270,6 +270,7 @@ function runifyText(text: string): Rune[]
 {
 	return text.replaceAll(/\s*<br>\s*/g, "\n")
 		.replaceAll("—", "-").replaceAll(" - ", " \u2013 ")
+		.replaceAll(/"(([^"\n])*?)"/g, "«$1»")
 		.split(/(\[.*\]\(.*\))/g)
 		.map(p =>
 		{

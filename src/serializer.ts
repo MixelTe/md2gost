@@ -277,7 +277,7 @@ function renderText(text: string | Rune[], small: boolean = false): ParagraphChi
 		if (rune.anchor) return new Bookmark({
 			id: rune.anchor,
 			children: [renderRune({ ...rune, anchor: undefined })],
-		})
+		});
 		if (rune.link)
 		{
 			const children = [renderRune({ ...rune, link: undefined }, true)];
