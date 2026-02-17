@@ -1,6 +1,7 @@
 export class Doc
 {
 	public sections: DocSection[] = [{ pageStart: 1, nodes: [] }];
+	public codeHighlighting = false;
 
 	public appendText(text: string)
 	{

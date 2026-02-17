@@ -2,7 +2,7 @@ import * as fs from "fs";
 import { AlignmentType, Document, Footer, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark } from "docx";
 import type { DocNode, NodeList, Rune, RunicDoc, RunicNode, Runify } from "./doc";
 import type { DeepWriteable } from "./utils";
-import { imageSize } from 'image-size';
+import { imageSize } from "image-size";
 import path from "path";
 
 const STYLE_list = "aff0";
@@ -197,16 +197,18 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						}),
 					];
 				case "code":
+					const code = doc.codeHighlighting && renderCodeHighlighting(node.code, node.lang);
 					return [
 						new Paragraph({
 							children: renderText(node.title),
 							style: STYLE_code_title,
 						}),
-						...node.code.split("\n").map(p =>
-							new Paragraph({
-								children: [new TextRun(p)],
-								style: STYLE_code,
-							})
+						...(code ? code :
+							node.code.split("\n").map(p =>
+								new Paragraph({
+									children: [new TextRun(p)],
+									style: STYLE_code,
+								}))
 						),
 					];
 				case "externalDoc":
@@ -215,7 +217,10 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						indent: { firstLine: 0 },
 						alignment: "left",
 					});
+				case "sectionBreak":
+					return []
 				default:
+					node satisfies never;
 					throw new Error("switch default");
 			}
 		}
@@ -343,3 +348,175 @@ function renderText(text: string | Rune[], small: boolean = false): ParagraphChi
 // 		],
 // 	},
 // });
+
+import Prism from "prismjs";
+import "prismjs/components/prism-clike";
+
+import "prismjs/components/prism-markup"; // html, xml
+import "prismjs/components/prism-css";
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-typescript";
+import "prismjs/components/prism-jsx";
+import "prismjs/components/prism-tsx";
+import "prismjs/components/prism-json";
+import "prismjs/components/prism-bash";
+import "prismjs/components/prism-powershell";
+import "prismjs/components/prism-python";
+import "prismjs/components/prism-java";
+import "prismjs/components/prism-c";
+import "prismjs/components/prism-cpp";
+import "prismjs/components/prism-csharp";
+import "prismjs/components/prism-go";
+import "prismjs/components/prism-rust";
+import "prismjs/components/prism-php";
+import "prismjs/components/prism-ruby";
+import "prismjs/components/prism-swift";
+import "prismjs/components/prism-kotlin";
+import "prismjs/components/prism-sql";
+import "prismjs/components/prism-yaml";
+import "prismjs/components/prism-markdown";
+import "prismjs/components/prism-docker";
+import "prismjs/components/prism-nginx";
+
+
+function renderCodeHighlighting(code: string, lang: string)
+{
+	const grammar = Prism.languages[lang.trim().toLowerCase()];
+	if (!grammar) return null;
+
+	const themeColors = {
+		// shared
+		"plain": "000000",
+		"comment": "008000",
+		"punctuation": "000000",
+		"operator": "000000",
+
+		// keywords & control flow
+		"keyword": "0000ff",
+		"boolean": "0000ff",
+		"builtin": "0000ff",
+		"important": "0000ff",
+
+		// literals
+		"string": lang === "css" ? "0451a5" // CSS values/constants
+			: lang === "json" ? "a31515" : "a31515",
+		"number": "098658",
+		"constant": "0000ff",
+		"symbol": "0000ff",
+		"char": "a31515",
+
+		// identifiers
+		"class-name": lang === "js" || lang === "ts"
+			? "267f99"      // types / classes
+			: "0451a5",
+		"function": "0451a5",
+		"variable": "000000",
+		"namespace": "000000",
+		"property": lang === "css"
+			? "e50000"
+			: "0451a5",
+
+		// markup / HTML / XML
+		"tag": lang === "html" || lang === "xml" ? "800000" : "0000ff",
+		"selector": "800000",
+		"attr-name": "e50000",
+		"attr-value": "a31515",
+		"entity": "800000",
+		"doctype": "808080",
+		"cdata": "808080",
+		"prolog": "808080",
+
+		// CSS specific
+		"atrule": "0000ff",
+		"url": "0451a5",
+
+		// regex
+		"regex": "811f3f",
+	} as any;
+
+	// const themeColors = {
+	// 	"atrule": "07a07a",
+	// 	"attr-name": "690690",
+	// 	"attr-value": "07a07a",
+	// 	"boolean": "905905",
+	// 	"builtin": "690690",
+	// 	"cdata": "708090",
+	// 	"char": "690690",
+	// 	"class-name": "dd4a68",
+	// 	"comment": "708090",
+	// 	"constant": "905905",
+	// 	"doctype": "708090",
+	// 	"entity": "9a6e3a",
+	// 	"function": "dd4a68",
+	// 	"important": "e90e90",
+	// 	"keyword": "07a07a",
+	// 	"namespace": "484848",
+	// 	"number": "905905",
+	// 	"operator": "9a6e3a",
+	// 	"prolog": "708090",
+	// 	"property": "905905",
+	// 	"punctuation": "999999",
+	// 	"regex": "e90e90",
+	// 	"selector": "690690",
+	// 	"string": lang == "css" ? "9a6e3a" : "690690",
+	// 	"symbol": "905905",
+	// 	"tag": "905905",
+	// 	"url": "9a6e3a",
+	// 	"variable": "e90e90",
+	// 	"plain": "000000"
+	// } as any;
+
+	const tokens = Prism.tokenize(code, grammar);
+	return tokensToParagraphs(tokens);
+
+	function tokensToParagraphs(tokens: (string | Prism.Token)[])
+	{
+		const paragraphs: Paragraph[] = [];
+		let currentRuns: ParagraphChild[] = [];
+
+		function addText(text: string, type: string)
+		{
+			const lines = text.split("\n");
+
+			lines.forEach((line, index) =>
+			{
+				currentRuns.push(
+					new TextRun({
+						text: line,
+						color: themeColors[type] || themeColors["plain"],
+						bold: type === "keyword" || type === "bold",
+						italics: type === "italic",
+					})
+				);
+
+				if (index < lines.length - 1)
+				{
+					paragraphs.push(new Paragraph({ children: currentRuns, style: STYLE_code }));
+					currentRuns = [];
+				}
+			});
+		}
+
+		function process(token: string | Prism.Token, parentType = "plain")
+		{
+			if (typeof token === "string")
+				addText(token, parentType);
+			else if (Array.isArray(token.content))
+				token.content.forEach(t => process(t, token.type));
+			else if (typeof token.content === "string")
+				addText(token.content, token.type);
+			else
+				process(token.content, token.type);
+		}
+
+		tokens.forEach(t => process(t));
+
+		if (currentRuns.length > 0)
+		{
+			paragraphs.push(new Paragraph({ children: currentRuns, style: STYLE_code }));
+		}
+
+		return paragraphs;
+	}
+
+}

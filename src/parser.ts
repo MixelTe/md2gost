@@ -95,6 +95,16 @@ export async function parseMD(file: string)
 		const num = match ? parseInt(match[1] || "") : NaN;
 		return { type: "sectionBreak", pageStart: isFinite(num) ? num : null };
 	}
+	function apllyRule(text: string)
+	{
+		text = text.trim().toLowerCase();
+		if (text == "highlight code")
+		{
+			doc.codeHighlighting = true;
+			return;
+		}
+		console.error(`Wrong rule: "${text}"`);
+	}
 
 	let lineI = 0;
 	while (lineI < lines.length)
@@ -115,6 +125,7 @@ export async function parseMD(file: string)
 			case "Code": doc.appendNode(parseCode(text)); break;
 			case "Comment": break;
 			case "!!section": doc.appendNode(parseSection(text)); break;
+			case "!!rule": apllyRule(text); break;
 
 			case "":
 			case "\t":
@@ -128,6 +139,7 @@ export async function parseMD(file: string)
 				break;
 
 			default:
+				prefix satisfies never;
 				throw new Error("switch default");
 		}
 	}
@@ -141,7 +153,7 @@ export async function parseMD(file: string)
 
 const re_img = /!\[(.*)\]\((.*)\)({(.*)})?/;
 
-type Prefix = "" | "#" | "##" | "###" | "####" | "#####" | "######" | "*" | "1)" | "\t" | "Img" | "Code" | "Comment" | "!!section";
+type Prefix = "" | "#" | "##" | "###" | "####" | "#####" | "######" | "*" | "1)" | "\t" | "Img" | "Code" | "Comment" | "!!section" | "!!rule";
 function parseLine(line: string): { prefix: Prefix, text: string, level: number, parts: string[] }
 {
 	let level = 0;
@@ -178,7 +190,7 @@ function parseLine(line: string): { prefix: Prefix, text: string, level: number,
 	}
 	if (prefix.startsWith("```")) return { prefix: "Code", text: line.trim().slice(3), level, parts };
 	if (prefix.startsWith("<!--")) return { prefix: "Comment", text: line.trim().slice("<!--".length).trim(), level, parts };
-	if (["#", "##", "###", "####", "#####", "######", "*", "1)", "!!section"].includes(prefix))
+	if (["#", "##", "###", "####", "#####", "######", "*", "1)", "!!section", "!!rule"].includes(prefix))
 		return { prefix: prefix as Prefix, text, level: 0, parts };
 	return { prefix: "", text: line.trim(), level, parts };
 }

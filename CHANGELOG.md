@@ -13,6 +13,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
+## [0.3.0] - 2026-02-17
+### Added
+- syntax highlighting in code blocks
+	- is enabled by adding `!!rule highlight code` anywhere in file
+	- suports: html, xml, css, js, ts, jsx, tsx, json, bash, powershell, python, java, c, cpp, csharp, go, rust, php, ruby, swift, kotlin, sql, yaml, markdown, docker, nginx
+
 ## [0.2.1] - 2026-02-17
 ### Added
 - replacing quotes: "abc" to «abc»

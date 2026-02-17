@@ -3,7 +3,7 @@
   "displayName": "md2gost",
   "description": "Converts markdown to docx format, trying to comply with GOST standards",
   "icon": "./imgs/icon.png",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "publisher": "MixelTe",
   "repository": {
     "url": "https://github.com/MixelTe/md2gost",
@@ -68,6 +68,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
+    "@types/prismjs": "^1.26.6",
     "@types/vscode": "^1.109.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
@@ -81,6 +82,7 @@
   "dependencies": {
     "docx": "^9.5.1",
     "image-size": "^2.0.2",
-    "pdf-lib": "^1.17.1"
+    "pdf-lib": "^1.17.1",
+    "prismjs": "^1.30.0"
   }
 }

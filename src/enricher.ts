@@ -106,7 +106,7 @@ export function enrichDoc(doc: Doc)
 			enrichList(node, true);
 			function enrichList(list: NodeList, isLastItem: boolean, isSubList: boolean = false)
 			{
-				const isLongList = 5 < Math.max(...list.items.filter(v => v.type == "listItem").map(v => v.text.split(/\s+/).length));
+				const isLongList = 3 < Math.max(...list.items.filter(v => v.type == "listItem").map(v => v.text.split(/\s+/).length));
 				const hasSublist = list.items.some(v => v.type == "list");
 				const ending = isLongList || hasSublist || isSubList ? ";" : ",";
 				for (let i = 0; i < list.items.length; i++)
