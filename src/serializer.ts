@@ -218,7 +218,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						alignment: "left",
 					});
 				case "sectionBreak":
-					return []
+					return [];
 				default:
 					node satisfies never;
 					throw new Error("switch default");
@@ -484,7 +484,7 @@ function renderCodeHighlighting(code: string, lang: string)
 					new TextRun({
 						text: line,
 						color: themeColors[type] || themeColors["plain"],
-						bold: type === "keyword" || type === "bold",
+						bold: type === "bold",
 						italics: type === "italic",
 					})
 				);

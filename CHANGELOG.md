@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
+## [0.3.1] - 2026-02-17
+### Fixed
+- syntax highlighting: remove bold style
+
 ## [0.3.0] - 2026-02-17
 ### Added
 - syntax highlighting in code blocks
