@@ -198,7 +198,7 @@ function parseLine(line: string): { prefix: Prefix, text: string, level: number,
 
 function findDocs(nodes: DocNode[])
 {
-	const re_doc = /^!!\((.*)\){(.*)}$/s;
+	const re_doc = /^!!\((.*)\)\s*{(.*)}$/s;
 	const re_remTrailingComma = /,(\s*[}\]])/g;
 	for (let i = 0; i < nodes.length; i++)
 	{
