@@ -172,6 +172,7 @@ export async function parseMD(file: string)
 	sec.nodes = sec.nodes.filter(n => n.type != "text" || n.text != "");
 	findDocs(sec.nodes);
 	findTables(sec.nodes);
+	findPageBreaks(sec.nodes);
 
 	return doc;
 }
@@ -281,6 +282,31 @@ function findTables(nodes: DocNode[])
 			nodes.splice(i - 1, 1);
 			table.title = prev.text;
 		}
+	}
+}
+
+function findPageBreaks(nodes: DocNode[])
+{
+	const re_sep = /^\s*---+\s*$/;
+	for (let i = 0; i < nodes.length; i++)
+	{
+		const node = nodes[i]!;
+		if (node.type != "text") continue;
+		if (!node.text.includes("---")) continue;
+		const lines = node.text.split("\n");
+		const newNodes = [] as DocNode[];
+		for (const line of lines)
+		{
+			if (re_sep.test(line)) newNodes.push({ type: "pageBreak" });
+			else
+			{
+				const last = newNodes.at(-1);
+				if (last?.type == "text") last.text += "\n" + line;
+				else newNodes.push({ type: "text", text: line, noIndent: node.noIndent, noMargin: node.noMargin });
+			}
+		}
+		nodes.splice(i, 1, ...newNodes);
+		i += newNodes.length - 1;
 	}
 }
 

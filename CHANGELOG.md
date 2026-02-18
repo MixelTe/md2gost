@@ -13,6 +13,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
+## [0.5.1] - 2026-02-18
+### Added
+- replacing `---` with page break
+### Fixed
+- fix using absolute path for images and external doc
+- save .md file before rendering
+
 ## [0.5.0] - 2026-02-18
 ### Added
 - insert non-breaking space by `&nbsp;`

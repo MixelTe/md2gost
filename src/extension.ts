@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { render } from "./main";
-import { openFile } from "./utils";
+import { openFile, trimStart } from "./utils";
 
 export function activate(context: vscode.ExtensionContext)
 {
@@ -45,6 +45,7 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean)
 			try
 			{
 				rendering = true;
+				await vscode.window.activeTextEditor?.document.save();
 				const fname = await render(
 					(increment, message) => progress.report({ increment, message }),
 					assets,
@@ -60,7 +61,8 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean)
 			}
 			catch (x)
 			{
-				vscode.window.showErrorMessage(`Error occured: ${x}`);
+				x = trimStart(`${x}`, "Error: ");
+				vscode.window.showErrorMessage(`Error: ${x}`);
 			}
 			finally
 			{

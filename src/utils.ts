@@ -46,7 +46,7 @@ export function trimStart(str: string, ...chs: string[])
 	{
 		trimmed = false;
 		for (const ch of chs)
-			while (str.endsWith(ch))
+			while (str.startsWith(ch))
 			{
 				str = str.slice(ch.length);
 				trimmed = true;

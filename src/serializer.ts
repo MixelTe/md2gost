@@ -13,7 +13,7 @@ type IListItem = DeepWriteable<INumberingOptions>["config"][number];
 type IListItemLevel = IListItem["levels"][number]
 export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string, assets: string)
 {
-	const getPath = (fname: string) => path.join(workdir, fname);
+	const getPath = (fname: string) => path.isAbsolute(fname) ? fname : path.join(workdir, fname);
 	const sections: ISectionOptions[] = [];
 	const numbering: DeepWriteable<INumberingOptions>["config"] = [];
 
@@ -167,7 +167,10 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					const type = node.src.split(".").at(-1) || "";
 					if (!["jpg", "png", "gif", "bmp", "svg"].includes(type))
 						throw new Error(`Unsupported image format: "${type}", file: ${node.src}`);
-					const data = fs.readFileSync(getPath(node.src));
+					const img_path = getPath(node.src);
+					if (!fs.existsSync(img_path))
+						throw new Error(`File not exist: ${node.src}`);
+					const data = fs.readFileSync(img_path);
 					const dimensions = imageSize(data);
 					const [MaxW, MaxH] = [600, 800];
 					let [width, height] = [dimensions.width, dimensions.height];
@@ -217,8 +220,13 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						),
 					];
 				case "externalDoc":
+					const doc_path = getPath(node.path);
+					if (!fs.existsSync(doc_path))
+						throw new Error(`File not exist: ${node.path}`);
+					if (path.extname(doc_path) != ".docx")
+						throw new Error(`File not .docx: ${node.path}`);
 					return new Paragraph({
-						text: `!!(${getPath(node.path)})${JSON.stringify(node.dict)}`,
+						text: `!!(${doc_path})${JSON.stringify(node.dict)}`,
 						indent: { firstLine: 0 },
 						alignment: "left",
 					});
