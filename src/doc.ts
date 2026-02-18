@@ -5,6 +5,9 @@ export class Doc
 	public rainbow = false;
 	public title: string | undefined;
 	public author: string | undefined;
+	public etime: number | undefined;
+	public ctime: Date | undefined;
+	public mtime: Date | undefined;
 
 	public appendText(text: string)
 	{
@@ -108,7 +111,7 @@ export interface NodeListItem
 export interface NodeImage
 {
 	type: "image",
-	text: string,
+	text?: string,
 	src: string,
 	width: number | null,
 	height: number | null,
@@ -118,7 +121,7 @@ export interface NodeCode
 {
 	type: "code",
 	lang: string,
-	title: string,
+	title?: string,
 	code: string,
 }
 

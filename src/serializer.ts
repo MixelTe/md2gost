@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import { AlignmentType, Document, Footer, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark } from "docx";
 import type { DocNode, NodeList, Rune, RunicDoc, RunicNode, Runify } from "./doc";
-import type { DeepWriteable } from "./utils";
+import { randomInt, type DeepWriteable } from "./utils";
 import { imageSize } from "image-size";
 import path from "path";
 
@@ -180,6 +180,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						new Paragraph({
 							alignment: "center",
 							indent: { firstLine: 0 },
+							spacing: { line: 240 },
 							keepNext: true,
 							children: [
 								new ImageRun({
@@ -189,20 +190,24 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 								}),
 							],
 						}),
-						new Paragraph({
-							children: renderText(node.text),
-							alignment: "center",
-							indent: { firstLine: 0 },
-							spacing: { line: 240 }
-						}),
+						...(node.text ? [
+							new Paragraph({
+								children: renderText(node.text),
+								alignment: "center",
+								indent: { firstLine: 0 },
+								spacing: { line: 240 },
+							}),
+						] : []),
 					];
 				case "code":
 					const code = doc.codeHighlighting && renderCodeHighlighting(node.code, node.lang);
 					return [
-						new Paragraph({
-							children: renderText(node.title),
-							style: STYLE_code_title,
-						}),
+						...(node.title ? [
+							new Paragraph({
+								children: renderText(node.title),
+								style: STYLE_code_title,
+							})
+						] : []),
 						...(code ? code :
 							node.code.split("\n").map(p =>
 								new Paragraph({
@@ -240,10 +245,22 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 		externalStyles: fs.readFileSync(path.join(assets, "styles.xml"), { encoding: "utf8" }),
 		// features: { updateFields: true },
 		numbering: { config: numbering },
-		title: doc.title,
-		creator: doc.author,
+		// title: doc.title,
+		// creator: doc.author,
+		// lastModifiedBy: doc.author,
 	});
-	const buffer = await Packer.toBuffer(docx);
+	const buffer = await Packer.toBuffer(docx, undefined, [
+		{ path: "docProps/app.xml", data: genXml_app({ totalTime: doc.etime }) },
+		{
+			path: "docProps/core.xml",
+			data: genXml_core({
+				title: doc.title,
+				creator: doc.author,
+				createdAt: doc.ctime,
+				modifiedAt: doc.mtime,
+			})
+		},
+	]);
 	fs.writeFileSync(fout, buffer);
 }
 
@@ -521,4 +538,26 @@ function renderCodeHighlighting(code: string, lang: string)
 		return paragraphs;
 	}
 
+}
+
+function genXml_app({ totalTime }: { totalTime?: number })
+{
+	return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+<TotalTime>${totalTime || randomInt(30, 120)}</TotalTime>
+</Properties>
+	`;
+}
+function genXml_core({ title, creator, createdAt, modifiedAt }: { title?: string, creator?: string, createdAt?: Date, modifiedAt?: Date })
+{
+	if (!createdAt) createdAt = new Date();
+	if (!modifiedAt) modifiedAt = new Date();
+	return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<dc:title>${title || "Document"}</dc:title>
+<dc:creator>${creator || "Student"}</dc:creator>
+<cp:lastModifiedBy>${creator || "Student"}</cp:lastModifiedBy>
+<dcterms:created xsi:type="dcterms:W3CDTF">${createdAt.toISOString()}</dcterms:created>
+<dcterms:modified xsi:type="dcterms:W3CDTF">${modifiedAt.toISOString()}</dcterms:modified>
+</cp:coreProperties>`;
 }

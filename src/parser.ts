@@ -1,12 +1,21 @@
 import { Doc, tableRow, type DocNode, type NodeListItem, type NodeTable, type Rune, type RunicDoc, type Runify } from "./doc";
 import fs from "fs/promises";
-import { hslToHex } from "./utils";
+import { hslToHex, toCapitalCase, trimEnd } from "./utils";
+import path from "path";
 
 export async function parseMD(file: string)
 {
 	const lines = (await fs.readFile(file, { encoding: "utf8" })).split("\n");
 	const doc = new Doc();
 	const sec = doc.sections[0]!;
+
+	try
+	{
+		doc.title = toCapitalCase(trimEnd(path.parse(file).name, ".g"));
+		const stats = await fs.stat(file);
+		doc.ctime = stats.birthtime;
+	}
+	catch { }
 
 	function parseList(text: string, parts: string[], ordered: boolean, level: number = 0)
 	{
@@ -62,7 +71,7 @@ export async function parseMD(file: string)
 	}
 	function parseImg(parts: string[]): DocNode
 	{
-		const text = parts[0]!.replaceAll("\\n", "\n");
+		const text = parts[0]!.replaceAll("\\n", "\n").trim() || undefined;
 		const size = parts[2];
 		let width: number | null = null;
 		let height: number | null = null;
@@ -79,7 +88,8 @@ export async function parseMD(file: string)
 	function parseCode(text: string)
 	{
 		const header = text.split(" ");
-		const node: DocNode = { type: "code", lang: header[0]!, title: header.slice(1).join(" "), code: "" };
+		const title = header.slice(1).join(" ").trim() || undefined;
+		const node: DocNode = { type: "code", lang: header[0]!, title, code: "" };
 		text = "";
 		while (lineI < lines.length)
 		{
@@ -104,7 +114,21 @@ export async function parseMD(file: string)
 		else if (textl == "rainbow") doc.rainbow = true;
 		else if (textl.startsWith("title")) doc.title = text.slice("title".length).trim();
 		else if (textl.startsWith("author")) doc.author = text.slice("author".length).trim();
+		else if (textl.startsWith("etime")) doc.etime = tryParseInt(text.slice("etime".length).trim());
+		else if (textl.startsWith("ctime")) doc.ctime = tryParseDate(text.slice("ctime".length).trim());
+		else if (textl.startsWith("mtime")) doc.mtime = tryParseDate(text.slice("mtime".length).trim());
 		else console.error(`Wrong rule: "${text}"`);
+
+		function tryParseInt(v: string)
+		{
+			const num = parseInt(v);
+			return isFinite(num) ? num : undefined;
+		}
+		function tryParseDate(v: string)
+		{
+			const date = new Date(v);
+			return isFinite(date.valueOf()) ? date : undefined;
+		}
 	}
 
 	let lineI = 0;
@@ -264,7 +288,7 @@ export function runifyDoc(doc: Doc): RunicDoc
 {
 	function runifyNode(node: DocNode | NodeListItem)
 	{
-		if ("text" in node)
+		if ("text" in node && node.text)
 			node.text = runifyText(node.text, doc.rainbow) as any;
 		if ("title" in node && node.title)
 			node.title = runifyText(node.title, doc.rainbow) as any;
@@ -282,7 +306,7 @@ export function runifyDoc(doc: Doc): RunicDoc
 let rainbowI = 0;
 function runifyText(text: string, rainbow = false): Rune[]
 {
-	return text.replaceAll(/\s*<br>\s*/g, "\n")
+	return text.replaceAll("\n", "&Tab;\n").replaceAll(/\s*<br>\s*/g, "\n")
 		.replaceAll("—", "-").replaceAll(" - ", " \u2013 ")
 		.replaceAll(/"(([^"\n])*?)"/g, "«$1»")
 		.split(/(\[.*\]\(.*\))/g)
@@ -293,7 +317,7 @@ function runifyText(text: string, rainbow = false): Rune[]
 			return { text: m[1], link: m[2] } as Rune;
 		})
 		.map(rune => rune.text.split("\n").map((p, i) => ({
-			text: p.replaceAll(/\s+/g, " "),
+			text: p.replaceAll(/\s+/g, " ").replaceAll("&nbsp;", "\u00A0").replaceAll("&Tab;", "\t"),
 			linebreak: i > 0,
 			link: rune.link,
 		}) as Rune)).flat()

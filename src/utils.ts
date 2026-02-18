@@ -9,7 +9,15 @@ export function also<T>(v: T, fn: (v: T) => any)
 }
 export function choice<T>(...options: T[]): T
 {
-	return options[Math.floor(Math.random() * options.length)];
+	return options[randomInt(options.length)];
+}
+export function randomInt(max: number): number;
+export function randomInt(min: number, max: number, rnd?: () => number): number;
+export function randomInt(maxmin: number, max?: number, rnd = Math.random)
+{
+	if (max != undefined)
+		return Math.floor(rnd() * (maxmin - max)) + max;
+	return Math.floor(rnd() * maxmin);
 }
 
 export function trimEnd(str: string, ...chs: string[])
@@ -50,7 +58,7 @@ export function trimStart(str: string, ...chs: string[])
 
 export function toCapitalCase(str: string)
 {
-	return str.slice(0, 1).toLowerCase() + str.slice(1);
+	return str.slice(0, 1).toUpperCase() + str.slice(1);
 }
 
 export type Writeable<T> = { -readonly [P in keyof T]: T[P] };

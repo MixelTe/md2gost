@@ -7,14 +7,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
-- new rule rainbow: `!!rule rainbow`
 ### Changed
 ### Deprecated
 ### Removed
 ### Fixed
-- fix typo in readme
-- fix doc include parsing
 ### Security
+
+## [0.5.0] - 2026-02-18
+### Added
+- insert non-breaking space by `&nbsp;`
+- insert tab by `&Tab;`
+- prevent text stretching due to line breaks
+- new rule rainbow: `!!rule rainbow`
+- set in doc: edit time (random in 30-120), creation time (as in .md), modification time (now)
+- new rules: `!!rule etime <int>`, `!!rule ctime <ISO 8601>`, `!!rule mtime <ISO 8601>`
+### Fixed
+- fix doc include parsing
+- prevent empty image title
 
 ## [0.4.0] - 2026-02-17
 ### Added
