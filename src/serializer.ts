@@ -184,7 +184,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 							alignment: "center",
 							indent: { firstLine: 0 },
 							spacing: { line: 240 },
-							keepNext: true,
+							keepNext: !!node.text,
 							children: [
 								new ImageRun({
 									type: type as any,

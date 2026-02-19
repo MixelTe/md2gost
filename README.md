@@ -204,7 +204,7 @@
 
 ![screenshot](imgs/screenshot_doc_include.png)
 
-> Важно!
+> Вставка другого DOCX возможна только при экспорте в PDF
 
 ```md
 !!(путь/к/файлу.docx){"поле": "значение"}
