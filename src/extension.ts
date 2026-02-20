@@ -61,6 +61,7 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean)
 			}
 			catch (x)
 			{
+				console.error(x);
 				x = trimStart(`${x}`, "Error: ");
 				vscode.window.showErrorMessage(`Error: ${x}`);
 			}

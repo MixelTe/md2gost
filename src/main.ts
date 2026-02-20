@@ -1,10 +1,11 @@
 import path from "path";
 import { parseMD, runifyDoc } from "./parser";
 import { serializeDocx } from "./serializer";
-import { checkIfFileIsBlocked, choice, lt, trimEnd, type SetProgressFn } from "./utils";
+import { checkIfFileIsBlocked, choice, trimEnd, type SetProgressFn } from "./utils";
 import { enrichDoc } from "./enricher";
-import { execSync, spawn, spawnSync } from "child_process";
-import fs from "fs";
+import { spawn } from "child_process";
+import fs from "fs/promises";
+import { existsSync } from "fs";
 import { PDFDocument } from "pdf-lib";
 import type { Doc, RunicDoc } from "./doc";
 
@@ -32,9 +33,9 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 	const ftmp = path.join(fdir, fname + ".tmp.docx");
 	const fout = path.join(fdir, fname + ".docx");
 	if (await checkIfFileIsBlocked(ftmp))
-		throw new Error(`Output file is busy or locked: ${ftmp}`);
+		throw new Error(`Закройте docx файл. Output file is busy or locked: ${ftmp}`);
 	if (await checkIfFileIsBlocked(fout))
-		throw new Error(`Output file is busy or locked: ${fout}`);
+		throw new Error(`Закройте docx файл. Output file is busy or locked: ${fout}`);
 	// progress(10, "Rendering to docx");
 	progress(10, phrase_renderDocx());
 	await serializeDocx(runicDoc, ftmp, fdir, assets);
@@ -43,32 +44,33 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 		// progress(20, "Running complex macros");
 		progress(20, phrase_runMacros());
 		const tmpfolder = path.join(fdir, ".md2gost_out");
-		fs.rmSync(tmpfolder, { recursive: true, force: true });
+		await fs.rm(tmpfolder, { recursive: true, force: true });
 		await runDocxMacro(progress, assets, fdir, ftmp, fout, renderPDF);
-		fs.unlinkSync(ftmp);
+		await fs.unlink(ftmp);
 		const errorTxt = path.join(tmpfolder, "error.txt");
-		if (fs.existsSync(errorTxt))
+		if (existsSync(errorTxt))
 		{
-			const err = fs.readFileSync(errorTxt);
-			fs.rmSync(tmpfolder, { recursive: true, force: true });
-			throw new Error(`VBA error: ${err}`);
+			const err = await fs.readFile(errorTxt);
+			await fs.rm(tmpfolder, { recursive: true, force: true });
+			console.error(err);
+			throw new Error(`Всё сломалось. VBA error: ${err}`);
 		}
 		if (renderPDF)
 		{
 			// progress(40, "Combine all together")
 			progress(40, phrase_combine());
-			if (!fs.existsSync(tmpfolder))
-				throw new Error(`PDF render error`);
-			const files = fs.readdirSync(tmpfolder).sort().map(f => path.join(tmpfolder, f));
+			if (!existsSync(tmpfolder))
+				throw new Error(`Всё сломалось. PDF render error`);
+			const files = (await fs.readdir(tmpfolder)).sort().map(f => path.join(tmpfolder, f));
 			const fout = path.join(fdir, fname + ".pdf");
 			await mergePDFs(files, fout, doc);
-			fs.rmSync(tmpfolder, { recursive: true, force: true });
+			await fs.rm(tmpfolder, { recursive: true, force: true });
 			return fout;
 		}
 	}
 	else
 	{
-		fs.renameSync(ftmp, fout);
+		await fs.rename(ftmp, fout);
 	}
 	return fout;
 }
@@ -137,13 +139,13 @@ async function mergePDFs(files: string[], fout: string, doc?: Doc)
 	if (doc?.mtime) mergedPdf.setModificationDate(doc.mtime);
 	for (const file of files)
 	{
-		const buffer = fs.readFileSync(file);
-		const pdf = await PDFDocument.load(buffer);
-		const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-		copiedPages.forEach((page) => mergedPdf.addPage(page));
+		const bytes = await fs.readFile(file);
+		const pdf = await PDFDocument.load(bytes);
+		const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+		pages.forEach((page) => mergedPdf.addPage(page));
 	}
-	const pdf = await mergedPdf.save();
-	fs.writeFileSync(fout, pdf);
+	const pdfBytes = await mergedPdf.save();
+	await fs.writeFile(fout, pdfBytes);
 }
 
 // Эпос офисной магии
