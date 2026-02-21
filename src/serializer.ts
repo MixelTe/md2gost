@@ -319,7 +319,7 @@ function renderText(text: string | Rune[], small: boolean = false): ParagraphChi
 		}
 		return new TextRun({
 			text: rune.text,
-			language: { value: "ru-RU" },
+			language: { value: rune.lang == "en" ? "en-US" : "ru-RU" },
 			...(rune.linebreak ? { break: 1 } : {}),
 			...(rune.bold ? { bold: true } : {}),
 			...(rune.italic ? { italics: true } : {}),
@@ -329,7 +329,74 @@ function renderText(text: string | Rune[], small: boolean = false): ParagraphChi
 		});
 	}
 	if (typeof text == "string") text = [{ text }];
+	text = splitRunesByLang(text);
 	return text.map(r => renderRune(r));
+
+	function splitRunesByLang(runes: Rune[]): Rune[]
+	{
+		const result: Rune[] = [];
+		for (let r = 0; r < runes.length; r++)
+		{
+			const rune = runes[r];
+			const text = rune.text;
+
+			if (!text || text.length === 0)
+			{
+				result.push(rune);
+				continue;
+			}
+
+			let bufferStart = 0;
+			let lastType = 0;
+			let segmentType = 0;
+
+			for (let i = 0; i < text.length; i++)
+			{
+				const code = text.charCodeAt(i);
+				let type = 0;
+				if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122))
+					type = 1; // latin
+				else if (code >= 0x0400 && code <= 0x04ff)
+					type = 2; // cyrillic
+
+				if (segmentType === 0 && type !== 0) segmentType = type;
+
+				if (
+					i > bufferStart &&
+					type !== 0 &&
+					lastType !== 0 &&
+					type !== lastType
+				)
+				{
+					result.push(copyRune(rune, text.slice(bufferStart, i), segmentType, bufferStart == 0));
+					bufferStart = i;
+					segmentType = type;
+				}
+
+				if (type !== 0) lastType = type;
+			}
+			if (bufferStart === 0)
+				result.push(copyRune(rune, text, segmentType || lastType, true));
+			else
+				result.push(copyRune(rune, text.slice(bufferStart), segmentType, false));
+		}
+
+		return result;
+
+		function copyRune(src: Rune, text: string, type: number, first: boolean): Rune
+		{
+			return {
+				text,
+				anchor: first ? src.anchor : undefined,
+				link: src.link,
+				color: src.color,
+				bold: src.bold,
+				italic: src.italic,
+				linebreak: src.linebreak && first,
+				lang: type == 1 ? "en" : type == 2 ? "ru" : undefined,
+			};
+		}
+	}
 }
 // const docx = new Document({
 // 	sections,

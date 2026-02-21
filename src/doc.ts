@@ -48,6 +48,7 @@ export interface Rune
 	bold?: boolean,
 	italic?: boolean,
 	linebreak?: boolean,
+	lang?: "ru" | "en"
 }
 
 export type Runify<T> = {

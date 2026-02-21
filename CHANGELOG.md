@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Deprecated
 ### Removed
 ### Fixed
+- detect ru/en language in text for correct markup
 ### Security
 
 ## [0.5.1] - 2026-02-18
