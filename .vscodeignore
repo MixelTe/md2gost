@@ -16,3 +16,4 @@ resources/**
 # assets/**
 _hint.txt
 esbuild-meta.json
+force_update_nb.bat

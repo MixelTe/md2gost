@@ -45,7 +45,21 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 		progress(20, phrase_runMacros());
 		const tmpfolder = path.join(fdir, ".md2gost_out");
 		await fs.rm(tmpfolder, { recursive: true, force: true });
-		await runDocxMacro(progress, assets, fdir, ftmp, fout, renderPDF);
+		try
+		{
+			const ok = await runDocxMacro(progress, assets, fdir, ftmp, fout, renderPDF);
+			if (!ok)
+			{
+				await fs.rename(ftmp, fout);
+				return { fout, err: "inPS" };
+			}
+		}
+		catch (x)
+		{
+			console.error(x);
+			await fs.rename(ftmp, fout);
+			return { fout, err: "noPS" };
+		}
 		await fs.unlink(ftmp);
 		const errorTxt = path.join(tmpfolder, "error.txt");
 		if (existsSync(errorTxt))
@@ -65,14 +79,14 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 			const fout = path.join(fdir, fname + ".pdf");
 			await mergePDFs(files, fout, doc);
 			await fs.rm(tmpfolder, { recursive: true, force: true });
-			return fout;
+			return { fout };
 		}
 	}
 	else
 	{
 		await fs.rename(ftmp, fout);
 	}
-	return fout;
+	return { fout };
 }
 
 function hasReasonForRunningMacros(doc: RunicDoc)
@@ -86,8 +100,8 @@ function runDocxMacro(progress: SetProgressFn, assets: string, cwd: string, fin:
 	const script = path.join(assets, "run.ps1");
 	const templateMacro = path.join(assets, "template.dotm");
 	const template = path.join(assets, "template.dotx");
-	console.log(template);
-	return new Promise<number | null>((res, rej) =>
+	// console.log(template);
+	return new Promise<boolean>((res, rej) =>
 	{
 		const child = spawn("powershell", [
 			"-NoProfile", "-ExecutionPolicy", "Bypass",
@@ -112,9 +126,14 @@ function runDocxMacro(progress: SetProgressFn, assets: string, cwd: string, fin:
 			}[m[1]] || "Make some work");
 			console.log(`PS: ${data}`);
 		});
-		child.stderr.on("data", (data) => console.error(`PS: ${data}`));
+		let ok = true;
+		child.stderr.on("data", (data) =>
+		{
+			ok = false;
+			console.error(`PS: ${data}`);
+		});
 
-		child.on("close", res);
+		child.on("close", () => res(ok));
 		child.on("error", rej);
 	});
 	// spawnSync("powershell", [

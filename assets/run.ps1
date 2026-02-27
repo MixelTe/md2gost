@@ -29,6 +29,8 @@ $Template = [System.IO.Path]::GetFullPath($Template)
 
 # --- Word ------------------------------------------------------
 
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
+
 $word = New-Object -ComObject Word.Application
 $word.Visible = $false
 $word.DisplayAlerts = 0
