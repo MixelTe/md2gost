@@ -3,6 +3,8 @@ export class Doc
 	public sections: DocSection[] = [{ pageStart: 1, nodes: [] }];
 	public codeHighlighting = false;
 	public rainbow = false;
+	public numberingSections = false;
+	public numberingAutoprefix = true;
 	public title: string | undefined;
 	public author: string | undefined;
 	public etime: number | undefined;
@@ -42,6 +44,7 @@ export type DocNode =
 export interface Rune
 {
 	text: string,
+	type?: "text" | "ref" | "val",
 	anchor?: string,
 	link?: string,
 	color?: string,

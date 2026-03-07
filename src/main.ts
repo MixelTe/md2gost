@@ -8,6 +8,7 @@ import fs from "fs/promises";
 import { existsSync } from "fs";
 import { PDFDocument } from "pdf-lib";
 import type { Doc, RunicDoc } from "./doc";
+import { alchemist } from "./alchemist";
 
 const DISABLE_MACRO = false;
 
@@ -25,6 +26,8 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 	console.log(doc);
 
 	const runicDoc = runifyDoc(doc);
+	console.log(runicDoc);
+	alchemist(runicDoc);
 	console.log(runicDoc);
 
 	const p = path.parse(fin);

@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- autonumbering by `[#]`, `[ref_id]`
+- refs by `[ref_id]` - allowed chars: a-z A-Z а-я А-Я ёЁ _ 0-9
+- text vars `[!pages]` `[!imgs]` `[!tables]` `[!codes]` `[!sources]`
+- new rules: `!!rule numbering sections <on/off>` `!!rule numbering autoprefix <on/off>`
 ### Changed
 ### Deprecated
 ### Removed

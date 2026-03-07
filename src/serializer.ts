@@ -255,6 +255,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 		externalStyles: fs.readFileSync(path.join(assets, "styles.xml"), { encoding: "utf8" }),
 		// features: { updateFields: true },
 		numbering: { config: numbering },
+		...(doc.rainbow ? { background: { color: "#000000" } } : {})
 		// title: doc.title,
 		// creator: doc.author,
 		// lastModifiedBy: doc.author,
@@ -319,8 +320,14 @@ function renderText(text: string | Rune[], small: boolean = false): ParagraphChi
 				new InternalHyperlink({ children, anchor: rune.link.slice(1) }) :
 				new ExternalHyperlink({ children, link: rune.link });
 		}
+		let children: null | string[] = null;
+		if (rune.type == "val" && rune.text == "pages")
+		{
+			rune.type = "text";
+			children = [PageNumber.TOTAL_PAGES];
+		}
 		return new TextRun({
-			text: rune.text,
+			...(children ? { children } : { text: rune.text }),
 			language: { value: rune.lang == "en" ? "en-US" : "ru-RU" },
 			...(rune.linebreak ? { break: 1 } : {}),
 			...(rune.bold ? { bold: true } : {}),
@@ -328,6 +335,7 @@ function renderText(text: string | Rune[], small: boolean = false): ParagraphChi
 			...(link ? { color: "0563c1", underline: { type: "single" } } : {}),
 			...(rune.color ? { color: rune.color } : {}),
 			...(small ? { size: 24 } : {}),
+			...(rune.type && rune.type != "text" ? { highlight: "black", color: "ffffff" } : {}),
 		});
 	}
 	if (typeof text == "string") text = [{ text }];
@@ -388,12 +396,9 @@ function renderText(text: string | Rune[], small: boolean = false): ParagraphChi
 		function copyRune(src: Rune, text: string, type: number, first: boolean): Rune
 		{
 			return {
+				...src,
 				text,
 				anchor: first ? src.anchor : undefined,
-				link: src.link,
-				color: src.color,
-				bold: src.bold,
-				italic: src.italic,
 				linebreak: src.linebreak && first,
 				lang: type == 1 ? "en" : type == 2 ? "ru" : undefined,
 			};

@@ -108,7 +108,7 @@ export async function parseMD(file: string)
 	}
 	function apllyRule(text: string)
 	{
-		text = text.trim();
+		text = text.trim().replaceAll(/\s+/g, " ");
 		const textl = text.toLowerCase();
 		if (textl == "highlight code") doc.codeHighlighting = true;
 		else if (textl == "rainbow") doc.rainbow = true;
@@ -117,6 +117,8 @@ export async function parseMD(file: string)
 		else if (textl.startsWith("etime")) doc.etime = tryParseInt(text.slice("etime".length).trim());
 		else if (textl.startsWith("ctime")) doc.ctime = tryParseDate(text.slice("ctime".length).trim());
 		else if (textl.startsWith("mtime")) doc.mtime = tryParseDate(text.slice("mtime".length).trim());
+		else if (textl.startsWith("numbering sections")) doc.numberingSections = text.slice("numbering sections".length).trim() == "on";
+		else if (textl.startsWith("numbering autoprefix")) doc.numberingAutoprefix = text.slice("numbering autoprefix".length).trim() == "on";
 		else console.error(`Wrong rule: "${text}"`);
 
 		function tryParseInt(v: string)
@@ -368,12 +370,24 @@ function runifyText(text: string, rainbow = false): Rune[]
 			bold: rune.bold,
 			italic: i % 2 == 1 || rune.italic,
 		}) as Rune)).flat()
-		.map(rune => !rainbow ? [rune] : rune.text.split("").map((p, i) => ({
+		.map(rune => rune.link ? [rune] : rune.text.split(/(\[!?[a-zA-Zа-яА-ЯёЁ_\d#]+\s*[+\-]?\s*\d*\])/g).map((p, i) =>
+		{
+			const m = /\[(!?([a-zA-Zа-яА-ЯёЁ_\d]+|#)(\s*[-\+]\s*\d+)?)\]/.exec(p);
+			const v = m && m[1];
+			const isVal = v?.at(0) == "!";
+			return {
+				text: v ? (isVal ? v.slice(1) : v) : p,
+				type: v ? (isVal ? "val" : "ref") : rune.type,
+				linebreak: i == 0 && rune.linebreak,
+				link: rune.link,
+				bold: rune.bold,
+				italic: rune.italic,
+			} as Rune;
+		})).flat()
+		.map(rune => !rainbow || (rune.type && rune.type != "text") ? [rune] : rune.text.split("").map((p, i) => ({
+			...rune,
 			text: p,
 			linebreak: i == 0 && rune.linebreak,
-			link: rune.link,
-			bold: rune.bold,
-			italic: rune.italic,
 			color: hslToHex(rainbowI++ % 360, 100, 50),
 		}) as Rune)).flat()
 		;

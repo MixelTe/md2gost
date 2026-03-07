@@ -23,7 +23,7 @@ export function enrichDoc(doc: Doc)
 				nextNode.noIndent = true;
 				nextNode.text = trimEnd(nextNode.text, ".").toUpperCase();
 			}
-			section.nodes.splice(i + 1, 0, { type: "text", text: "Отчет x с., x рис., x табл., x лист., x источн." });
+			section.nodes.splice(i + 1, 0, { type: "text", text: "Отчет [!pages] с., [!imgs] рис., [!tables] табл., [!codes] лист., [!sources] источн." });
 			while (i + 1 < section.nodes.length && section.nodes[i + 1]?.type != "title") i++;
 			section.nodes.splice(i + 1, 0, { type: "pageBreak" });
 		}
