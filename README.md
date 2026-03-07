@@ -6,7 +6,7 @@
 
 Другие интересные/полезные проекты автора: [тут ![tg chanel](imgs/mixelDev.png)](https://t.me/+gDaSs1PD7LhkODRi) и [тут ![github](imgs/github.png)](https://mixelte.github.io/)
 
-### Оглавление
+**Оглавление:**
 
 * [Возможности](#возможности)
 * [Требования](#требования)
