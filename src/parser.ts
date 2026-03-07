@@ -1,6 +1,6 @@
 import { Doc, tableRow, type DocNode, type NodeListItem, type NodeTable, type Rune, type RunicDoc, type Runify } from "./doc";
 import fs from "fs/promises";
-import { hslToHex, toCapitalCase, trimEnd } from "./utils";
+import { hslToHex, toCapitalCase, trimEnd, trimStart } from "./utils";
 import path from "path";
 
 export async function parseMD(file: string)
@@ -83,7 +83,8 @@ export async function parseMD(file: string)
 			if (isFinite(w)) width = w;
 			if (isFinite(h)) height = h;
 		}
-		return { type: "image", text, src: parts[1]!, width, height };
+		const src = trimEnd(trimStart(parts[1]!, "<"), ">");
+		return { type: "image", text, src, width, height };
 	}
 	function parseCode(text: string)
 	{
@@ -238,7 +239,7 @@ function findDocs(nodes: DocNode[])
 		catch (x) { console.error(`Cant parse doc dict: {${m_doc[2]!.replaceAll("\n", " ")}}`); }
 		nodes.splice(i, 1, {
 			type: "externalDoc",
-			path: m_doc[1]!,
+			path: trimEnd(trimStart(m_doc[1]!, "<", '"'), ">", '"'),
 			dict,
 		});
 	}

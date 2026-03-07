@@ -34,6 +34,14 @@
           "dark": "imgs/ghost_small_white.svg",
           "light": "imgs/ghost_small.svg"
         }
+      },
+      {
+        "command": "md2gost.render_docx_fast",
+        "title": "md2gost: Render current file to docx without postprocessing",
+        "icon": {
+          "dark": "imgs/ghost_smallest_white.svg",
+          "light": "imgs/ghost_smallest.svg"
+        }
       }
     ],
     "menus": {
@@ -41,6 +49,7 @@
         {
           "when": "resourceFilename =~ /\\.g\\.md$/",
           "command": "md2gost.render_docx",
+          "alt": "md2gost.render_docx_fast",
           "group": "navigation"
         },
         {

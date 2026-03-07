@@ -16,12 +16,17 @@ export function activate(context: vscode.ExtensionContext)
 			(uri: vscode.Uri) => onRenderCommand(assets, uri, false),
 		)
 	);
+	context.subscriptions.push(
+		vscode.commands.registerCommand("md2gost.render_docx_fast",
+			(uri: vscode.Uri) => onRenderCommand(assets, uri, false, true),
+		)
+	);
 }
 
 export function deactivate() { }
 
 let rendering = false;
-function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean)
+function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean, disableMacros = false)
 {
 	if (rendering)
 	{
@@ -46,14 +51,16 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean)
 			{
 				rendering = true;
 				await vscode.window.activeTextEditor?.document.save();
-				const { fout: fname, err } = await render(
+				const { fout: fname, err, warn } = await render(
 					(increment, message) => progress.report({ increment, message }),
 					assets,
 					file,
-					renderPDF
+					renderPDF,
+					disableMacros,
 				);
 				if (err == "inPS") vscode.window.showErrorMessage(`Unknown error! Возможно у вас не установлен Word или установлен неправильно`);
 				if (err == "noPS") vscode.window.showErrorMessage(`Cant start PowerShell! Возможно он не прописан у вас в PATH`);
+				if (warn) vscode.window.showWarningMessage(warn);
 				progress.report({ increment: 100, message: "Done!" });
 				vscode.window.showInformationMessage(`File rendered to ${fname}`, "Open").then(v =>
 				{

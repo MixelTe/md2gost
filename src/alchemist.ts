@@ -100,7 +100,7 @@ export function alchemist(doc: RunicDoc)
 		const m = /^\s*(\d+)/.exec(text);
 		const num = parseInt(m?.[1] || "");
 		if (!isFinite(num)) return null;
-		return num
+		return num;
 	}
 
 	function materializeRunes(runes: Rune[], node: Runify<DocNode>)
@@ -127,14 +127,14 @@ export function alchemist(doc: RunicDoc)
 			const applyMath = (n: number) =>
 			{
 				if (!math) return n;
-				const v = parseInt(math.slice(1))
+				const v = parseInt(math.slice(1));
 				if (mathSubstarct) return n - v;
 				return n + v;
-			}
+			};
 			if (type == "title")
 			{
-				const num = counter.titles[`l${node.level}` as TtKeys]
-				const prefix = node.level <= 1 ? "" : new Array(node.level - 1).fill(0).map((_, i) => counter.titles[`l${i + 1}` as TtKeys]).join(".") + "."
+				const num = counter.titles[`l${node.level}` as TtKeys];
+				const prefix = node.level <= 1 ? "" : new Array(node.level - 1).fill(0).map((_, i) => counter.titles[`l${i + 1}` as TtKeys]).join(".") + ".";
 				if (v instanceof Array) v.forEach(fn => fn(num, prefix));
 				named[tag] = { n: num, prefix };
 				rune.type = "text";
@@ -146,7 +146,7 @@ export function alchemist(doc: RunicDoc)
 				let { num, text } =
 					type == "code" ? { num: counter.codes, text: "Листинг" } :
 						type == "image" ? { num: counter.imgs, text: "Рисунок" } :
-							type == "table" ? { num: counter.tables, text: "Таблица" } : (() => { throw new Error("switch default") })();
+							type == "table" ? { num: counter.tables, text: "Таблица" } : (() => { throw new Error("switch default"); })();
 				num++;
 				if (doc.numberingAutoprefix)
 				{

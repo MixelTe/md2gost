@@ -13,7 +13,11 @@ type IListItem = DeepWriteable<INumberingOptions>["config"][number];
 type IListItemLevel = IListItem["levels"][number]
 export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string, assets: string)
 {
-	const getPath = (fname: string) => path.isAbsolute(fname) ? fname : path.join(workdir, fname);
+	const getPath = (fname: string) =>
+	{
+		if (process.platform == "win32" && fname[0] == "/") fname = "." + fname;
+		return path.isAbsolute(fname) ? fname : path.join(workdir, fname);
+	};
 	const sections: ISectionOptions[] = [];
 	const numbering: DeepWriteable<INumberingOptions>["config"] = [];
 

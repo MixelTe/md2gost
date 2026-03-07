@@ -12,7 +12,7 @@ import { alchemist } from "./alchemist";
 
 const DISABLE_MACRO = false;
 
-export async function render(progress: SetProgressFn, assets: string, file: string, renderPDF: boolean)
+export async function render(progress: SetProgressFn, assets: string, file: string, renderPDF: boolean, disableMacros: boolean)
 {
 	// progress(10, "Trying to understand your scribbles");
 	progress(10, "Пытаемся понять, что вы тут написали...");
@@ -42,7 +42,17 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 	// progress(10, "Rendering to docx");
 	progress(10, phrase_renderDocx());
 	await serializeDocx(runicDoc, ftmp, fdir, assets);
-	if (renderPDF || hasReasonForRunningMacros(runicDoc))
+
+	let willRunMacros = !disableMacros && (renderPDF || hasReasonForRunningMacros(runicDoc));
+
+	let warn = null as null | string;
+	if (process.platform != "win32" && willRunMacros)
+	{
+		warn = "Функционал ограничен, полный функционал только на Windows (more info in readme)";
+		willRunMacros = false;
+	}
+
+	if (willRunMacros)
 	{
 		// progress(20, "Running complex macros");
 		progress(20, phrase_runMacros());
@@ -89,7 +99,7 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 	{
 		await fs.rename(ftmp, fout);
 	}
-	return { fout };
+	return { fout, warn };
 }
 
 function hasReasonForRunningMacros(doc: RunicDoc)

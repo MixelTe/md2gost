@@ -7,15 +7,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
-- autonumbering by `[#]`, `[ref_id]`
-- refs by `[ref_id]` - allowed chars: a-z A-Z а-я А-Я ёЁ _ 0-9
-- text vars `[!pages]` `[!imgs]` `[!tables]` `[!codes]` `[!sources]`
-- new rules: `!!rule numbering sections <on/off>` `!!rule numbering autoprefix <on/off>`
 ### Changed
 ### Deprecated
 ### Removed
 ### Fixed
 ### Security
+
+## [0.6.0] - 2026-03-07
+### Added
+- autonumbering by `[#]`, `[ref_id]`
+- refs by `[ref_id]` - allowed chars: a-z A-Z а-я А-Я ёЁ _ 0-9
+- text vars `[!pages]` `[!imgs]` `[!tables]` `[!codes]` `[!sources]`
+- new rules: `!!rule numbering sections <on/off>` `!!rule numbering autoprefix <on/off>`
+- fast render without postprocessing (hold alt when click render button)
+### Fixed
+- warn message if not win32 instead of error
+- black background with `!!rule rainbow`
+- fix img path from project root: treat `/img.png` as `./img.png`
+- correct work with img path in `<>` like `<img.png>`
 
 ## [0.5.2] - 2026-02-27
 ### Fixed
