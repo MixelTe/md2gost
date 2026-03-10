@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en" class="vscode-dark">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Changelog | What's New</title>
+	<style>
+		/* Light Theme */
+		:root,
+		.vscode-light {
+			--bg-color: #faf9f6;
+			--text-main: #4a4a4a;
+			--text-muted: #8c8c8c;
+			--accent: #bc8a5f;
+			--border: #e8e6e1;
+			--tag-bg: rgba(0, 0, 0, 0.04);
+			--glow-color-1: #c9a076;
+			--glow-color-2: #8c8c8c;
+			--tag-added: #166534;
+			--tag-changed: #1e40af;
+			--tag-deprecated: #854d0e;
+			--tag-removed: #991b1b;
+			--tag-fixed: #6b21a8;
+		}
+
+		/* Dark Theme */
+		.vscode-dark {
+			--bg-color: #1e1e1e;
+			--text-main: #d4d4d4;
+			--text-muted: #858585;
+			--accent: #d4a373;
+			--border: #333333;
+			--tag-bg: rgba(255, 255, 255, 0.08);
+			--glow-color-1: #f1d3a1;
+			--glow-color-2: #8a96cc;
+			--tag-added: #4ade80;
+			--tag-changed: #60a5fa;
+			--tag-deprecated: #fbbf24;
+			--tag-removed: #f87171;
+			--tag-fixed: #c084fc;
+		}
+
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+			background-color: var(--bg-color);
+			color: var(--text-main);
+			line-height: 1.6;
+			margin: 0;
+			padding: 60px 20px;
+			display: flex;
+			justify-content: center;
+			transition: background-color 0.3s ease;
+		}
+
+		.container {
+			max-width: 550px;
+			width: 100%;
+		}
+
+		/* Header Layout */
+		header {
+			display: flex;
+			align-items: center;
+			gap: 16px;
+			margin-bottom: 50px;
+		}
+
+		.logo {
+			width: 44px;
+			height: 44px;
+			opacity: 0.9;
+			transition: transform 0.2s ease, filter 0.3s ease;
+		}
+
+		.logo:hover {
+			transform: scale(1.05);
+		}
+
+		.title-row {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+
+		.header-version {
+			font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+			font-size: 0.7rem;
+			font-weight: 600;
+			color: var(--accent);
+			background: var(--tag-bg);
+			padding: 2px 4px;
+			line-height: 1;
+			border-radius: 6px;
+			border: 1px solid var(--border);
+			opacity: 0.8;
+			vertical-align: middle;
+		}
+
+		.header-text h1 {
+			font-weight: 600;
+			font-size: 1.6rem;
+			margin: 0;
+			letter-spacing: -0.02em;
+			line-height: 1.2;
+		}
+
+		.subtitle {
+			font-size: 0.9rem;
+			margin: 4px 0 0 0;
+			font-weight: 400;
+
+			background: linear-gradient(90deg,
+					var(--glow-color-2) 0%,
+					var(--glow-color-1) 25%,
+					var(--glow-color-2) 50%,
+					var(--glow-color-1) 75%,
+					var(--glow-color-2) 100%);
+			background-size: 200% auto;
+			color: transparent;
+			-webkit-background-clip: text;
+			background-clip: text;
+
+			animation: shine 8s linear infinite;
+		}
+
+		@keyframes shine {
+			to {
+				background-position: 200% center;
+			}
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			.subtitle {
+				animation: none;
+				color: var(--text-muted);
+				background: none;
+			}
+		}
+
+		/* Changelog Entries */
+		.version-block {
+			margin-bottom: 40px;
+		}
+
+		.date {
+			font-size: 0.75rem;
+			color: var(--text-muted);
+			font-family: ui-monospace, monospace;
+			display: block;
+			margin-bottom: 6px;
+		}
+
+		.version-number {
+			font-weight: 600;
+			color: var(--accent);
+			display: block;
+			margin-bottom: 14px;
+			font-size: 1.1rem;
+		}
+
+		ul {
+			list-style: none;
+			padding: 0;
+			margin: 0;
+		}
+
+		li {
+			display: flex;
+			align-items: flex-start;
+			margin-bottom: 12px;
+			padding-left: 20px;
+			padding-left: 0;
+			position: relative;
+			font-size: 0.95rem;
+		}
+
+		li::before {
+			/* content: "•"; */
+			position: absolute;
+			left: 0;
+			color: var(--accent);
+			font-weight: bold;
+		}
+
+		.tag {
+			display: block;
+			min-width: 3.7em;
+			text-align: center;
+			font-size: 0.65rem;
+			font-weight: 700;
+			padding: 2px 6px;
+			border-radius: 4px;
+			margin-right: 8px;
+			background: var(--tag-bg);
+			border: 1px solid var(--border);
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+		}
+
+		.tag.added,
+		.tag.fixed,
+		.tag.improved {
+			color: var(--_color);
+			background: color-mix(in srgb, var(--_color) 15%, transparent);
+			border-color: color-mix(in srgb, var(--_color) 20%, transparent);
+		}
+
+		.tag.added {
+			--_color: var(--tag-added);
+		}
+
+		.tag.changed {
+			--_color: var(--tag-changed);
+		}
+
+		.tag.deprecated {
+			--_color: var(--tag-deprecated);
+		}
+
+		.tag.removed {
+			--_color: var(--tag-removed);
+		}
+
+		.tag.fixed {
+			--_color: var(--tag-fixed);
+		}
+
+		footer {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-top: 80px;
+			padding-top: 24px;
+			border-top: 1px solid var(--border);
+			font-size: 0.85rem;
+			color: var(--text-muted);
+		}
+
+		footer a {
+			text-decoration: none;
+			color: var(--text-main);
+		}
+
+		hr {
+			border: 0;
+			border-top: 1px solid var(--border);
+			margin: 32px 0;
+		}
+	</style>
+</head>
+
+<body>
+
+	<div class="container">
+		<header>
+			<div class="logo-wrapper">
+				<img src="{{root}}/imgs/icon.png" alt="Logo" class="logo">
+			</div>
+			<div class="header-text">
+				<div class="title-row">
+					<h1>What's New</h1>
+					<span class="header-version">v{{currentVersion}}</span>
+				</div>
+				<p class="subtitle">Тихое сияние обновлений</p>
+			</div>
+		</header>
+
+		<main>
+			<section class="version-block">
+				<span class="date">2026-03-09</span>
+				<span class="version-number">v2.4.0 — The Velvet Update</span>
+				<ul>
+					<li><span class="tag">Added</span> Flexible header layout with inline logo support.</li>
+					<li><span class="tag">Improved</span> Vertical alignment for typography and icons.</li>
+					<li><span class="tag">Fixed</span> Minor spacing inconsistencies on mobile devices.</li>
+				</ul>
+			</section>
+
+			<hr>
+
+			<section class="version-block">
+				<span class="date">2026-02-14</span>
+				<span class="version-number">v2.3.5</span>
+				<ul>
+					<li><span class="tag">Improved</span> Semantic HTML structure for screen readers.</li>
+					<li><span class="tag">Fixed</span> Contrast ratios for improved legibility.</li>
+				</ul>
+			</section>
+		</main>
+
+		<footer>
+			<p>Искра идеи, превращённая в реальность<br>VSCode extension by Mixel Te</p>
+			<a href="https://github.com/MixelTe/md2gost" target="_blank" rel="noopener noreferrer">
+				<svg viewBox="0 0 16 16" version="1.1" aria-hidden="true" style="width: 24px;">
+					<path fill="currentColor" fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+				</svg>
+			</a>
+		</footer>
+	</div>
+
+	<script>
+		const changelogData = [
+			{
+				date: "2026-03-07",
+				version: "v0.6.0 — The Reference Update",
+				changes: [
+					{ type: "Added", text: "Автонумерация через [#] и именованные ссылки [ref_id]." },
+					{ type: "Added", text: "Системные переменные текста: [!pages], [!imgs], [!tables], [!codes]" },
+					{ type: "Added", text: "Новые правила нумерации разделов и управления автопрефиксами." },
+					{ type: "Added", text: "Быстрый рендеринг без постобработки (через Alt + клик)." },
+					{ type: "Fixed", text: "Замена ошибок на предупреждения для систем, отличных от Win32." },
+					{ type: "Fixed", text: "Корректная обработка путей к изображениям относительно корня проекта." }
+				]
+			},
+			{
+				date: "2026-02-27",
+				version: "v0.5.2",
+				changes: [
+					{ type: "Fixed", text: "Автоматическое определение языка (RU/EN) для корректной разметки." },
+					{ type: "Fixed", text: "Информативные сообщения об ошибках." },
+					{ type: "Fixed", text: "Растягивание таблиц на всю ширину страницы." },
+					{ type: "Fixed", text: "Устранение критических сбоев при ошибках PowerShell." }
+				]
+			},
+			{
+				date: "2026-02-18",
+				version: "v0.5.1",
+				changes: [
+					{ type: "Added", text: "Разрыв страницы при использовании разделителя ---." },
+					{ type: "Fixed", text: "Исправлена работа с абсолютными путями для медиафайлов." },
+					{ type: "Fixed", text: "Автоматическое сохранение .md файла перед началом рендеринга." }
+				]
+			},
+			{
+				date: "2026-02-18",
+				version: "v0.5.0 — Time & Space",
+				changes: [
+					{ type: "Added", text: "Поддержка вставки неразрывных пробелов (&amp;nbsp;) и табуляции (&amp;Tab;)." },
+					{ type: "Added", text: "Предотвращение нежелательного растягивания текста из-за переносов строк." },
+					{ type: "Added", text: "Управление метаданными документа: время создания, правки и генерации." },
+					{ type: "Added", text: "Новое правило визуализации: !!rule rainbow." },
+					{ type: "Fixed", text: "Исправлен парсинг вложенных документов." },
+					{ type: "Fixed", text: "Предотвращение создания пустых заголовков для изображений." }
+				]
+			},
+			{
+				date: "2026-02-17",
+				version: "v0.4.0",
+				changes: [
+					{ type: "Added", text: "Правила для установки заголовка и автора документа." }
+				]
+			},
+			{
+				date: "2026-02-17",
+				version: "v0.3.0 — Syntax Highlight",
+				changes: [
+					{ type: "Added", text: "Подсветка синтаксиса для 25+ языков (JS, Python, Go, Rust, SQL и др.)." }
+				]
+			},
+			{
+				date: "2026-02-17",
+				version: "v0.2.1",
+				changes: [
+					{ type: "Added", text: "Автоматическая замена кавычек-лапок на «ёлочки»." }
+				]
+			},
+			{
+				date: "2026-02-17",
+				version: "v0.2.0",
+				changes: [
+					{ type: "Added", text: "Поддержка переноса строк через &lt;br&gt; и базового Markdown (bold, italic)." },
+					{ type: "Fixed", text: "Запрет на разрыв строк внутри ячеек таблиц." }
+				]
+			},
+			{
+				date: "2026-02-13",
+				version: "v0.1.0 — Hello World",
+				changes: [
+					{ type: "Added", text: "Запуск базового функционала парсинга и обработки документов." }
+				]
+			}
+		];
+
+		function renderChangelog()
+		{
+			const mainElement = document.querySelector("main");
+
+			const html = changelogData.map((entry, index) => `
+				<section class="version-block">
+					<span class="date">${entry.date}</span>
+					<span class="version-number">${entry.version}</span>
+					<ul>
+						${entry.changes.map(change => `
+							<li><span class="tag ${change.type.toLowerCase()}">${change.type}</span><span>${change.text}</span></li>
+						`).join("")}
+					</ul>
+				</section>
+				${index == changelogData.length - 1 ? "" : "<hr>"}
+			`).join("");
+
+			mainElement.innerHTML = html;
+		}
+
+		document.addEventListener("DOMContentLoaded", renderChangelog);
+	</script>
+</body>
+
+</html>

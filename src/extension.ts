@@ -1,10 +1,13 @@
 import * as vscode from "vscode";
 import { render } from "./main";
 import { openFile, trimStart } from "./utils";
+import fs from "fs";
+import path from "path";
 
 export function activate(context: vscode.ExtensionContext)
 {
 	const assets = context.asAbsolutePath("assets");
+	showChangelogOnUpdate(context);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("md2gost.render_pdf",
@@ -91,5 +94,36 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean, di
 			// 	await new Promise(resolve => setTimeout(resolve, 1000));
 			// }
 		}
+	);
+}
+
+function showChangelogOnUpdate(context: vscode.ExtensionContext)
+{
+	const packageVersion = context.extension.packageJSON.version;
+	const pageVersion = "1";
+	const lastVersion = context.globalState.get<string>("extension_version");
+
+	if (pageVersion !== lastVersion)
+	{
+		context.globalState.update("extension_version", pageVersion);
+		vscode.commands.executeCommand("md2gost.whats_new");
+	}
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand("md2gost.whats_new", () =>
+		{
+			const panel = vscode.window.createWebviewPanel(
+				"whats_new",
+				"md2gost: What's New",
+				vscode.ViewColumn.One,
+				{
+					enableScripts: true,
+				}
+			);
+			const rootUri = panel.webview.asWebviewUri(context.extensionUri);
+			const filePath = context.asAbsolutePath(path.join("assets", "whats_new.html"));
+			const html = fs.readFileSync(filePath, "utf8");
+			panel.webview.html = html.replaceAll("{{root}}", rootUri.toString()).replaceAll("{{currentVersion}}", packageVersion);
+		})
 	);
 }

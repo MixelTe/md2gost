@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
+## [0.6.1] - 2026-03-10
+### Added
+- show what's new page on update
+
 ## [0.6.0] - 2026-03-07
 ### Added
 - autonumbering by `[#]`, `[ref_id]`
