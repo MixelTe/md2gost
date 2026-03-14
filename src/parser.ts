@@ -338,6 +338,7 @@ function runifyText(text: string, rainbow = false): Rune[]
 	return text.replaceAll("\n", "&Tab;\n").replaceAll(/\s*<br>\s*/g, "\n")
 		.replaceAll("—", "-").replaceAll(" - ", " \u2013 ")
 		.replaceAll(/"(([^"\n])*?)"/g, "«$1»")
+		.replaceAll(/(^|\s)(\*+)($|\s)/g, sub => sub.replaceAll("*", "&Star;"))
 		.split(/(\[.*\]\(.*\))/g)
 		.map(p =>
 		{
@@ -371,6 +372,10 @@ function runifyText(text: string, rainbow = false): Rune[]
 			bold: rune.bold,
 			italic: i % 2 == 1 || rune.italic,
 		}) as Rune)).flat()
+		.map(rune => ({
+			...rune,
+			text: rune.text.replaceAll("&Star;", "*"),
+		}) as Rune)
 		.map(rune => rune.link ? [rune] : rune.text.split(/(\[!?[a-zA-Zа-яА-ЯёЁ_\d#]+\s*[+\-]?\s*\d*\])/g).map((p, i) =>
 		{
 			const m = /\[(!?([a-zA-Zа-яА-ЯёЁ_\d]+|#)(\s*[-\+]\s*\d+)?)\]/.exec(p);

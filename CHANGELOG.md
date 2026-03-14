@@ -7,10 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- convert `&Star;` to `*`
 ### Changed
 ### Deprecated
 ### Removed
 ### Fixed
+- fix disappearing stars due to text style parsing
 ### Security
 
 ## [0.6.1] - 2026-03-10
