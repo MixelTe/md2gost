@@ -113,7 +113,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					renderList(node);
 					function renderList(node: Runify<NodeList>, level: number = 0)
 					{
-						addListItemLevel(list.levels, level, node.startIndex, !!node.ordered, !!node.alternativeStyle);
+						addListItemLevel(list.levels, level, node.startIndex, node.items.length, !!node.ordered, !!node.alternativeStyle);
 						for (const item of node.items)
 						{
 							if (item.type == "list") renderList({ ...item, alternativeStyle: !!node.alternativeStyle }, level + 1);
@@ -280,7 +280,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 	fs.writeFileSync(fout, buffer);
 }
 
-function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: number, ordered: boolean, alternativeStyle: boolean)
+function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: number, itemCount: number, ordered: boolean, alternativeStyle: boolean)
 {
 	if (levels.find(v => v.level == level)) return;
 	levels.sort((a, b) => a.level - b.level);
@@ -293,7 +293,9 @@ function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: n
 		const curformat = i < levels.length ? levels[i]?.format : format;
 		if (prevprevformat != curformat && prevformat != curformat) indent--;
 	}
-	const left = alternativeStyle ? 0 : 17.5;
+	const longList = startIndex + itemCount > 10;
+	const left = alternativeStyle ? 0 : longList ? 20.5 : 17.5;
+	const hanging = longList && !alternativeStyle ? convertMillimetersToTwip(8) : null;
 	levels.push({
 		level,
 		format,
@@ -304,6 +306,7 @@ function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: n
 				indent: {
 					left: convertMillimetersToTwip(left + 5 * indent),
 					...(alternativeStyle ? { firstLine: convertMillimetersToTwip(12.5) } : {}),
+					...(hanging ? { hanging } : {}),
 				},
 			},
 		},
