@@ -41,6 +41,7 @@ export function enrichDoc(doc: Doc)
 			const list = section.nodes[i + 1];
 			if (list?.type != "list") { warn(); continue; }
 			const rows: DocNode[][] = [tableRow("Термин", "Определение")];
+			const align = ["l" as const, "l" as const];
 			for (const item of list.items)
 			{
 				if (item.type != "listItem") { warn(); continue; }
@@ -49,7 +50,7 @@ export function enrichDoc(doc: Doc)
 				rows.push(tableRow(item.text.slice(0, i).trim(), item.text.slice(i + 1).trim()));
 			}
 			section.nodes.splice(i + 1, 1, { type: "text", text: "В настоящем отчете применяются следующие термины с соответствующими определениями." });
-			section.nodes.splice(i + 2, 0, { type: "table", rows, normalFontSize: true });
+			section.nodes.splice(i + 2, 0, { type: "table", align, rows, normalFontSize: true });
 			section.nodes.splice(i + 3, 0, { type: "pageBreak" });
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ")

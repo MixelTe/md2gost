@@ -89,11 +89,13 @@ export interface NodeTableOfContents
 	type: "tableOfContents",
 }
 
+export type NodeTableAlign = "l" | "c" | "r"
 export interface NodeTable
 {
 	type: "table",
 	title?: string,
 	rows: DocNode[][],
+	align: NodeTableAlign[],
 	normalFontSize?: boolean,
 }
 

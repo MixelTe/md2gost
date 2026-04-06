@@ -247,7 +247,7 @@ function findDocs(nodes: DocNode[])
 
 function findTables(nodes: DocNode[])
 {
-	const re_sep = /^(\s*-+\s*\|)+\s*-+\s*$/;
+	const re_sep = /^(\s*:?-+:?\s*\|)+\s*:?-+:?\s*$/;
 	const re_empty_line = /^\|(\s*\|)*$/;
 	const trim = (line: string) =>
 	{
@@ -266,18 +266,20 @@ function findTables(nodes: DocNode[])
 		if (lines.length < 3) continue;
 		const sep = trim(lines[1]!);
 		if (!re_sep.test(sep)) continue;
-		const colN = sep.split("|").length;
+		const cols = sep.split("|");
 		const header = trim(lines[0]!).split("|").map(v => v.trim());
-		if (header.length != colN) continue;
+		if (header.length != cols.length) continue;
+		const align = cols.map(v => v.trim()).map(v =>
+			v.startsWith(":") && v.endsWith(":") ? "c" :
+				v.endsWith(":") ? "r" : "l" as const);
 		const rows = [tableRow(...header)];
 		for (const line of lines.slice(2))
 		{
 			const row = trim(line).split("|").map(v => v.trim());
-			if (row.length != colN) break;
 			rows.push(tableRow(...row));
 		}
 		if (rows.length < 2) continue;
-		const table: NodeTable = { type: "table", rows };
+		const table: NodeTable = { type: "table", align, rows };
 		nodes.splice(i, 1, table);
 		const prev = nodes[i - 1];
 		if (prev?.type == "text")

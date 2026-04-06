@@ -148,11 +148,12 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 							rows: node.rows.map((row, rowI) => new TableRow({
 								tableHeader: rowI == 0,
 								cantSplit: true,
-								children: row.map(item => new TableCell({
+								children: row.map((item, colI) => new TableCell({
 									children: item.type != "text" ? renderNodeL(item) : [
 										new Paragraph({
 											children: renderText(item.text, !node.normalFontSize),
-											alignment: rowI == 0 ? "center" : "left",
+											alignment: rowI == 0 || node.align[colI] == "c" ? "center"
+												: node.align[colI] == "r" ? "right" : "left",
 											indent: { firstLine: 0 },
 											spacing: { after: 0, line: 240 * 1.25 },
 										})
