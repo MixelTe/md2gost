@@ -111,15 +111,21 @@ export async function parseMD(file: string)
 	{
 		text = text.trim().replaceAll(/\s+/g, " ");
 		const textl = text.toLowerCase();
-		if (textl == "highlight code") doc.codeHighlighting = true;
-		else if (textl == "rainbow") doc.rainbow = true;
-		else if (textl.startsWith("title")) doc.title = text.slice("title".length).trim();
-		else if (textl.startsWith("author")) doc.author = text.slice("author".length).trim();
-		else if (textl.startsWith("etime")) doc.etime = tryParseInt(text.slice("etime".length).trim());
-		else if (textl.startsWith("ctime")) doc.ctime = tryParseDate(text.slice("ctime".length).trim());
-		else if (textl.startsWith("mtime")) doc.mtime = tryParseDate(text.slice("mtime".length).trim());
-		else if (textl.startsWith("numbering sections")) doc.numberingSections = text.slice("numbering sections".length).trim() == "on";
-		else if (textl.startsWith("numbering autoprefix")) doc.numberingAutoprefix = text.slice("numbering autoprefix".length).trim() == "on";
+		const rules: Record<string, (v: string) => any> = {
+			"highlight code": v => doc.codeHighlighting = true,
+			"rainbow": v => doc.rainbow = true,
+			"title": v => doc.title = v,
+			"author": v => doc.author = v,
+			"etime": v => doc.etime = tryParseInt(v),
+			"ctime": v => doc.ctime = tryParseDate(v),
+			"mtime": v => doc.mtime = tryParseDate(v),
+			"numbering sections": v => doc.numberingSections = v == "on",
+			"numbering autoprefix": v => doc.numberingAutoprefix = v == "on",
+			"backtick_mono": v => doc.backtickMono = choices(v, "off", "on", "outline"),
+		}
+
+		const rulePrefix = Object.keys(rules).find(prefix => textl.startsWith(prefix));
+		if (rulePrefix) rules[rulePrefix](text.slice(rulePrefix.length).trim());
 		else console.error(`Wrong rule: "${text}"`);
 
 		function tryParseInt(v: string)
@@ -131,6 +137,14 @@ export async function parseMD(file: string)
 		{
 			const date = new Date(v);
 			return isFinite(date.valueOf()) ? date : undefined;
+		}
+		function choices<D extends string, V extends string>(
+			v: string,
+			def: D,
+			...vars: V[]
+		): D | V
+		{
+			return vars.includes(v as any) ? (v as unknown as V) : def;
 		}
 	}
 
@@ -374,6 +388,12 @@ function runifyText(text: string, rainbow = false): Rune[]
 			bold: rune.bold,
 			italic: i % 2 == 1 || rune.italic,
 		}) as Rune)).flat()
+		.map(rune => rune.text.split("`").map((p, i) => ({
+			...rune,
+			text: p,
+			linebreak: i == 0 && rune.linebreak,
+			mono: i % 2 == 1,
+		}) as Rune)).flat()
 		.map(rune => ({
 			...rune,
 			text: rune.text.replaceAll("&Star;", "*"),
@@ -384,12 +404,10 @@ function runifyText(text: string, rainbow = false): Rune[]
 			const v = m && m[1];
 			const isVal = v?.at(0) == "!";
 			return {
+				...rune,
 				text: v ? (isVal ? v.slice(1) : v) : p,
 				type: v ? (isVal ? "val" : "ref") : rune.type,
 				linebreak: i == 0 && rune.linebreak,
-				link: rune.link,
-				bold: rune.bold,
-				italic: rune.italic,
 			} as Rune;
 		})).flat()
 		.map(rune => !rainbow || (rune.type && rune.type != "text") ? [rune] : rune.text.split("").map((p, i) => ({

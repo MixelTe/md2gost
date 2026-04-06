@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - convert `&Star;` to `*`
 - table columns alignment with colon
+- parse ``` `abc` ``` as monotext, render as italic if backtick_mono is off (default)
+- new rule: `!!rule backtick_mono <off/on/outline>`
 ### Changed
 ### Deprecated
 ### Removed

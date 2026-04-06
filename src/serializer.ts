@@ -278,6 +278,112 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 		},
 	]);
 	fs.writeFileSync(fout, buffer);
+
+	function renderText(text: string | Rune[], small: boolean = false): ParagraphChild[]
+	{
+		function renderRune(rune: Rune, link: boolean = false): ParagraphChild
+		{
+			if (rune.anchor) return new Bookmark({
+				id: rune.anchor,
+				children: [renderRune({ ...rune, anchor: undefined })],
+			});
+			if (rune.link)
+			{
+				const children = [renderRune({ ...rune, link: undefined }, true)];
+				return rune.link.startsWith("#") ?
+					new InternalHyperlink({ children, anchor: rune.link.slice(1) }) :
+					new ExternalHyperlink({ children, link: rune.link });
+			}
+			let children: null | string[] = null;
+			if (rune.type == "val" && rune.text == "pages")
+			{
+				rune.type = "text";
+				children = [PageNumber.TOTAL_PAGES];
+			}
+			return new TextRun({
+				...(children ? { children } : { text: rune.text }),
+				language: { value: rune.lang == "en" ? "en-US" : "ru-RU" },
+				...(rune.linebreak ? { break: 1 } : {}),
+				...(rune.bold ? { bold: true } : {}),
+				...(rune.italic ? { italics: true } : {}),
+				...(link ? { color: "0563c1", underline: { type: "single" } } : {}),
+				...(rune.color ? { color: rune.color } : {}),
+				...(small ? { size: 24 } : {}),
+				...(rune.type && rune.type != "text" ? { highlight: "black", color: "ffffff" } : {}),
+				...(rune.mono ? (
+					doc.backtickMono == "outline" ? { font: "consolas", size: 24, border: { style: "single", space: 2 } }
+						: doc.backtickMono == "on" ? { font: "consolas", size: 24 }
+							: { italics: true }
+				) : {}),
+			});
+		}
+		if (typeof text == "string") text = [{ text }];
+		text = splitRunesByLang(text);
+		return text.map(r => renderRune(r));
+
+		function splitRunesByLang(runes: Rune[]): Rune[]
+		{
+			const result: Rune[] = [];
+			for (let r = 0; r < runes.length; r++)
+			{
+				const rune = runes[r];
+				const text = rune.text;
+
+				if (!text || text.length === 0)
+				{
+					result.push(rune);
+					continue;
+				}
+
+				let bufferStart = 0;
+				let lastType = 0;
+				let segmentType = 0;
+
+				for (let i = 0; i < text.length; i++)
+				{
+					const code = text.charCodeAt(i);
+					let type = 0;
+					if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122))
+						type = 1; // latin
+					else if (code >= 0x0400 && code <= 0x04ff)
+						type = 2; // cyrillic
+
+					if (segmentType === 0 && type !== 0) segmentType = type;
+
+					if (
+						i > bufferStart &&
+						type !== 0 &&
+						lastType !== 0 &&
+						type !== lastType
+					)
+					{
+						result.push(copyRune(rune, text.slice(bufferStart, i), segmentType, bufferStart == 0));
+						bufferStart = i;
+						segmentType = type;
+					}
+
+					if (type !== 0) lastType = type;
+				}
+				if (bufferStart === 0)
+					result.push(copyRune(rune, text, segmentType || lastType, true));
+				else
+					result.push(copyRune(rune, text.slice(bufferStart), segmentType, false));
+			}
+
+			return result;
+
+			function copyRune(src: Rune, text: string, type: number, first: boolean): Rune
+			{
+				return {
+					...src,
+					text,
+					anchor: first ? src.anchor : undefined,
+					linebreak: src.linebreak && first,
+					lang: type == 1 ? "en" : type == 2 ? "ru" : undefined,
+				};
+			}
+		}
+	}
 }
 
 function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: number, itemCount: number, ordered: boolean, alternativeStyle: boolean)
@@ -313,106 +419,6 @@ function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: n
 	});
 }
 
-function renderText(text: string | Rune[], small: boolean = false): ParagraphChild[]
-{
-	function renderRune(rune: Rune, link: boolean = false): ParagraphChild
-	{
-		if (rune.anchor) return new Bookmark({
-			id: rune.anchor,
-			children: [renderRune({ ...rune, anchor: undefined })],
-		});
-		if (rune.link)
-		{
-			const children = [renderRune({ ...rune, link: undefined }, true)];
-			return rune.link.startsWith("#") ?
-				new InternalHyperlink({ children, anchor: rune.link.slice(1) }) :
-				new ExternalHyperlink({ children, link: rune.link });
-		}
-		let children: null | string[] = null;
-		if (rune.type == "val" && rune.text == "pages")
-		{
-			rune.type = "text";
-			children = [PageNumber.TOTAL_PAGES];
-		}
-		return new TextRun({
-			...(children ? { children } : { text: rune.text }),
-			language: { value: rune.lang == "en" ? "en-US" : "ru-RU" },
-			...(rune.linebreak ? { break: 1 } : {}),
-			...(rune.bold ? { bold: true } : {}),
-			...(rune.italic ? { italics: true } : {}),
-			...(link ? { color: "0563c1", underline: { type: "single" } } : {}),
-			...(rune.color ? { color: rune.color } : {}),
-			...(small ? { size: 24 } : {}),
-			...(rune.type && rune.type != "text" ? { highlight: "black", color: "ffffff" } : {}),
-		});
-	}
-	if (typeof text == "string") text = [{ text }];
-	text = splitRunesByLang(text);
-	return text.map(r => renderRune(r));
-
-	function splitRunesByLang(runes: Rune[]): Rune[]
-	{
-		const result: Rune[] = [];
-		for (let r = 0; r < runes.length; r++)
-		{
-			const rune = runes[r];
-			const text = rune.text;
-
-			if (!text || text.length === 0)
-			{
-				result.push(rune);
-				continue;
-			}
-
-			let bufferStart = 0;
-			let lastType = 0;
-			let segmentType = 0;
-
-			for (let i = 0; i < text.length; i++)
-			{
-				const code = text.charCodeAt(i);
-				let type = 0;
-				if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122))
-					type = 1; // latin
-				else if (code >= 0x0400 && code <= 0x04ff)
-					type = 2; // cyrillic
-
-				if (segmentType === 0 && type !== 0) segmentType = type;
-
-				if (
-					i > bufferStart &&
-					type !== 0 &&
-					lastType !== 0 &&
-					type !== lastType
-				)
-				{
-					result.push(copyRune(rune, text.slice(bufferStart, i), segmentType, bufferStart == 0));
-					bufferStart = i;
-					segmentType = type;
-				}
-
-				if (type !== 0) lastType = type;
-			}
-			if (bufferStart === 0)
-				result.push(copyRune(rune, text, segmentType || lastType, true));
-			else
-				result.push(copyRune(rune, text.slice(bufferStart), segmentType, false));
-		}
-
-		return result;
-
-		function copyRune(src: Rune, text: string, type: number, first: boolean): Rune
-		{
-			return {
-				...src,
-				text,
-				anchor: first ? src.anchor : undefined,
-				linebreak: src.linebreak && first,
-				lang: type == 1 ? "en" : type == 2 ? "ru" : undefined,
-			};
-		}
-	}
-}
 // const docx = new Document({
 // 	sections,
 // 	styles: {

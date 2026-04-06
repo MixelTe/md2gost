@@ -5,6 +5,7 @@ export class Doc
 	public rainbow = false;
 	public numberingSections = false;
 	public numberingAutoprefix = true;
+	public backtickMono: "off" | "on" | "outline" = "off";
 	public title: string | undefined;
 	public author: string | undefined;
 	public etime: number | undefined;
@@ -50,6 +51,7 @@ export interface Rune
 	color?: string,
 	bold?: boolean,
 	italic?: boolean,
+	mono?: boolean,
 	linebreak?: boolean,
 	lang?: "ru" | "en"
 }
