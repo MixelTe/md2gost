@@ -7,17 +7,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
-- convert `&Star;` to `*`
-- table columns alignment with colon
-- parse ``` `abc` ``` as monotext, render as italic if backtick_mono is off (default)
-- new rule: `!!rule backtick_mono <off/on/outline>`
 ### Changed
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
+
+## [0.7.0] - 2026-04-07
+### Added
+- convert `&Star;` to `*`
+- table columns alignment with colon
+- parse ``` `abc` ``` as monotext, render as italic if backtick_mono is off (default)
+- new rule: `!!rule backtick_mono <off/on/outline>`
+- new rule: `!!rule numbering lazy <off/on>`
+### Fixed
 - fix disappearing stars due to text style parsing
 - fix list indent when >= 10 items
-### Security
+- fix quotes replacing ("a "b" c": «a »b« c» to «a «b» c»)
+- fix docx include when not in the beginning
+- fix `<br>` duplication
 
 ## [0.6.1] - 2026-03-10
 ### Added

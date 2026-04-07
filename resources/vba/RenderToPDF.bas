@@ -28,7 +28,7 @@ Sub RenderSegmentsToPDF()
 
         If Not includeData Is Nothing Then
             ' Export text BEFORE include
-            If ExportPagesAsPDF(mainDoc, startRange.Start, p.Range.Start, outDir, segIndex) Then
+            If ExportPagesAsPDF(mainDoc, startRange.Start, p.Range.Start - 1, outDir, segIndex) Then
                 segIndex = segIndex + 1
             End If
 
@@ -36,7 +36,6 @@ Sub RenderSegmentsToPDF()
             RenderIncludeToPDF includeData, outDir, segIndex
             segIndex = segIndex + 1
 
-            ' Set startRange = mainDoc.Range(p.Range.End, p.Range.End)
             Dim newStart As Long
             newStart = SkipTrailingSectionBreaks(mainDoc, p.Range.End)
             Set startRange = mainDoc.Range(newStart, newStart)
@@ -58,7 +57,7 @@ Function ParseIncludeSyntax(txt As String) As Object
 
     Dim re As Object
     Set re = CreateObject("VBScript.RegExp")
-    re.Pattern = "^!!\((.*?)\)\s*(\{.*\})$"
+    re.Pattern = "^\s*!!\((.*?)\)\s*(\{.*\})\s*$"
     re.Global = False
 
     Dim result As Object

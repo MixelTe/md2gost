@@ -318,6 +318,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 			});
 		}
 		if (typeof text == "string") text = [{ text }];
+		if (text.at(-1)?.text == "" && text.at(-1)?.linebreak) text = text.slice(0, -1);
 		text = splitRunesByLang(text);
 		return text.map(r => renderRune(r));
 

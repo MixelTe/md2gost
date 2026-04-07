@@ -119,10 +119,11 @@ export async function parseMD(file: string)
 			"etime": v => doc.etime = tryParseInt(v),
 			"ctime": v => doc.ctime = tryParseDate(v),
 			"mtime": v => doc.mtime = tryParseDate(v),
-			"numbering sections": v => doc.numberingSections = v == "on",
+			"numbering lazy": v => doc.numberingLazy = !v || v == "on",
+			"numbering sections": v => doc.numberingSections = !v || v == "on",
 			"numbering autoprefix": v => doc.numberingAutoprefix = v == "on",
 			"backtick_mono": v => doc.backtickMono = choices(v, "off", "on", "outline"),
-		}
+		};
 
 		const rulePrefix = Object.keys(rules).find(prefix => textl.startsWith(prefix));
 		if (rulePrefix) rules[rulePrefix](text.slice(rulePrefix.length).trim());
@@ -168,6 +169,7 @@ export async function parseMD(file: string)
 			case "Comment": break;
 			case "!!section": doc.appendNode(parseSection(text)); break;
 			case "!!rule": apllyRule(text); break;
+			case "---": doc.appendNode({ type: "pageBreak" }); break;
 
 			case "":
 			case "\t":
@@ -195,8 +197,9 @@ export async function parseMD(file: string)
 }
 
 const re_img = /!\[(.*)\]\((.*)\)({(.*)})?/;
+const re_sep = /^\s*---+\s*$/;
 
-type Prefix = "" | "#" | "##" | "###" | "####" | "#####" | "######" | "*" | "1)" | "\t" | "Img" | "Code" | "Comment" | "!!section" | "!!rule";
+type Prefix = "" | "#" | "##" | "###" | "####" | "#####" | "######" | "*" | "1)" | "---" | "\t" | "Img" | "Code" | "Comment" | "!!section" | "!!rule";
 function parseLine(line: string): { prefix: Prefix, text: string, level: number, parts: string[] }
 {
 	let level = 0;
@@ -207,6 +210,7 @@ function parseLine(line: string): { prefix: Prefix, text: string, level: number,
 		level++;
 	}
 	if (level > 0) return { prefix: "\t", text: line.trim(), level, parts: [] };
+	if (re_sep.test(line)) return { prefix: "---", text: "", level, parts: [] };
 	const splited = line.trim().split(/\s/);
 	let prefix = splited[0]!.toLowerCase();
 	let text = splited.slice(1).join(" ");
@@ -300,6 +304,7 @@ function findTables(nodes: DocNode[])
 		{
 			nodes.splice(i - 1, 1);
 			table.title = prev.text;
+			i--;
 		}
 	}
 }
@@ -353,7 +358,8 @@ function runifyText(text: string, rainbow = false): Rune[]
 {
 	return text.replaceAll("\n", "&Tab;\n").replaceAll(/\s*<br>\s*/g, "\n")
 		.replaceAll("—", "-").replaceAll(" - ", " \u2013 ")
-		.replaceAll(/"(([^"\n])*?)"/g, "«$1»")
+		.replaceAll(/(\s)"(\w)/g, "$1«$2")
+		.replaceAll(/(\w)"(\s)/g, "$1»$2")
 		.replaceAll(/(^|\s)(\*+)($|\s)/g, sub => sub.replaceAll("*", "&Star;"))
 		.split(/(\[.*\]\(.*\))/g)
 		.map(p =>

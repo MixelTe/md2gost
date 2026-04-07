@@ -21,6 +21,8 @@ export function alchemist(doc: RunicDoc)
 	let nextPrefix = "";
 	let prefix = "";
 
+	if (doc.numberingLazy) addLazyNumbering(doc);
+
 	doc.sections.forEach(section =>
 	{
 		section.nodes.forEach((node, i) =>
@@ -199,3 +201,16 @@ export function alchemist(doc: RunicDoc)
 		});
 	}
 }
+
+function addLazyNumbering(doc: RunicDoc)
+{
+	doc.sections.forEach(section => section.nodes.forEach(node =>
+	{
+		const runes = (node.type == "code" || node.type == "table") ? node.title
+			: node.type == "image" ? node.text : null;
+		if (!runes) return;
+		if (runes.find(rune => rune.type == "ref")) return;
+		runes.splice(0, 0, { text: "#", type: "ref" });
+	}));
+}
+

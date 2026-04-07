@@ -15,5 +15,6 @@ vsc-extension-quickstart.md
 resources/**
 # assets/**
 _hint.txt
+mac.txt
 esbuild-meta.json
 force_update_nb.bat

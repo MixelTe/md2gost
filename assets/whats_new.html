@@ -302,6 +302,21 @@
 	<script>
 		const changelogData = [
 			{
+				date: "2026-04-07",
+				version: "v0.7.0",
+				changes: [
+					{ type: "Added", text: "Новое правило для «ленивой» автонумерации: !!rule numbering lazy." },
+					{ type: "Added", text: "Выравнивание столбцов таблиц с помощью двоеточия." },
+					{ type: "Added", text: "Парсинг обратных кавычек как моноширинного текста (курсив по умолчанию)." },
+					{ type: "Added", text: "Новое правило управления моноширинным текстом: !!rule backtick_mono <off/on/outline>." },
+					{ type: "Added", text: "Конвертация &amp;Star; в звёздочку (*)." },
+					{ type: "Fixed", text: "Исправлено исчезновение звёздочек." },
+					{ type: "Fixed", text: "Исправлен отступ в списках, содержащих 10 и более элементов." },
+					{ type: "Fixed", text: "Корректная обработка вложенных кавычек (замена «a »b« c» на «a «b» c»)." },
+					{ type: "Fixed", text: "Исправлена вставка docx-файлов не в начало документа." }
+				]
+			},
+			{
 				date: "2026-03-07",
 				version: "v0.6.0 — The Reference Update",
 				changes: [

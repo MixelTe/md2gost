@@ -3,6 +3,7 @@ export class Doc
 	public sections: DocSection[] = [{ pageStart: 1, nodes: [] }];
 	public codeHighlighting = false;
 	public rainbow = false;
+	public numberingLazy = false;
 	public numberingSections = false;
 	public numberingAutoprefix = true;
 	public backtickMono: "off" | "on" | "outline" = "off";
