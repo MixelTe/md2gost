@@ -195,9 +195,6 @@ export async function parseMD(file: string)
 	return doc;
 }
 
-const re_img = /!\[(.*)\]\((.*)\)({(.*)})?/;
-const re_sep = /^\s*---+\s*$/;
-
 type Prefix = "" | "#" | "##" | "###" | "####" | "#####" | "######" | "*" | "1)" | "---" | "\t" | "Img" | "Code" | "Comment" | "!!section" | "!!rule";
 function parseLine(line: string): { prefix: Prefix, text: string, level: number, parts: string[] }
 {
@@ -209,14 +206,14 @@ function parseLine(line: string): { prefix: Prefix, text: string, level: number,
 		level++;
 	}
 	if (level > 0) return { prefix: "\t", text: line.trim(), level, parts: [] };
-	if (re_sep.test(line)) return { prefix: "---", text: "", level, parts: [] };
+	if (/^\s*---+\s*$/.test(line)) return { prefix: "---", text: "", level, parts: [] };
 	const splited = line.trim().split(/\s/);
 	let prefix = splited[0]!.toLowerCase();
 	let text = splited.slice(1).join(" ");
 	let parts: string[] = [];
 	if (prefix.startsWith("!"))
 	{
-		const m_img = re_img.exec(line);
+		const m_img = /!\[(.*)\]\((.*)\)({(.*)})?/.exec(line);
 		if (m_img) return {
 			prefix: "Img",
 			text: line.trim(),
@@ -243,7 +240,7 @@ function parseLine(line: string): { prefix: Prefix, text: string, level: number,
 
 function findDocs(nodes: DocNode[])
 {
-	const re_doc = /^!!\((.*)\)\s*{(.*)}$/s;
+	const re_doc = /^!!\(([^{}]*)\)\s*{(.*)}$/s;
 	const re_remTrailingComma = /,(\s*[}\]])/g;
 	for (let i = 0; i < nodes.length; i++)
 	{

@@ -3,11 +3,14 @@ import { render } from "./main";
 import { openFile, trimStart } from "./utils";
 import fs from "fs";
 import path from "path";
+import { md_formatter } from "./formatter";
+import { md_completion, md_hover, md_inlineCompletion, md_inlineHints } from "./enhancements";
 
 export function activate(context: vscode.ExtensionContext)
 {
 	const assets = context.asAbsolutePath("assets");
 	showChangelogOnUpdate(context);
+	showFormatterSuggest();
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("md2gost.render_pdf",
@@ -24,6 +27,38 @@ export function activate(context: vscode.ExtensionContext)
 			(uri: vscode.Uri) => onRenderCommand(assets, uri, false, true),
 		)
 	);
+
+	context.subscriptions.push(vscode.languages.registerDocumentFormattingEditProvider("markdown", {
+		async provideDocumentFormattingEdits(document: vscode.TextDocument, options: vscode.FormattingOptions, token: vscode.CancellationToken): Promise<vscode.TextEdit[]>
+		{
+			const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
+			return await md_formatter(document, fullRange, options, token);
+		}
+	}));
+	context.subscriptions.push(vscode.languages.registerDocumentRangeFormattingEditProvider("markdown", {
+		async provideDocumentRangeFormattingEdits(document: vscode.TextDocument, range: vscode.Range, options: vscode.FormattingOptions, token: vscode.CancellationToken): Promise<vscode.TextEdit[]>
+		{
+			return await md_formatter(document, range, options, token);
+		}
+	}));
+
+	context.subscriptions.push(vscode.languages.registerCompletionItemProvider(
+		{ language: "markdown", pattern: "**/*.g.md" },
+		{ provideCompletionItems: md_completion },
+		"!"
+	));
+	context.subscriptions.push(vscode.languages.registerInlineCompletionItemProvider(
+		{ language: "markdown" },
+		{ provideInlineCompletionItems: md_inlineCompletion }
+	));
+	context.subscriptions.push(vscode.languages.registerHoverProvider(
+		{ language: "markdown", pattern: "**/*.g.md" },
+		{ provideHover: md_hover }
+	));
+	// context.subscriptions.push(vscode.languages.registerInlayHintsProvider(
+	// 	{ language: "markdown", pattern: "**/*.g.md" },
+	// 	{ provideInlayHints: md_inlineHints }
+	// ));
 }
 
 export function deactivate() { }
@@ -126,4 +161,23 @@ function showChangelogOnUpdate(context: vscode.ExtensionContext)
 			panel.webview.html = html.replaceAll("{{root}}", rootUri.toString()).replaceAll("{{currentVersion}}", packageVersion);
 		})
 	);
+}
+
+function showFormatterSuggest()
+{
+	const myExtensionId = "MixelTe.md2gost";
+	const config = vscode.workspace.getConfiguration("editor", { languageId: "markdown" });
+	const defaultFormatter = config.get<string>("defaultFormatter");
+	if (defaultFormatter == myExtensionId) return;
+
+	vscode.window.showInformationMessage(
+		"Не хотите ли использовать md2gost для форматирования Markdown?",
+		"Да",
+		"Нет",
+		"Конечно",
+	).then(selection =>
+	{
+		if (selection != "Да" && selection != "Конечно") return;
+		config.update("defaultFormatter", myExtensionId, vscode.ConfigurationTarget.Global, true);
+	});
 }
