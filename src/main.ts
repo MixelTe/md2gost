@@ -18,17 +18,17 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 	progress(10, "Пытаемся понять, что вы тут написали...");
 	const fin = path.resolve(file);
 	const doc = await parseMD(fin);
-	console.log(doc);
+	// console.log(doc);
 
 	// progress(10, "Trying to understand your scribbles");
 	progress(10, "Колдуем над синтаксисом...");
 	enrichDoc(doc);
-	console.log(doc);
+	// console.log(doc);
 
 	const runicDoc = runifyDoc(doc);
-	console.log(runicDoc);
+	// console.log(runicDoc);
 	alchemist(runicDoc);
-	console.log(runicDoc);
+	// console.log(runicDoc);
 
 	const p = path.parse(fin);
 	const fdir = p.dir;
@@ -105,7 +105,7 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 function hasReasonForRunningMacros(doc: RunicDoc)
 {
 	if (DISABLE_MACRO) return false;
-	return doc.sections.some(s => s.nodes.some(n => n.type == "code"));
+	return doc.nodes.some(n => n.type == "code");
 }
 
 function runDocxMacro(progress: SetProgressFn, assets: string, cwd: string, fin: string, fout: string, renderPDF: boolean)

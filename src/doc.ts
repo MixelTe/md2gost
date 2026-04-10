@@ -1,6 +1,6 @@
 export class Doc
 {
-	public sections: DocSection[] = [{ pageStart: 1, nodes: [] }];
+	public nodes: DocNode[] = [];
 	public codeHighlighting = false;
 	public rainbow = false;
 	public numberingLazy = false;
@@ -15,28 +15,21 @@ export class Doc
 
 	public appendText(text: string)
 	{
-		this.sections.at(-1)!.nodes.push({ type: "text", text });
+		this.nodes.push({ type: "text", text });
 	}
 	public appendTitle(text: string, level: number)
 	{
-		this.sections.at(-1)!.nodes.push({ type: "title", text, level });
+		this.nodes.push({ type: "title", text, level });
 	}
 	public appendNode(node: DocNode)
 	{
-		this.sections.at(-1)!.nodes.push(node);
+		this.nodes.push(node);
 	}
 }
 
 export function tableRow(...items: string[]): DocNode[]
 {
 	return items.map(v => ({ type: "text", text: v }));
-}
-
-
-export interface DocSection
-{
-	pageStart: number | null;
-	nodes: DocNode[];
 }
 
 export type DocNode =
@@ -62,7 +55,7 @@ export type Runify<T> = {
 };
 
 export type RunicDoc = {
-	[key in keyof Doc]: key extends "sections" ? Runify<Doc[key]> : Doc[key];
+	[key in keyof Doc]: key extends "nodes" ? Runify<Doc[key]> : Doc[key];
 };
 export type RunicNode = Runify<DocNode>;
 

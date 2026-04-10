@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import { AlignmentType, Document, Footer, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark } from "docx";
-import type { DocNode, NodeList, Rune, RunicDoc, RunicNode, Runify } from "./doc";
+import type { NodeList, Rune, RunicDoc, RunicNode, Runify } from "./doc";
 import { randomInt, type DeepWriteable } from "./utils";
 import { imageSize } from "image-size";
 import path from "path";
@@ -21,30 +21,22 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 	const sections: ISectionOptions[] = [];
 	const numbering: DeepWriteable<INumberingOptions>["config"] = [];
 
-	(function splitSections()
+	const docSections = (function splitSections()
 	{
-		for (let i = 0; i < doc.sections.length; i++)
+		const sections: { pageStart: number | null, nodes: RunicNode[] }[]
+			= [{ pageStart: 1, nodes: [] }];
+		for (let j = 0; j < doc.nodes.length; j++)
 		{
-			const section = doc.sections[i]!;
-			for (let j = 0; j < section.nodes.length; j++)
-			{
-				const node = section.nodes[j]!;
-				if (node.type == "sectionBreak")
-				{
-					const nodes = section.nodes;
-					section.nodes = nodes.slice(0, j);
-					doc.sections.splice(i + 1, 0, {
-						nodes: nodes.slice(j + 1),
-						pageStart: node.pageStart,
-					});
-					break;
-				}
-			}
+			const node = doc.nodes[j]!;
+			if (node.type == "sectionBreak")
+				sections.push({ pageStart: node.pageStart, nodes: [] });
+			else
+				sections.at(-1)?.nodes.push(node);
 		}
-		doc.sections = doc.sections.filter(s => s.nodes.length > 0);
+		return sections.filter(s => s.nodes.length > 0);
 	})();
 
-	for (const section of doc.sections)
+	for (const section of docSections)
 	{
 		const children: FileChild[] = [];
 		sections.push({

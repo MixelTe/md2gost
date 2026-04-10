@@ -3,42 +3,41 @@ import { toCapitalCase, trimEnd } from "./utils";
 
 export function enrichDoc(doc: Doc)
 {
-	const section = doc.sections[0]!;
-	for (let i = 0; i < section.nodes.length; i++)
+	for (let i = 0; i < doc.nodes.length; i++)
 	{
-		const node = section.nodes[i]!;
+		const node = doc.nodes[i]!;
 		if (node.type == "title" && node.text.toUpperCase().startsWith("ТИТУЛЬНИК"))
 		{
-			section.nodes.splice(i, 1, { type: "text", text: node.text.toUpperCase() });
-			section.nodes.splice(i + 1, 0, { type: "pageBreak" });
+			doc.nodes.splice(i, 1, { type: "text", text: node.text.toUpperCase() });
+			doc.nodes.splice(i + 1, 0, { type: "pageBreak" });
 			i++;
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "РЕФЕРАТ")
 		{
 			node.level = 0;
 			node.text = node.text.toUpperCase();
-			const nextNode = section.nodes[i + 1];
+			const nextNode = doc.nodes[i + 1];
 			if (nextNode?.type == "text")
 			{
 				nextNode.noIndent = true;
 				nextNode.text = trimEnd(nextNode.text, ".").toUpperCase();
 			}
-			section.nodes.splice(i + 1, 0, { type: "text", text: "Отчет [!pages] с., [!imgs] рис., [!tables] табл., [!codes] лист., [!sources] источн." });
-			while (i + 1 < section.nodes.length && section.nodes[i + 1]?.type != "title") i++;
-			section.nodes.splice(i + 1, 0, { type: "pageBreak" });
+			doc.nodes.splice(i + 1, 0, { type: "text", text: "Отчет [!pages] с., [!imgs] рис., [!tables] табл., [!codes] лист., [!sources] источн." });
+			while (i + 1 < doc.nodes.length && doc.nodes[i + 1]?.type != "title") i++;
+			doc.nodes.splice(i + 1, 0, { type: "pageBreak" });
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "ОГЛАВЛЕНИЕ")
 		{
 			node.level = 0;
 			node.text = node.text.toUpperCase();
-			section.nodes.splice(i + 1, 0, { type: "tableOfContents" });
+			doc.nodes.splice(i + 1, 0, { type: "tableOfContents" });
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ")
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
 			const warn = () => console.warn("Wrong format of ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ");
-			const list = section.nodes[i + 1];
+			const list = doc.nodes[i + 1];
 			if (list?.type != "list") { warn(); continue; }
 			const rows: DocNode[][] = [tableRow("Термин", "Определение")];
 			const align = ["l" as const, "l" as const];
@@ -49,16 +48,16 @@ export function enrichDoc(doc: Doc)
 				if (i < 0) { warn(); continue; }
 				rows.push(tableRow(item.text.slice(0, i).trim(), item.text.slice(i + 1).trim()));
 			}
-			section.nodes.splice(i + 1, 1, { type: "text", text: "В настоящем отчете применяются следующие термины с соответствующими определениями." });
-			section.nodes.splice(i + 2, 0, { type: "table", align, rows, normalFontSize: true });
-			section.nodes.splice(i + 3, 0, { type: "pageBreak" });
+			doc.nodes.splice(i + 1, 1, { type: "text", text: "В настоящем отчете применяются следующие термины с соответствующими определениями." });
+			doc.nodes.splice(i + 2, 0, { type: "table", align, rows, normalFontSize: true });
+			doc.nodes.splice(i + 3, 0, { type: "pageBreak" });
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ")
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
 			const warn = () => console.warn("Wrong format of ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ");
-			const list = section.nodes[i + 1];
+			const list = doc.nodes[i + 1];
 			if (list?.type != "list") { warn(); continue; }
 			const items: DocNode[] = [];
 			for (const item of list.items)
@@ -66,20 +65,20 @@ export function enrichDoc(doc: Doc)
 				if (item.type != "listItem") { warn(); continue; }
 				items.push({ type: "text", text: trimEnd(item.text, "."), noIndent: true, noMargin: true });
 			}
-			section.nodes.splice(i + 1, 1, { type: "text", text: "В настоящем отчете применяют следующие сокращения и обозначения." });
-			section.nodes.splice(i + 2, 0, { type: "pageBreak" });
-			section.nodes.splice(i + 2, 0, ...items);
+			doc.nodes.splice(i + 1, 1, { type: "text", text: "В настоящем отчете применяют следующие сокращения и обозначения." });
+			doc.nodes.splice(i + 2, 0, { type: "pageBreak" });
+			doc.nodes.splice(i + 2, 0, ...items);
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "ВВЕДЕНИЕ")
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
-			for (let j = i + 1; j < section.nodes.length; j++)
+			for (let j = i + 1; j < doc.nodes.length; j++)
 			{
-				const node = section.nodes[j];
+				const node = doc.nodes[j];
 				if (node?.type == "title")
 				{
-					section.nodes.splice(j, 0, { type: "pageBreak" });
+					doc.nodes.splice(j, 0, { type: "pageBreak" });
 					break;
 				}
 			}
@@ -88,16 +87,16 @@ export function enrichDoc(doc: Doc)
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
-			section.nodes.splice(i, 0, { type: "pageBreak" });
+			doc.nodes.splice(i, 0, { type: "pageBreak" });
 			i++;
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ")
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
-			section.nodes.splice(i, 0, { type: "pageBreak" });
+			doc.nodes.splice(i, 0, { type: "pageBreak" });
 			i++;
-			const list = section.nodes[i + 1];
+			const list = doc.nodes[i + 1];
 			if (list?.type != "list") { console.warn("Wrong format of СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"); continue; }
 			list.alternativeStyle = true;
 			i++;

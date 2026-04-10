@@ -23,71 +23,68 @@ export function alchemist(doc: RunicDoc)
 
 	if (doc.numberingLazy) addLazyNumbering(doc);
 
-	doc.sections.forEach(section =>
+	doc.nodes.forEach((node, i) =>
 	{
-		section.nodes.forEach((node, i) =>
+		if (nextNum < 0)
 		{
-			if (nextNum < 0)
+			let l1 = counter.titles.l1;
+			let codes = counter.codes;
+			let imgs = counter.imgs;
+			let tables = counter.tables;
+			for (let j = i; j < doc.nodes.length && nextNum < 0; j++)
 			{
-				let l1 = counter.titles.l1;
-				let codes = counter.codes;
-				let imgs = counter.imgs;
-				let tables = counter.tables;
-				for (let j = i; j < section.nodes.length && nextNum < 0; j++)
+				const n = doc.nodes[j];
+				if (n.type == "code") nextNum = codes + 1;
+				if (n.type == "image") nextNum = imgs + 1;
+				if (n.type == "table") nextNum = tables + 1;
+				if (n.type == "title" && n.level == 1 && doc.numberingSections)
 				{
-					const n = section.nodes[j];
-					if (n.type == "code") nextNum = codes + 1;
-					if (n.type == "image") nextNum = imgs + 1;
-					if (n.type == "table") nextNum = tables + 1;
-					if (n.type == "title" && n.level == 1 && doc.numberingSections)
-					{
-						const num = getTitleNum(n);
-						if (num) l1 = num;
-						else l1++;
-						codes = 0;
-						imgs = 0;
-						tables = 0;
-					}
-				}
-				nextPrefix = l1 > 0 && doc.numberingSections ? `${l1}.` : "";
-			}
-
-			if (node.type == "title")
-			{
-				for (let i = 1; i <= 5; i++)
-				{
-					if (i == node.level) counter.titles[`l${i}` as TtKeys]++;
-					if (i > node.level) counter.titles[`l${i}` as TtKeys] = 0;
-				}
-				if (node.level == 1)
-				{
-					const num = getTitleNum(node);
-					if (num) counter.titles.l1 = num;
-					if (doc.numberingSections)
-					{
-						counter.codes = 0;
-						counter.imgs = 0;
-						counter.tables = 0;
-					}
-					prefix = doc.numberingSections ? `${counter.titles.l1}.` : "";
+					const num = getTitleNum(n);
+					if (num) l1 = num;
+					else l1++;
+					codes = 0;
+					imgs = 0;
+					tables = 0;
 				}
 			}
+			nextPrefix = l1 > 0 && doc.numberingSections ? `${l1}.` : "";
+		}
 
-			if ("text" in node && node.text)
-				materializeRunes(node.text, node);
-			if ("title" in node && node.title)
-				materializeRunes(node.title, node);
-
-			if (node.type == "code" || node.type == "image" || node.type == "table")
+		if (node.type == "title")
+		{
+			for (let i = 1; i <= 5; i++)
 			{
-				if (node.type == "code") { counter.codes++; counter.codesAll++; }
-				if (node.type == "image") { counter.imgs++; counter.imgsAll++; }
-				if (node.type == "table") { counter.tables++; counter.tablesAll++; }
-				prevNum = nextNum;
-				prevPrefix = prefix;
-				nextNum = -1;
+				if (i == node.level) counter.titles[`l${i}` as TtKeys]++;
+				if (i > node.level) counter.titles[`l${i}` as TtKeys] = 0;
 			}
-		});
+			if (node.level == 1)
+			{
+				const num = getTitleNum(node);
+				if (num) counter.titles.l1 = num;
+				if (doc.numberingSections)
+				{
+					counter.codes = 0;
+					counter.imgs = 0;
+					counter.tables = 0;
+				}
+				prefix = doc.numberingSections ? `${counter.titles.l1}.` : "";
+			}
+		}
+
+		if ("text" in node && node.text)
+			materializeRunes(node.text, node);
+		if ("title" in node && node.title)
+			materializeRunes(node.title, node);
+
+		if (node.type == "code" || node.type == "image" || node.type == "table")
+		{
+			if (node.type == "code") { counter.codes++; counter.codesAll++; }
+			if (node.type == "image") { counter.imgs++; counter.imgsAll++; }
+			if (node.type == "table") { counter.tables++; counter.tablesAll++; }
+			prevNum = nextNum;
+			prevPrefix = prefix;
+			nextNum = -1;
+		}
 	});
 
 	vals["codes"]?.forEach(f => f(counter.codes));
@@ -204,13 +201,13 @@ export function alchemist(doc: RunicDoc)
 
 function addLazyNumbering(doc: RunicDoc)
 {
-	doc.sections.forEach(section => section.nodes.forEach(node =>
+	doc.nodes.forEach(node =>
 	{
 		const runes = (node.type == "code" || node.type == "table") ? node.title
 			: node.type == "image" ? node.text : null;
 		if (!runes) return;
 		if (runes.find(rune => rune.type == "ref")) return;
 		runes.splice(0, 0, { text: "#", type: "ref" });
-	}));
+	});
 }
 

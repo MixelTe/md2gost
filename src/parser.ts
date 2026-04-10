@@ -7,7 +7,6 @@ export async function parseMD(file: string)
 {
 	const lines = (await fs.readFile(file, { encoding: "utf8" })).split("\n");
 	const doc = new Doc();
-	const sec = doc.sections[0]!;
 
 	try
 	{
@@ -173,7 +172,7 @@ export async function parseMD(file: string)
 
 			case "":
 			case "\t":
-				const last = sec.nodes.at(-1);
+				const last = doc.nodes.at(-1);
 				if (line.trim() != "" && last?.type == "text")
 				{
 					if (last.text != "") last.text += "\n";
@@ -188,10 +187,10 @@ export async function parseMD(file: string)
 		}
 	}
 
-	sec.nodes = sec.nodes.filter(n => n.type != "text" || n.text != "");
-	findDocs(sec.nodes);
-	findTables(sec.nodes);
-	findPageBreaks(sec.nodes);
+	doc.nodes = doc.nodes.filter(n => n.type != "text" || n.text != "");
+	findDocs(doc.nodes);
+	findTables(doc.nodes);
+	findPageBreaks(doc.nodes);
 
 	return doc;
 }
@@ -347,9 +346,7 @@ export function runifyDoc(doc: Doc): RunicDoc
 		if (node.type == "list")
 			node.items.forEach(runifyNode);
 	}
-	doc.sections.forEach(section =>
-		section.nodes.forEach(runifyNode)
-	);
+	doc.nodes.forEach(runifyNode)
 	return doc as RunicDoc;
 }
 
