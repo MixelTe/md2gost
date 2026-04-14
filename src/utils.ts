@@ -1,6 +1,7 @@
-export function lt<T, R>(v: T, fn: (v: T) => R)
+export function lt<T, R>(v: T | null | undefined, fn: (v: T) => R)
 {
-	return fn(v);
+	if (v) return fn(v);
+	return null;
 }
 export function also<T>(v: T, fn: (v: T) => any)
 {

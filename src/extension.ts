@@ -45,7 +45,7 @@ export function activate(context: vscode.ExtensionContext)
 	context.subscriptions.push(vscode.languages.registerCompletionItemProvider(
 		{ language: "markdown", pattern: "**/*.g.md" },
 		{ provideCompletionItems: md_completion },
-		"!"
+		"!", " ", "#"
 	));
 	context.subscriptions.push(vscode.languages.registerInlineCompletionItemProvider(
 		{ language: "markdown" },
@@ -55,10 +55,10 @@ export function activate(context: vscode.ExtensionContext)
 		{ language: "markdown", pattern: "**/*.g.md" },
 		{ provideHover: md_hover }
 	));
-	// context.subscriptions.push(vscode.languages.registerInlayHintsProvider(
-	// 	{ language: "markdown", pattern: "**/*.g.md" },
-	// 	{ provideInlayHints: md_inlineHints }
-	// ));
+	context.subscriptions.push(vscode.languages.registerInlayHintsProvider(
+		{ language: "markdown", pattern: "**/*.g.md" },
+		{ provideInlayHints: md_inlineHints }
+	));
 }
 
 export function deactivate() { }
