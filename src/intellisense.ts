@@ -1,4 +1,4 @@
-import { InlineCompletionItem, TextDocument, Position, CompletionItem, CompletionItemKind, Hover, InlayHint, SnippetString, MarkdownString, Range, InlayHintKind } from "vscode";
+import { InlineCompletionItem, TextDocument, Position, CompletionItem, CompletionItemKind, Hover, InlayHint, SnippetString, MarkdownString, Range, InlayHintKind, type CodeLensProvider } from "vscode";
 
 export function md_completion(document: TextDocument, position: Position): CompletionItem[] | undefined
 {
@@ -158,6 +158,7 @@ export function md_inlineHints(document: TextDocument, range: Range): InlayHint[
 				: m.type == "img" ? { shift: 2, text: m.m[1], prefix: "Рисунок" }
 					: m.type == "table" ? { shift: m.m[1].length, text: m.m[2], prefix: "Таблица" }
 						: (() => { throw new Error("switch default") })();
+		if (m.type == "table" && text.trim() == "") continue;
 		const tag = /^\s*\[([a-zA-Zа-яА-ЯёЁ_\d]+|#)\]/.exec(text);
 		if (!lazy && !tag) continue;
 		let position = m.index + shift;
@@ -182,6 +183,7 @@ function completeWord(text: string, word: string, rem: { v: string })
 	rem.v = word.slice(text.length)
 	return true;
 }
+
 
 const Rules: Record<string, {
 	keyword: string,

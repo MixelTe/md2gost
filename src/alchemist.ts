@@ -1,5 +1,5 @@
 import type { DocNode, NodeTitle, Rune, RunicDoc, Runify } from "./doc";
-import { toCapitalCase } from "./utils";
+import { repeat, toCapitalCase } from "./utils";
 
 export function alchemist(doc: RunicDoc)
 {
@@ -133,11 +133,11 @@ export function alchemist(doc: RunicDoc)
 			if (type == "title")
 			{
 				const num = counter.titles[`l${node.level}` as TtKeys];
-				const prefix = node.level <= 1 ? "" : new Array(node.level - 1).fill(0).map((_, i) => counter.titles[`l${i + 1}` as TtKeys]).join(".") + ".";
+				const prefix = node.level <= 1 ? "" : repeat(node.level - 1, i => counter.titles[`l${i + 1}` as TtKeys]).join(".") + ".";
 				if (v instanceof Array) v.forEach(fn => fn(num, prefix));
 				named[tag] = { n: num, prefix };
 				rune.type = "text";
-				rune.text = new Array(node.level).fill(0).map((_, i) => counter.titles[`l${i + 1}` as TtKeys]).join(".");
+				rune.text = repeat(node.level, i => counter.titles[`l${i + 1}` as TtKeys]).join(".");
 				return;
 			}
 			if (type == "code" || type == "image" || type == "table")
