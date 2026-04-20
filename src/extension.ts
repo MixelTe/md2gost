@@ -4,7 +4,8 @@ import { openFile, trimStart } from "./utils";
 import fs from "fs";
 import path from "path";
 import { md_formatter } from "./formatter";
-import { md_completion, md_hover, md_inlineCompletion, md_inlineHints } from "./enhancements";
+import { md_completion, md_hover, md_inlineCompletion, md_inlineHints, TableCodeLensProvider } from "./intellisense";
+import { onEditTableCommand } from "./tableEditor";
 
 export function activate(context: vscode.ExtensionContext)
 {
@@ -27,6 +28,8 @@ export function activate(context: vscode.ExtensionContext)
 			(uri: vscode.Uri) => onRenderCommand(assets, uri, false, true),
 		)
 	);
+	const _onEditTableCommand = onEditTableCommand(context);
+	context.subscriptions.push(vscode.commands.registerCommand("md2gost.edit_table", _onEditTableCommand));
 
 	context.subscriptions.push(vscode.languages.registerDocumentFormattingEditProvider("markdown", {
 		async provideDocumentFormattingEdits(document: vscode.TextDocument, options: vscode.FormattingOptions, token: vscode.CancellationToken): Promise<vscode.TextEdit[]>
@@ -58,6 +61,10 @@ export function activate(context: vscode.ExtensionContext)
 	context.subscriptions.push(vscode.languages.registerInlayHintsProvider(
 		{ language: "markdown", pattern: "**/*.g.md" },
 		{ provideInlayHints: md_inlineHints }
+	));
+	context.subscriptions.push(vscode.languages.registerCodeLensProvider(
+		{ language: "markdown", pattern: "**/*.g.md" },
+		new TableCodeLensProvider(),
 	));
 }
 
@@ -155,6 +162,10 @@ function showChangelogOnUpdate(context: vscode.ExtensionContext)
 					enableScripts: true,
 				}
 			);
+			panel.iconPath = {
+				light: vscode.Uri.file(path.join(context.extensionPath, "imgs", "ghost.svg")),
+				dark: vscode.Uri.file(path.join(context.extensionPath, "imgs", "ghost_white.svg"))
+			};
 			const rootUri = panel.webview.asWebviewUri(context.extensionUri);
 			const filePath = context.asAbsolutePath(path.join("assets", "whats_new.html"));
 			const html = fs.readFileSync(filePath, "utf8");

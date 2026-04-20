@@ -1,4 +1,4 @@
-import { InlineCompletionItem, TextDocument, Position, CompletionItem, CompletionItemKind, Hover, InlayHint, SnippetString, MarkdownString, Range, InlayHintKind, type CodeLensProvider } from "vscode";
+import { CodeLens, InlineCompletionItem, TextDocument, Position, CompletionItem, CompletionItemKind, Hover, InlayHint, SnippetString, MarkdownString, Range, InlayHintKind, type CodeLensProvider } from "vscode";
 
 export function md_completion(document: TextDocument, position: Position): CompletionItem[] | undefined
 {
@@ -143,7 +143,7 @@ export function md_inlineHints(document: TextDocument, range: Range): InlayHint[
 		{ m, index: m.index!, type: "img" as const }
 	));
 
-	const re_table = /^(\r?\n)(.*)\r?\n\r?\n.*\r?\n(\s*:?-+:?\s*\|)+\s*:?-+:?\s*$/gm;
+	const re_table = /(([^\n]*)([\n\r\s]*)\r?\n\r?\n)[^\n]*\r?\n\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/gms;
 	const tableMatches = Array.from(text.matchAll(re_table)).map(m => (
 		{ m, index: m.index!, type: "table" as const }
 	));
@@ -156,7 +156,7 @@ export function md_inlineHints(document: TextDocument, range: Range): InlayHint[
 		const { shift, text, prefix } =
 			m.type == "code" ? { shift: m.m[1].length, text: m.m[2], prefix: "Листинг" }
 				: m.type == "img" ? { shift: 2, text: m.m[1], prefix: "Рисунок" }
-					: m.type == "table" ? { shift: m.m[1].length, text: m.m[2], prefix: "Таблица" }
+					: m.type == "table" ? { shift: 0, text: m.m[2], prefix: "Таблица" }
 						: (() => { throw new Error("switch default") })();
 		if (m.type == "table" && text.trim() == "") continue;
 		const tag = /^\s*\[([a-zA-Zа-яА-ЯёЁ_\d]+|#)\]/.exec(text);
@@ -175,6 +175,61 @@ export function md_inlineHints(document: TextDocument, range: Range): InlayHint[
 		h.paddingRight = hint.paddingRight;
 		return h;
 	});
+}
+
+export class TableCodeLensProvider implements CodeLensProvider
+{
+	private re_sep = /^\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/;
+	private re_empty_line = /^\|(\s*\|)*$/;
+	public provideCodeLenses(document: TextDocument): CodeLens[]
+	{
+		const lenses: CodeLens[] = [];
+		const trim = (line: string) =>
+		{
+			line = line.trim();
+			if (this.re_empty_line.test(line)) return line;
+			if (line.at(0) == "|") line = line.slice(1);
+			if (line.at(-1) == "|") line = line.slice(0, -1);
+			return line.trim();
+		};
+
+		for (let i = 1; i < document.lineCount; i++)
+		{
+			const line = trim(document.lineAt(i).text);
+			if (!this.re_sep.test(line)) continue;
+			const prevLine = document.lineAt(i - 1);
+			const cols = line.split("|");
+			const header = trim(prevLine.text).split("|").map(v => v.trim());
+			if (header.length != cols.length) continue;
+			const startI = i;
+			while (i < document.lineCount)
+			{
+				const line = document.lineAt(i).text;
+				if (line.trim() == "") break;
+				i++;
+			}
+			if (i - startI < 2) continue;
+			const range = new Range(prevLine.range.start, document.lineAt(i - 1).range.end);
+			lenses.push(new CodeLens(range, {
+				title: "Edit table",
+				tooltip: "Open table editor",
+				command: "md2gost.edit_table",
+				arguments: [document.uri, range]
+			}));
+		}
+		return lenses;
+	}
+
+	public resolveCodeLens(codeLens: CodeLens): CodeLens
+	{
+		// codeLens.command = {
+		// 	title: "Edit table",
+		// 	tooltip: "Open table editor",
+		// 	command: "md2gost.edit_table",
+		// 	arguments: [document.uri, codeLens.range]
+		// };
+		return codeLens;
+	}
 }
 
 function completeWord(text: string, word: string, rem: { v: string })

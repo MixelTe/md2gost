@@ -1,0 +1,250 @@
+<style>
+	.table {
+		display: grid;
+		grid-template-rows: auto;
+		margin: 2em;
+		margin-bottom: 6em;
+		max-width: 700px;
+	}
+
+	.table>* {
+		box-sizing: border-box;
+		border: 1px solid currentColor;
+		margin-top: -1px;
+		margin-left: -1px;
+		padding: 0.5em;
+		background: transparent;
+		color: var(--vscode-editor-foreground);
+		resize: none;
+		overflow: hidden;
+	}
+
+	textarea:focus {
+		z-index: 2;
+	}
+
+	.buttons {
+		position: fixed;
+		z-index: 10;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.2em;
+		padding: 1em 2em 2em 2em;
+		background-color: var(--vscode-editor-background);
+	}
+
+	.buttons:has(:disabled) {
+		padding-bottom: 0.5em;
+	}
+
+	.buttons> :first-child {
+		display: flex;
+		gap: 1em;
+	}
+
+	.disabled {
+		display: none;
+		color: var(--vscode-editorError-foreground);
+	}
+
+	.btn {
+		color: var(--vscode-button-foreground);
+		background-color: var(--vscode-button-background);
+
+		padding: 6px 14px;
+		border: none;
+		border-radius: 2px;
+
+		font-family: var(--vscode-font-family);
+		font-size: var(--vscode-font-size);
+		cursor: pointer;
+
+		transition: background-color 0.1s ease;
+	}
+
+	.btn:hover {
+		background-color: var(--vscode-button-hoverBackground);
+	}
+
+	.btn:focus {
+		outline: 1px solid var(--vscode-focusBorder);
+		outline-offset: 2px;
+	}
+
+	.btn.secondary {
+		color: var(--vscode-button-secondaryForeground);
+		background-color: var(--vscode-button-secondaryBackground);
+	}
+
+	.btn.secondary:hover {
+		background-color: var(--vscode-button-secondaryHoverBackground);
+	}
+
+	.btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+</style>
+
+<script type="template" id="data">{{data}}</script>
+<script>
+	const data = JSON.parse(document.getElementById("data").innerText);
+</script>
+
+<div class="table" id="table"></div>
+
+<div class="buttons">
+	<div>
+		<button class="btn" id="btn_sc" onclick="save_close()">Save & Close</button>
+		<button class="btn secondary" id="btn_s" onclick="save()">Save</button>
+		<button class="btn secondary" onclick="close()">Close</button>
+	</div>
+	<div class="disabled" id="disabled">The document has been changed too much, open the editor again</div>
+</div>
+
+<script>
+	const vscode = acquireVsCodeApi();
+	const table = document.getElementById("table");
+	let isDirty = false;
+
+	createTable();
+	resizeTable();
+
+	window.addEventListener("message", e =>
+	{
+		const message = e.data;
+		if (message.command == "disable")
+		{
+			document.getElementById("btn_sc").disabled = true;
+			document.getElementById("btn_s").disabled = true;
+			document.getElementById("disabled").style.display = "flex";
+			Array.from(table.children).forEach(el =>
+			{
+				el.readOnly = true;
+			});
+		}
+	});
+	window.addEventListener("keydown", e =>
+	{
+		if ((e.ctrlKey || e.metaKey) && e.code === "KeyS")
+		{
+			e.preventDefault();
+			save();
+		}
+	});
+	window.addEventListener("resize", resizeTable);
+
+	function createTable()
+	{
+		const cols = data.rows[0].length;
+		table.style.gridTemplateColumns = repeat(cols, "1fr").join(" ");
+		for (let i = 0; i < data.rows.length; i++)
+		{
+			const row = data.rows[i];
+			for (let j = 0; j < row.length; j++)
+			{
+				const cell = row[j];
+				const el = document.createElement("textarea");
+				table.append(el);
+				el.innerText = cell;
+				el.rows = 1;
+				if (i == 0)
+				{
+					el.style.fontWeight = "bold";
+					el.style.textAlign = "center"
+				}
+				el.addEventListener("input", () =>
+				{
+					el.style.minHeight = "0px";
+					el.style.height = "0px";
+					el.style.minHeight = `${el.scrollHeight}px`;
+					el.style.height = "auto";
+					if (!isDirty)
+					{
+						isDirty = true;
+						vscode.postMessage({ command: "setDirty" });
+					}
+				});
+				el.addEventListener("keydown", (e) =>
+				{
+					function focus(el, atStart)
+					{
+						e.preventDefault();
+						el.focus();
+						if (atStart) el.setSelectionRange(0, 0);
+						else
+						{
+							const len = el.value.length;
+							el.setSelectionRange(len, len);
+						}
+					}
+					if (el.selectionStart != el.selectionEnd) return;
+					if (e.key == "ArrowUp" && el.selectionStart == 0)
+					{
+						if (i > 0) focus(table.children[cols * (i - 1) + j], false);
+					}
+					if (e.key == "ArrowDown" && el.selectionStart == el.value.length)
+					{
+						if (i < data.rows.length - 1) focus(table.children[cols * (i + 1) + j], true);
+					}
+					if (e.key == "ArrowLeft" && el.selectionStart == 0)
+					{
+						if (j > 0) focus(table.children[cols * i + j - 1], false);
+					}
+					if (e.key == "ArrowRight" && el.selectionStart == el.value.length)
+					{
+						if (j < cols - 1) focus(table.children[cols * i + j + 1], true);
+					}
+				});
+			}
+		}
+	}
+	function resizeTable()
+	{
+		Array.from(table.children).forEach(el =>
+		{
+			el.style.height = "0px";
+			el.style.minHeight = "0px";
+		});
+		Array.from(table.children).forEach(el =>
+		{
+			el.style.minHeight = `${el.scrollHeight}px`;
+			el.style.height = "auto";
+		});
+	}
+
+
+	function save()
+	{
+		const cols = data.rows[0].length;
+		const newData = {
+			align: data.align,
+			rows: [],
+		}
+		Array.from(table.children).forEach((el, i) =>
+		{
+			const rowI = Math.floor(i / cols);
+			if (newData.rows.length <= rowI) newData.rows.push([]);
+			newData.rows[rowI].push(el.value);
+		});
+		vscode.postMessage({ command: "saveData", newData });
+		isDirty = false;
+	}
+	function close()
+	{
+		vscode.postMessage({ command: "close", newData: data });
+	}
+	function save_close()
+	{
+		save();
+		close();
+	}
+	function repeat(n, v)
+	{
+		return new Array(n).fill(null).map((_, i) => v instanceof Function ? v(i) : v);
+	}
+
+</script>
