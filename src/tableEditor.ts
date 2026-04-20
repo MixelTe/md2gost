@@ -5,10 +5,17 @@ import { repeat } from "./utils";
 import { RangeTracker } from "./rangeTracker";
 import { TextEditorDecorationBlock } from "./textEditorDecorationBlock";
 
+const OpenedEditors: Record<string, vscode.WebviewPanel> = {};
+
 export function onEditTableCommand(context: vscode.ExtensionContext)
 {
 	return async function (uri: vscode.Uri, range: vscode.Range)
 	{
+		if (OpenedEditors[uri.toString()])
+		{
+			OpenedEditors[uri.toString()].reveal();
+			return;
+		}
 		const panel = vscode.window.createWebviewPanel(
 			"md2gost.tableEditor",
 			"Table Editor",
@@ -28,6 +35,7 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 			vscode.window.showErrorMessage(`Document not found: ${uri}`);
 			return;
 		}
+		OpenedEditors[uri.toString()] = panel;
 		const data = parseTable(document.getText(range));
 
 		const rootUri = panel.webview.asWebviewUri(context.extensionUri);
@@ -35,7 +43,10 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 		const html = fs.readFileSync(filePath, "utf8");
 		panel.webview.html = html
 			.replaceAll("{{root}}", rootUri.toString())
-			.replaceAll("{{data}}", JSON.stringify(data));
+			.replaceAll("{{data}}", JSON.stringify(data))
+			.replaceAll("{{settings}}", JSON.stringify({
+				wide: context.globalState.get("tableEditor_wide", false),
+			}));
 
 		const trackedRangeDecoration = new TextEditorDecorationBlock({
 			backgroundColor: "rgba(255, 165, 0, 0.1)",
@@ -62,6 +73,11 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 
 		panel.webview.onDidReceiveMessage(async message =>
 		{
+			if (message.command == "saveSetting")
+			{
+				context.globalState.update("tableEditor_" + message.key, message.value);
+				return;
+			}
 			if (message.command == "setDirty")
 			{
 				if (!tracker.isValid) return;
@@ -89,6 +105,7 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 		panel.onDidDispose(
 			() =>
 			{
+				delete OpenedEditors[uri.toString()];
 				tracker.dispose();
 			},
 			null,
@@ -136,8 +153,11 @@ function parseTable(text: string)
 
 function stringifyTable(table: Table)
 {
+	while (table.rows.length < 2) table.rows.push([]);
+	while (table.rows[0].length < 2) table.rows[0].push("");
+	while (table.rows[1].length < 2) table.rows[1].push("");
 	const cols = Math.max(...table.rows.map(l => l.length));
-	const lens = repeat(cols, 4);
+	const lens = repeat(cols, 3);
 	for (let i = 0; i < table.rows.length; i++)
 	{
 		const row = table.rows[i];
@@ -148,19 +168,25 @@ function stringifyTable(table: Table)
 		}
 	}
 
+	while (table.align.length < cols) table.align.push("l");
+	while (table.align.length > cols) table.align.pop();
+
+	const prefix = table.rows.some(row => !row[0]) ? "| " : "";
+	const postfix = !table.rows[0].at(-1) ? " |" : "";
 	let res = "";
 	for (let i = 0; i < table.rows.length; i++)
 	{
 		const row = table.rows[i];
-		res += row.map((v, i) =>
+		while (row.length < cols) row.push("");
+		res += prefix + row.map((v, i) =>
 			v + repeat(lens[i] - v.length, " ").join("")
-		).join(" | ") + "\n";
+		).join(" | ") + postfix + "\n";
 		if (i == 0)
-			res += table.align.map((v, i) => ({
+			res += prefix.replace(" ", "-") + table.align.map((v, i) => ({
 				v, sep: repeat(lens[i] + 1 + (i == 0 ? 0 : 1), "-").join("")
 			})).map(({ v, sep }) =>
 				v == "c" ? `:${sep.slice(2)}:` : v == "r" ? `${sep.slice(1)}:` : sep
-			).join("|") + "\n";
+			).join("|") + postfix.replace(" ", "") + "\n";
 	}
 	return res.trim();
 }

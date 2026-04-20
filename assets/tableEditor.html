@@ -1,26 +1,13 @@
+<!-- ui -->
 <style>
-	.table {
-		display: grid;
-		grid-template-rows: auto;
-		margin: 2em;
-		margin-bottom: 6em;
-		max-width: 700px;
-	}
-
-	.table>* {
+	* {
 		box-sizing: border-box;
-		border: 1px solid currentColor;
-		margin-top: -1px;
-		margin-left: -1px;
-		padding: 0.5em;
-		background: transparent;
-		color: var(--vscode-editor-foreground);
-		resize: none;
-		overflow: hidden;
 	}
 
-	textarea:focus {
-		z-index: 2;
+	.body {
+		position: relative;
+		display: flex;
+		width: 100%;
 	}
 
 	.buttons {
@@ -87,20 +74,228 @@
 		opacity: 0.4;
 		cursor: not-allowed;
 	}
+
+	.hint {
+		display: flex;
+		gap: 0.75em;
+		color: var(--vscode-descriptionForeground);
+		font-size: 0.85em;
+		opacity: 0.8;
+		margin-top: 8px;
+	}
+
+	.gap {
+		margin-bottom: 6em;
+	}
+
+	.toggle {
+		margin-top: 0.25em;
+		float: left;
+		cursor: pointer;
+		overflow: hidden;
+		font-size: 16px;
+		width: 20px;
+		height: 20px;
+		border-radius: 3px;
+		border: 1px solid transparent;
+		padding: 1px;
+		box-sizing: border-box;
+		user-select: none;
+		-webkit-user-select: none;
+	}
+
+	.toggle input {
+		position: absolute;
+		opacity: 0;
+		pointer-events: none;
+		user-select: none;
+	}
+
+	.toggle:focus-within {
+		outline: 1px solid var(--vscode-focusBorder);
+		outline-offset: -1px;
+	}
+
+	.toggle:hover {
+		background-color: var(--vscode-inputOption-hoverBackground);
+	}
+
+	.toggle:has(:checked) {
+		color: var(--vscode-inputOption-activeForeground);
+		border-color: var(--vscode-inputOption-activeBorder);
+		background-color: var(--vscode-inputOption-activeBackground);
+	}
+</style>
+<!-- table -->
+<style>
+	.table {
+		flex-grow: 1;
+		display: grid;
+		grid-template-rows: auto;
+		margin: 2em;
+		margin-right: 1em;
+		max-width: 700px;
+	}
+
+	.table>* {
+		position: relative;
+		display: flex;
+		margin-top: -1px;
+		margin-left: -1px;
+	}
+
+	.table textarea {
+		width: 100%;
+		padding: 0.5em;
+		border: 1px solid currentColor;
+		background: transparent;
+		color: var(--vscode-editor-foreground);
+		resize: none;
+		overflow: hidden;
+	}
+
+	textarea:focus {
+		z-index: 2;
+	}
+</style>
+<!-- table buttons -->
+<style>
+	.addBtn {
+		position: absolute;
+		right: 1px;
+		top: -1.1em;
+		translate: 50% -50%;
+		background: var(--vscode-editorWidget-background);
+		color: var(--vscode-editorWidget-foreground);
+		border: 1px solid var(--vscode-editorWidget-border);
+		border-radius: 50%;
+		width: 1.2em;
+		height: 1.2em;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		opacity: 0.75;
+		transition: opacity 250ms;
+	}
+
+	.addBtn:hover {
+		opacity: 1;
+	}
+
+	.addBtn_hor {
+		right: auto;
+		top: auto;
+		bottom: 0px;
+		left: -1.1em;
+		translate: -50% 50%;
+	}
+
+	.addBtn::after {
+		content: "";
+		position: absolute;
+		bottom: -0.4em;
+		left: 0.54em;
+		translate: -50% 0%;
+		width: 0.8em;
+		height: 0.5em;
+		background: var(--vscode-editorWidget-border);
+		clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
+	}
+
+	.addBtn_hor::after {
+		translate: 50% 0%;
+		bottom: auto;
+		left: auto;
+		top: 1px;
+		right: -0.21em;
+		width: 0.5em;
+		height: 0.8em;
+		clip-path: polygon(100% 50%, 0% 0%, 0% 100%);
+	}
+
+	.delBtn {
+		padding: 0;
+		position: absolute;
+		left: 50%;
+		top: 0px;
+		translate: -50% -100%;
+		background: var(--vscode-editorWidget-background);
+		color: var(--vscode-errorForeground);
+		border: 1px solid var(--vscode-errorForeground);
+		/* border-radius: 50%; */
+		border-width: 1px 1px 0px 1px;
+		border-radius: 50% 50% 0 0;
+		width: 1.05em;
+		height: 1.05em;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		opacity: 0.5;
+		transition: opacity 250ms;
+	}
+
+	.delBtn::before,
+	.delBtn::after {
+		content: "";
+		position: absolute;
+		width: 0.5em;
+		height: 1px;
+		background: var(--vscode-errorForeground);
+		rotate: 45deg;
+	}
+
+	.delBtn::after {
+		rotate: -45deg;
+	}
+
+	.delBtn:hover {
+		opacity: 1;
+	}
+
+	.delBtn_hor {
+		top: 50%;
+		left: 0px;
+		translate: -100% -50%;
+		border-width: 1px 0px 1px 1px;
+		border-radius: 50% 0 0 50%;
+	}
 </style>
 
+
+
 <script type="template" id="data">{{data}}</script>
+<script type="template" id="settings">{{settings}}</script>
 <script>
 	const data = JSON.parse(document.getElementById("data").innerText);
+	const settings = JSON.parse(document.getElementById("settings").innerText);
 </script>
 
-<div class="table" id="table"></div>
+<div class="body">
+	<div class="table" id="table"></div>
+	<label class="toggle">
+		<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">
+			<path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160Zm640-560H160v480h640v-480Zm-640 0v480-480Zm200 360v-240L240-480l120 120Zm360-120L600-600v240l120-120Z" />
+		</svg>
+		<input type="checkbox" id="cbx_wide">
+	</label>
+</div>
+
+<div class="hint">
+	<span>Use <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>Arrows</kbd> to navigate cells</span>
+	<!-- <span>|</span>
+	<span><kbd>Ctrl</kbd>+<kbd>S</kbd> to save</span> -->
+</div>
+
+<div class="gap"></div>
+
 
 <div class="buttons">
 	<div>
 		<button class="btn" id="btn_sc" onclick="save_close()">Save & Close</button>
 		<button class="btn secondary" id="btn_s" onclick="save()">Save</button>
-		<button class="btn secondary" onclick="close()">Close</button>
+		<button class="btn secondary" onclick="close_editor()">Close</button>
 	</div>
 	<div class="disabled" id="disabled">The document has been changed too much, open the editor again</div>
 </div>
@@ -108,10 +303,15 @@
 <script>
 	const vscode = acquireVsCodeApi();
 	const table = document.getElementById("table");
+	const cbx_wide = document.getElementById("cbx_wide");
+	cbx_wide.checked = settings.wide;
+	table.style.maxWidth = settings.wide ? "unset" : "700px";
 	let isDirty = false;
+	let columnCount = data.rows[0].length;
 
 	createTable();
 	resizeTable();
+	table.children[columnCount]?.firstChild.focus();
 
 	window.addEventListener("message", e =>
 	{
@@ -123,7 +323,8 @@
 			document.getElementById("disabled").style.display = "flex";
 			Array.from(table.children).forEach(el =>
 			{
-				el.readOnly = true;
+				const ta = el.firstChild;
+				ta.readOnly = true;
 			});
 		}
 	});
@@ -137,114 +338,231 @@
 	});
 	window.addEventListener("resize", resizeTable);
 
+	cbx_wide.addEventListener("change", () =>
+	{
+		table.style.maxWidth = cbx_wide.checked ? "unset" : "700px";
+		vscode.postMessage({
+			command: "saveSetting",
+			key: "wide",
+			value: cbx_wide.checked,
+		});
+	});
+
 	function createTable()
 	{
-		const cols = data.rows[0].length;
-		table.style.gridTemplateColumns = repeat(cols, "1fr").join(" ");
+		table.style.gridTemplateColumns = repeat(columnCount, "1fr").join(" ");
 		for (let i = 0; i < data.rows.length; i++)
 		{
 			const row = data.rows[i];
 			for (let j = 0; j < row.length; j++)
+				table.append(createCell(i, j, row[j]));
+		}
+	}
+	function createCell(row, col, value)
+	{
+		const el = document.createElement("div");
+		el.dataset.row = row;
+		el.dataset.col = col;
+		const ta = document.createElement("textarea");
+		el.append(ta);
+		ta.innerText = value;
+		ta.rows = 1;
+		if (row == 0)
+		{
+			ta.style.fontWeight = "bold";
+			ta.style.textAlign = "center"
+		}
+		ta.addEventListener("input", () =>
+		{
+			ta.style.minHeight = "0px";
+			ta.style.height = "0px";
+			ta.style.minHeight = `${ta.scrollHeight}px`;
+			ta.style.height = "auto";
+			if (!isDirty)
 			{
-				const cell = row[j];
-				const el = document.createElement("textarea");
-				table.append(el);
-				el.innerText = cell;
-				el.rows = 1;
-				if (i == 0)
-				{
-					el.style.fontWeight = "bold";
-					el.style.textAlign = "center"
-				}
-				el.addEventListener("input", () =>
-				{
-					el.style.minHeight = "0px";
-					el.style.height = "0px";
-					el.style.minHeight = `${el.scrollHeight}px`;
-					el.style.height = "auto";
-					if (!isDirty)
-					{
-						isDirty = true;
-						vscode.postMessage({ command: "setDirty" });
-					}
-				});
-				el.addEventListener("keydown", (e) =>
-				{
-					function focus(el, atStart)
-					{
-						e.preventDefault();
-						el.focus();
-						if (atStart) el.setSelectionRange(0, 0);
-						else
-						{
-							const len = el.value.length;
-							el.setSelectionRange(len, len);
-						}
-					}
-					if (el.selectionStart != el.selectionEnd) return;
-					if (e.key == "ArrowUp" && el.selectionStart == 0)
-					{
-						if (i > 0) focus(table.children[cols * (i - 1) + j], false);
-					}
-					if (e.key == "ArrowDown" && el.selectionStart == el.value.length)
-					{
-						if (i < data.rows.length - 1) focus(table.children[cols * (i + 1) + j], true);
-					}
-					if (e.key == "ArrowLeft" && el.selectionStart == 0)
-					{
-						if (j > 0) focus(table.children[cols * i + j - 1], false);
-					}
-					if (e.key == "ArrowRight" && el.selectionStart == el.value.length)
-					{
-						if (j < cols - 1) focus(table.children[cols * i + j + 1], true);
-					}
-				});
+				isDirty = true;
+				vscode.postMessage({ command: "setDirty" });
+			}
+		});
+		ta.addEventListener("keydown", (e) =>
+		{
+			const altMove = e.altKey && e.shiftKey;
+			if (!altMove && ta.selectionStart != ta.selectionEnd) return;
+			const row = parseInt(el.dataset.row);
+			const col = parseInt(el.dataset.col);
+			if (e.key == "ArrowUp" && (ta.selectionStart == 0 || altMove))
+				focus(0, -1, false);
+			if (e.key == "ArrowDown" && (ta.selectionStart == ta.value.length || altMove))
+				focus(0, 1, true);
+			if (e.key == "ArrowLeft" && (ta.selectionStart == 0 || altMove))
+				focus(-1, 0, false);
+			if (e.key == "ArrowRight" && (ta.selectionStart == ta.value.length || altMove))
+				focus(1, 0, true);
+			function focus(dx, dy, atStart)
+			{
+				const rowCount = Math.floor(table.children.length) / columnCount;
+				const nrow = (row + dy + rowCount) % rowCount;
+				const ncol = (col + dx + columnCount) % columnCount;
+				const i = nrow * columnCount + ncol;
+				e.preventDefault();
+				const nel = table.children[i];
+				const nta = nel.firstChild;
+				el.dataset.cursorPos = ta.selectionStart;
+				nta.focus();
+				const npos = parseInt(nel.dataset.cursorPos)
+				const pos = isFinite(npos) ? npos : atStart ? 0 : nta.value.length;
+				nta.setSelectionRange(pos, pos);
+			}
+		});
+
+		if (row == 0)
+		{
+			const addBtn = document.createElement("button");
+			addBtn.classList.add("addBtn");
+			addBtn.innerText = "+";
+			addBtn.addEventListener("click", () => addCol(parseInt(addBtn.parentElement.dataset.col)));
+			el.append(addBtn);
+			const delBtn = document.createElement("button");
+			delBtn.classList.add("delBtn");
+			delBtn.addEventListener("click", () => deleteCol(parseInt(delBtn.parentElement.dataset.col)));
+			el.append(delBtn);
+		}
+		if (col == 0)
+		{
+			const addBtn = document.createElement("button");
+			addBtn.classList.add("addBtn", "addBtn_hor");
+			addBtn.innerText = "+";
+			addBtn.addEventListener("click", () => addRow(parseInt(addBtn.parentElement.dataset.row)));
+			el.append(addBtn);
+			if (row > 0)
+			{
+				const delBtn = document.createElement("button");
+				delBtn.classList.add("delBtn", "delBtn_hor");
+				delBtn.addEventListener("click", () => deleteRow(parseInt(delBtn.parentElement.dataset.row)));
+				el.append(delBtn);
 			}
 		}
+		return el;
 	}
 	function resizeTable()
 	{
 		Array.from(table.children).forEach(el =>
 		{
-			el.style.height = "0px";
-			el.style.minHeight = "0px";
+			const ta = el.firstChild;
+			ta.style.height = "0px";
+			ta.style.minHeight = "0px";
 		});
 		Array.from(table.children).forEach(el =>
 		{
-			el.style.minHeight = `${el.scrollHeight}px`;
-			el.style.height = "auto";
+			const ta = el.firstChild;
+			ta.style.minHeight = `${ta.scrollHeight}px`;
+			ta.style.height = "auto";
+		});
+	}
+
+	function addCol(colIndex)
+	{
+		const rowCount = Math.floor(table.children.length) / columnCount;
+		for (let i = 0; i < rowCount; i++)
+		{
+			const prevEl = table.children[i * columnCount + colIndex + i];
+			prevEl.after(createCell(i, colIndex + 1, ""));
+		}
+		columnCount++;
+		table.style.gridTemplateColumns = repeat(columnCount, "1fr").join(" ");
+		Array.from(table.children).forEach((el, i) =>
+		{
+			el.dataset.col = i % columnCount;
+		});
+		if (columnCount == 2)
+			table.children[0].querySelector(".delBtn").style.display = "";
+	}
+
+	function addRow(rowIndex)
+	{
+		const prevEl = table.children[(rowIndex + 1) * columnCount - 1];
+		for (let j = columnCount - 1; j >= 0; j--)
+		{
+			prevEl.after(createCell(rowIndex + 1, j, ""));
+		}
+		Array.from(table.children).forEach((el, i) =>
+		{
+			el.dataset.row = Math.floor(i / columnCount);
+		});
+	}
+
+	function deleteCol(colIndex)
+	{
+		const children = Array.from(table.children);
+		children.forEach((el, i) =>
+		{
+			const colI = i % columnCount;
+			if (colI == colIndex)
+			{
+				if (colI == 0 && children[i + 1])
+				{
+					lt(el.querySelector(".addBtn_hor"), ch => children[i + 1].append(ch));
+					lt(el.querySelector(".delBtn_hor"), ch => children[i + 1].append(ch));
+				}
+				table.removeChild(el);
+			}
+		});
+		columnCount--;
+		table.style.gridTemplateColumns = repeat(columnCount, "1fr").join(" ");
+		Array.from(table.children).forEach((el, i) =>
+		{
+			el.dataset.col = i % columnCount;
+		});
+		if (columnCount == 1)
+			table.children[0].querySelector(".delBtn").style.display = "none";
+	}
+
+	function deleteRow(rowIndex)
+	{
+		Array.from(table.children).forEach((el, i) =>
+		{
+			const rowI = Math.floor(i / columnCount);
+			if (rowI == rowIndex) table.removeChild(el);
+		});
+		Array.from(table.children).forEach((el, i) =>
+		{
+			el.dataset.row = Math.floor(i / columnCount);
 		});
 	}
 
 
 	function save()
 	{
-		const cols = data.rows[0].length;
 		const newData = {
 			align: data.align,
 			rows: [],
 		}
 		Array.from(table.children).forEach((el, i) =>
 		{
-			const rowI = Math.floor(i / cols);
+			const rowI = Math.floor(i / columnCount);
 			if (newData.rows.length <= rowI) newData.rows.push([]);
-			newData.rows[rowI].push(el.value);
+			const ta = el.firstChild;
+			newData.rows[rowI].push(ta.value);
 		});
 		vscode.postMessage({ command: "saveData", newData });
 		isDirty = false;
 	}
-	function close()
+	function close_editor()
 	{
 		vscode.postMessage({ command: "close", newData: data });
 	}
 	function save_close()
 	{
 		save();
-		close();
+		close_editor();
 	}
 	function repeat(n, v)
 	{
 		return new Array(n).fill(null).map((_, i) => v instanceof Function ? v(i) : v);
 	}
-
+	function lt(v, fn)
+	{
+		if (v) return fn(v);
+		return null;
+	}
 </script>

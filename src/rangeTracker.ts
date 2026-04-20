@@ -31,14 +31,14 @@ export class RangeTracker
 			}),
 			vscode.window.onDidChangeActiveTextEditor(editor =>
 			{
-				if (editor?.document == this.document)
+				if (editor?.document.uri.toString() == this.document.uri.toString())
 					this.applyDecoration(editor);
 			}),
 			vscode.window.onDidChangeVisibleTextEditors(editors =>
 			{
 				editors.forEach(editor =>
 				{
-					if (editor.document == this.document)
+					if (editor.document.uri.toString() == this.document.uri.toString())
 						this.applyDecoration(editor);
 				});
 			})
