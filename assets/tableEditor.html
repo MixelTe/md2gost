@@ -365,7 +365,7 @@
 		el.dataset.col = col;
 		const ta = document.createElement("textarea");
 		el.append(ta);
-		ta.innerText = value;
+		ta.value = value;
 		ta.rows = 1;
 		if (row == 0)
 		{
@@ -420,10 +420,12 @@
 			const addBtn = document.createElement("button");
 			addBtn.classList.add("addBtn");
 			addBtn.innerText = "+";
+			addBtn.tabIndex = -1;
 			addBtn.addEventListener("click", () => addCol(parseInt(addBtn.parentElement.dataset.col)));
 			el.append(addBtn);
 			const delBtn = document.createElement("button");
 			delBtn.classList.add("delBtn");
+			delBtn.tabIndex = -1;
 			delBtn.addEventListener("click", () => deleteCol(parseInt(delBtn.parentElement.dataset.col)));
 			el.append(delBtn);
 		}
@@ -432,12 +434,14 @@
 			const addBtn = document.createElement("button");
 			addBtn.classList.add("addBtn", "addBtn_hor");
 			addBtn.innerText = "+";
+			addBtn.tabIndex = -1;
 			addBtn.addEventListener("click", () => addRow(parseInt(addBtn.parentElement.dataset.row)));
 			el.append(addBtn);
 			if (row > 0)
 			{
 				const delBtn = document.createElement("button");
 				delBtn.classList.add("delBtn", "delBtn_hor");
+				delBtn.tabIndex = -1;
 				delBtn.addEventListener("click", () => deleteRow(parseInt(delBtn.parentElement.dataset.row)));
 				el.append(delBtn);
 			}
