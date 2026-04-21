@@ -350,7 +350,7 @@ export function runifyDoc(doc: Doc): RunicDoc
 let rainbowI = 0;
 function runifyText(text: string, rainbow = false): Rune[]
 {
-	return text.replaceAll("\n", "&Tab;\n").replaceAll(/\s*<br>\s*/g, "\n")
+	return replaceAmpCodes(text).replaceAll("\n", "&Tab;\n").replaceAll(/\s*<br>\s*/g, "\n")
 		.replaceAll("—", "-").replaceAll(" - ", " \u2013 ")
 		.replaceAll(/(\s)"(\w)/g, "$1«$2")
 		.replaceAll(/(\w)"(\s)/g, "$1»$2")
@@ -417,4 +417,78 @@ function runifyText(text: string, rainbow = false): Rune[]
 			color: hslToHex(rainbowI++ % 360, 100, 50),
 		}) as Rune)).flat()
 		;
+}
+
+function replaceAmpCodes(text: string)
+{
+	const codes = {
+		"&#124;": "|",
+		"&alpha;": "α",
+		"&beta;": "β",
+		"&gamma;": "γ",
+		"&delta;": "δ",
+		"&epsilon;": "ε",
+		"&zeta;": "ζ",
+		"&eta;": "η",
+		"&theta;": "θ",
+		"&iota;": "ι",
+		"&kappa;": "κ",
+		"&lambda;": "λ",
+		"&mu;": "μ",
+		"&nu;": "ν",
+		"&xi;": "ξ",
+		"&omicron;": "ο",
+		"&pi;": "π",
+		"&rho;": "ρ",
+		"&sigma;": "σ",
+		"&tau;": "τ",
+		"&upsilon;": "υ",
+		"&phi;": "φ",
+		"&chi;": "χ",
+		"&psi;": "ψ",
+		"&omega;": "ω",
+		"&Delta;": "Δ",
+		"&Sigma;": "Σ",
+		"&Omega;": "Ω",
+		"&infin;": "∞",
+		"&sum;": "∑",
+		"&prod;": "∏",
+		"&radic;": "√",
+		"&int;": "∫",
+		"&part;": "∂",
+		"&asymp;": "≈",
+		"&ne;": "≠",
+		"&lt;": "<",
+		"&gt;": ">",
+		"&le;": "≤",
+		"&ge;": "≥",
+		"&plusmn;": "±",
+		"&times;": "×",
+		"&divide;": "÷",
+		"&copy;": "©",
+		"&reg;": "®",
+		"&trade;": "™",
+		"&sect;": "§",
+		"&para;": "¶",
+		"&hellip;": "…",
+		"&bull;": "•",
+		"&middot;": "·",
+		"&deg;": "°",
+		"&euro;": "€",
+		"&pound;": "£",
+		"&yen;": "¥",
+		"&cent;": "¢",
+		"&curren;": "¤",
+		"&fnof;": "ƒ",
+		"&permil;": "‰",
+	}
+
+	for (const code in codes)
+	{
+		if (!Object.hasOwn(codes, code)) continue;
+		const char = codes[code as keyof typeof codes];
+		text = text.replaceAll(code, char);
+	}
+
+	return text;
 }

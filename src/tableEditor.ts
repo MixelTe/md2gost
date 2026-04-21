@@ -145,7 +145,12 @@ function parseTable(text: string)
 				v.startsWith(":") && v.endsWith(":") ? "c" :
 					v.endsWith(":") ? "r" : "l" as const);
 		else
-			table.rows.push(line.split("|").map(v => v.trim().replaceAll("<br>", "\n")));
+			table.rows.push(line.split("|").map(v => v.trim()
+				.replaceAll("<br>", "\n")
+				.replaceAll("&#124;", "|")
+				.replaceAll("&lt;", "<")
+				.replaceAll("&gt;", ">")
+			));
 	}
 
 	return table;
@@ -163,7 +168,11 @@ function stringifyTable(table: Table)
 		const row = table.rows[i];
 		for (let j = 0; j < row.length; j++)
 		{
-			row[j] = row[j].trim().replaceAll("\n", "<br>");
+			row[j] = row[j].trim()
+				.replaceAll("|", "&#124;")
+				.replaceAll("<", "&lt;")
+				.replaceAll(">", "&gt;")
+				.replaceAll("\n", "<br>");
 			lens[j] = Math.max(lens[j], row[j].length);
 		}
 	}

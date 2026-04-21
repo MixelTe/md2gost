@@ -386,13 +386,13 @@
 		});
 		ta.addEventListener("keydown", (e) =>
 		{
-			const altMove = e.altKey && e.shiftKey;
+			const altMove = e.altKey && e.shiftKey || e.key == "PageDown" || e.key == "PageUp";
 			if (!altMove && ta.selectionStart != ta.selectionEnd) return;
 			const row = parseInt(el.dataset.row);
 			const col = parseInt(el.dataset.col);
-			if (e.key == "ArrowUp" && (ta.selectionStart == 0 || altMove))
+			if ((e.key == "ArrowUp" || e.key == "PageUp") && (ta.selectionStart == 0 || altMove))
 				focus(0, -1, false);
-			if (e.key == "ArrowDown" && (ta.selectionStart == ta.value.length || altMove))
+			if ((e.key == "ArrowDown" || e.key == "PageDown") && (ta.selectionStart == ta.value.length || altMove))
 				focus(0, 1, true);
 			if (e.key == "ArrowLeft" && (ta.selectionStart == 0 || altMove))
 				focus(-1, 0, false);

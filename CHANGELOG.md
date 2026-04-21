@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - intellisense (CompletionItem, InlineCompletionItem, Hover, InlayHints)
 - table editor
+- html codes for ~60 symbol (e.g. `&pi;` to `π`)
 ### Changed
 ### Deprecated
 ### Removed

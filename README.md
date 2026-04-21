@@ -502,6 +502,10 @@
 - `&nbsp;` на неразрывный пробел
 - `&Tab;` на отступ (таб)
 - `&Star;` на `*`
+- `&#124;` на `|`
+- `&alpha; &beta; &gamma; &delta; &epsilon; &zeta; &eta; &theta; &iota; &kappa; &lambda; &mu; &nu; &xi; &omicron; &pi; &rho; &sigma; &tau; &upsilon; &phi; &chi; &psi; &omega; &Delta; &Sigma; &Omega;` на `α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ τ υ φ χ ψ ω Δ Σ Ω`
+- `&infin; &sum; &prod; &radic; &int; &part; &asymp; &ne; &lt; &gt; &le; &ge; &plusmn; &times; &divide;` на `∞ ∑ ∏ √ ∫ ∂ ≈ ≠ < > ≤ ≥ ± × ÷`
+- `&copy; &reg; &trade; &sect; &para; &hellip; &bull; &middot; &deg; &euro; &pound; &yen; &cent; &curren; &fnof; &permil;` на `© ® ™ § ¶ … • · ° € £ ¥ ¢ ¤ ƒ ‰`
 - `[!pages]` на кол-во страниц
 - `[!imgs]` на кол-во картинок
 - `[!tables]` на кол-во таблиц
