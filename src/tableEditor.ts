@@ -124,11 +124,9 @@ function parseTable(text: string)
 {
 	const table: Table = { rows: [], align: [] };
 	const lines = text.split("\n");
-	const re_empty_line = /^\|(\s*\|)*$/;
 	const trim = (line: string) =>
 	{
 		line = line.trim();
-		if (re_empty_line.test(line)) return line;
 		if (line.at(0) == "|") line = line.slice(1);
 		if (line.at(-1) == "|") line = line.slice(0, -1);
 		return line.trim();
@@ -152,17 +150,18 @@ function parseTable(text: string)
 				.replaceAll("&gt;", ">")
 			));
 	}
+	const cols = Math.max(...table.rows.map(l => l.length));
+	for (const row of table.rows)
+		while (row.length < cols) row.push("");
 
 	return table;
 }
 
 function stringifyTable(table: Table)
 {
-	while (table.rows.length < 2) table.rows.push([]);
-	while (table.rows[0].length < 2) table.rows[0].push("");
-	while (table.rows[1].length < 2) table.rows[1].push("");
+	if (table.rows.length == 0) return "";
 	const cols = Math.max(...table.rows.map(l => l.length));
-	const lens = repeat(cols, 3);
+	const lens = repeat(cols, 1);
 	for (let i = 0; i < table.rows.length; i++)
 	{
 		const row = table.rows[i];
@@ -180,8 +179,9 @@ function stringifyTable(table: Table)
 	while (table.align.length < cols) table.align.push("l");
 	while (table.align.length > cols) table.align.pop();
 
-	const prefix = table.rows.some(row => !row[0]) ? "| " : "";
-	const postfix = !table.rows[0].at(-1) ? " |" : "";
+	const border = cols == 1 || table.rows.some(row => !row[0]) || !table.rows[0].at(-1);
+	const prefix = border ? "| " : "";
+	const postfix = border ? " |" : "";
 	let res = "";
 	for (let i = 0; i < table.rows.length; i++)
 	{
@@ -191,8 +191,8 @@ function stringifyTable(table: Table)
 			v + repeat(lens[i] - v.length, " ").join("")
 		).join(" | ") + postfix + "\n";
 		if (i == 0)
-			res += prefix.replace(" ", "-") + table.align.map((v, i) => ({
-				v, sep: repeat(lens[i] + 1 + (i == 0 ? 0 : 1), "-").join("")
+			res += prefix.replace(" ", "") + table.align.map((v, i) => ({
+				v, sep: repeat(lens[i] + 1 + (i == 0 && !border ? 0 : 1), "-").join("")
 			})).map(({ v, sep }) =>
 				v == "c" ? `:${sep.slice(2)}:` : v == "r" ? `${sep.slice(1)}:` : sep
 			).join("|") + postfix.replace(" ", "") + "\n";

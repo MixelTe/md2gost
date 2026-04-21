@@ -123,5 +123,20 @@ export function enrichDoc(doc: Doc)
 				}
 			}
 		}
+		else if (node.type == "image")
+		{
+			if (node.text)
+				node.text = trimEnd(node.text, ".", ",", ';', ":", "!");
+		}
+		else if (node.type == "table")
+		{
+			if (node.title)
+				node.title = trimEnd(node.title, ".", ",", ';', ":", "!");
+		}
+		else if (node.type == "code")
+		{
+			if (node.title)
+				node.title = trimEnd(node.title, ".", ",", ';', ":", "!");
+		}
 	}
 }

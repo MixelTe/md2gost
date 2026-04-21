@@ -14,6 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Deprecated
 ### Removed
 ### Fixed
+- fix one-column table parsing
+- allow table title without newline
 ### Security
 
 ## [0.7.0] - 2026-04-07

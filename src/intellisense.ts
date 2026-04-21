@@ -58,7 +58,6 @@ export function md_completion(document: TextDocument, position: Position): Compl
 	return r;
 }
 
-const re_sep = /^(\s*:?-+:?\s*\|)+\s*:?-+:?\s*$/;
 export function md_inlineCompletion(document: TextDocument, position: Position): InlineCompletionItem[] | undefined
 {
 	// if (!document.fileName.endsWith(".g.md")) return;
@@ -68,14 +67,16 @@ export function md_inlineCompletion(document: TextDocument, position: Position):
 	// const linePrefix = line.slice(0, position.character);
 	if (lineText != "") return;
 	const prevLine = document.lineAt(position.line - 1).text;
-	if (prevLine.includes("|") && re_sep.test(prevLine))
+	if (prevLine.includes("|") && (position.line - 2 < 0 || !document.lineAt(position.line - 2).text.trim().includes("|")))
+	{
 		return [
 			new InlineCompletionItem(
 				prevLine.replaceAll(/[^|]/g, "-"),
 				new Range(position, position)
 			)
 		];
-	const m_olist = /^(\s*)(\d+)(.|\))/.exec(prevLine);
+	}
+	const m_olist = /^(\s*)(\d+)(.|\))\s/.exec(prevLine);
 	if (m_olist)
 		return [
 			new InlineCompletionItem(
@@ -83,7 +84,7 @@ export function md_inlineCompletion(document: TextDocument, position: Position):
 				line.range
 			)
 		];
-	const m_list = /^(\s*)(-|\*)/.exec(prevLine);
+	const m_list = /^(\s*)(-|\*)\s/.exec(prevLine);
 	if (m_list)
 		return [
 			new InlineCompletionItem(
@@ -143,7 +144,7 @@ export function md_inlineHints(document: TextDocument, range: Range): InlayHint[
 		{ m, index: m.index!, type: "img" as const }
 	));
 
-	const re_table = /(([^\n]*)([\n\r\s]*)\r?\n\r?\n)[^\n]*\r?\n\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/gms;
+	const re_table = /(([^\n]*)([\n\r\s]*)\r?\n)[^\n]*\r?\n\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/gms;
 	const tableMatches = Array.from(text.matchAll(re_table)).map(m => (
 		{ m, index: m.index!, type: "table" as const }
 	));
@@ -158,7 +159,9 @@ export function md_inlineHints(document: TextDocument, range: Range): InlayHint[
 				: m.type == "img" ? { shift: 2, text: m.m[1], prefix: "Рисунок" }
 					: m.type == "table" ? { shift: 0, text: m.m[2], prefix: "Таблица" }
 						: (() => { throw new Error("switch default") })();
-		if (m.type == "table" && text.trim() == "") continue;
+		if (m.type == "table" && (
+			text.trim() == "" || /^!|^#|^```|^\*\s|^-\s|^\d+(\)|\.)\s/.test(text)
+		)) continue;
 		const tag = /^\s*\[([a-zA-Zа-яА-ЯёЁ_\d]+|#)\]/.exec(text);
 		if (!lazy && !tag) continue;
 		let position = m.index + shift;
@@ -180,14 +183,13 @@ export function md_inlineHints(document: TextDocument, range: Range): InlayHint[
 export class TableCodeLensProvider implements CodeLensProvider
 {
 	private re_sep = /^\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/;
-	private re_empty_line = /^\|(\s*\|)*$/;
+	private re_sep_oneCol = /^\|\s*:?-+:?\s*\|$/;
 	public provideCodeLenses(document: TextDocument): CodeLens[]
 	{
 		const lenses: CodeLens[] = [];
 		const trim = (line: string) =>
 		{
 			line = line.trim();
-			if (this.re_empty_line.test(line)) return line;
 			if (line.at(0) == "|") line = line.slice(1);
 			if (line.at(-1) == "|") line = line.slice(0, -1);
 			return line.trim();
@@ -195,20 +197,19 @@ export class TableCodeLensProvider implements CodeLensProvider
 
 		for (let i = 1; i < document.lineCount; i++)
 		{
+			const _line = document.lineAt(i).text;
 			const line = trim(document.lineAt(i).text);
-			if (!this.re_sep.test(line)) continue;
+			if (!this.re_sep.test(line) && !this.re_sep_oneCol.test(_line)) continue;
 			const prevLine = document.lineAt(i - 1);
 			const cols = line.split("|");
 			const header = trim(prevLine.text).split("|").map(v => v.trim());
 			if (header.length != cols.length) continue;
-			const startI = i;
 			while (i < document.lineCount)
 			{
 				const line = document.lineAt(i).text;
 				if (line.trim() == "") break;
 				i++;
 			}
-			if (i - startI < 2) continue;
 			const range = new Range(prevLine.range.start, document.lineAt(i - 1).range.end);
 			lenses.push(new CodeLens(range, {
 				title: "Edit table",

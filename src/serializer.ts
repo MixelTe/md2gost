@@ -130,9 +130,14 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 							new Paragraph({
 								children: renderText(node.title),
 								indent: { firstLine: 0 },
-								spacing: { line: 240 },
+								spacing: {
+									line: 240,
+									...(prevChild instanceof Table ? { before: 8 * 20 } : {}),
+								},
 								keepNext: true,
 							}),
+						] : prevChild instanceof Table ? [
+							new Paragraph({ spacing: { line: 40, }, }),
 						] : []),
 						new Table({
 							// width: { type: "pct", size: 100 },
