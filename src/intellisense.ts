@@ -160,7 +160,7 @@ export function md_inlineHints(document: TextDocument, range: Range): InlayHint[
 					: m.type == "table" ? { shift: 0, text: m.m[2], prefix: "Таблица" }
 						: (() => { throw new Error("switch default") })();
 		if (m.type == "table" && (
-			text.trim() == "" || /^!|^#|^```|^\*\s|^-\s|^\d+(\)|\.)\s/.test(text)
+			text.trim() == "" || /^!|^#|^```|^\*\s|^-\s|^\d+(\)|\.)\s|\|/.test(text)
 		)) continue;
 		const tag = /^\s*\[([a-zA-Zа-яА-ЯёЁ_\d]+|#)\]/.exec(text);
 		if (!lazy && !tag) continue;

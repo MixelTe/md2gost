@@ -29,6 +29,7 @@
 
 	.buttons> :first-child {
 		display: flex;
+		align-items: center;
 		gap: 1em;
 	}
 
@@ -77,11 +78,16 @@
 
 	.hint {
 		display: flex;
-		gap: 0.75em;
+		flex-direction: column;
+		gap: 1em;
 		color: var(--vscode-descriptionForeground);
 		font-size: 0.85em;
-		opacity: 0.8;
 		margin-top: 8px;
+	}
+
+	.hint>div {
+		display: flex;
+		gap: 0.75em;
 	}
 
 	.gap {
@@ -125,6 +131,45 @@
 		border-color: var(--vscode-inputOption-activeBorder);
 		background-color: var(--vscode-inputOption-activeBackground);
 	}
+
+	.checkbox {
+		display: flex;
+		gap: 9px;
+		cursor: pointer;
+		user-select: none;
+	}
+
+	.checkbox input {
+		position: absolute;
+		opacity: 0;
+		pointer-events: none;
+		user-select: none;
+	}
+
+	.checkbox :nth-child(2) {
+		height: 18px;
+		width: 18px;
+		font-size: 16px;
+		border: 1px solid transparent;
+		border-radius: 3px;
+		padding: 0;
+		background-color: var(--vscode-settings-checkboxBackground);
+		color: var(--vscode-settings-checkboxForeground);
+		border-color: var(--vscode-settings-checkboxBorder);
+	}
+
+	.checkbox:focus-within :nth-child(2) {
+		outline: 1px solid var(--vscode-focusBorder);
+		outline-offset: -1px;
+	}
+
+	.checkbox svg {
+		opacity: 0;
+	}
+
+	.checkbox:has(:checked) svg {
+		opacity: 1;
+	}
 </style>
 <!-- table -->
 <style>
@@ -156,6 +201,8 @@
 
 	textarea:focus {
 		z-index: 2;
+		outline: 1px solid var(--vscode-focusBorder);
+		outline-offset: -1px;
 	}
 </style>
 <!-- table buttons -->
@@ -283,9 +330,29 @@
 </div>
 
 <div class="hint">
-	<span>Use <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>Arrows</kbd> to navigate cells</span>
-	<!-- <span>|</span>
-	<span><kbd>Ctrl</kbd>+<kbd>S</kbd> to save</span> -->
+	<div>
+		<span><kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>Arrows</kbd> to navigate cells</span>
+		<span>|</span>
+		<span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>Arrows</kbd> to move rows/columns</span>
+	</div>
+	<div>
+		<span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to add row bellow</span>
+		<span>|</span>
+		<span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> to add row above</span>
+	</div>
+	<div>
+		<span><kbd>Alt</kbd>+<kbd>Enter</kbd> to add column to right</span>
+		<span>|</span>
+		<span><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> to add column to left</span>
+	</div>
+	<div>
+		<span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Backspace</kbd> to delete current row</span>
+		<span>|</span>
+		<span><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>Backspace</kbd> to delete current column</span>
+	</div>
+	<div>
+		<span><kbd>Ctrl</kbd>+<kbd>D</kbd> to duplicate row</span>
+	</div>
 </div>
 
 <div class="gap"></div>
@@ -295,7 +362,14 @@
 	<div>
 		<button class="btn" id="btn_sc" onclick="save_close()">Save & Close</button>
 		<button class="btn secondary" id="btn_s" onclick="save()">Save</button>
-		<button class="btn secondary" onclick="close_editor()">Close</button>
+		<button class="btn secondary" id="btn_c" onclick="close_editor()">Close</button>
+		<label class="checkbox">
+			<input type="checkbox" id="cbx_autosave">
+			<div><svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">
+					<path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z" />
+				</svg></div>
+			<div>Autosave</div>
+		</label>
 	</div>
 	<div class="disabled" id="disabled">The document has been changed too much, open the editor again</div>
 </div>
@@ -306,18 +380,29 @@
 	const cbx_wide = document.getElementById("cbx_wide");
 	cbx_wide.checked = settings.wide;
 	table.style.maxWidth = settings.wide ? "unset" : "700px";
+	const cbx_autosave = document.getElementById("cbx_autosave");
+	cbx_autosave.checked = settings.autosave;
+	let disabled = false;
 	let isDirty = false;
 	let columnCount = data.rows[0].length;
+	let autosave_timeout = null;
 
 	createTable();
 	resizeTable();
 	table.children[columnCount]?.firstChild.focus();
+
+	let lastFocusedElementId = table.children[columnCount]?.firstChild.id;
+	document.addEventListener("focusin", (e) =>
+	{
+		lastFocusedElementId = e.target.id;
+	});
 
 	window.addEventListener("message", e =>
 	{
 		const message = e.data;
 		if (message.command == "disable")
 		{
+			disabled = true;
 			document.getElementById("btn_sc").disabled = true;
 			document.getElementById("btn_s").disabled = true;
 			document.getElementById("disabled").style.display = "flex";
@@ -326,6 +411,12 @@
 				const ta = el.firstChild;
 				ta.readOnly = true;
 			});
+		}
+		else if (message.command == "restore_focus")
+		{
+			const targetElement = document.getElementById(lastFocusedElementId);
+			if (targetElement)
+				targetElement.focus();
 		}
 	});
 	window.addEventListener("keydown", e =>
@@ -340,11 +431,22 @@
 
 	cbx_wide.addEventListener("change", () =>
 	{
+		settings.wide = cbx_wide.checked;
 		table.style.maxWidth = cbx_wide.checked ? "unset" : "700px";
 		vscode.postMessage({
 			command: "saveSetting",
 			key: "wide",
 			value: cbx_wide.checked,
+		});
+	});
+
+	cbx_autosave.addEventListener("change", () =>
+	{
+		settings.autosave = cbx_autosave.checked;
+		vscode.postMessage({
+			command: "saveSetting",
+			key: "autosave",
+			value: cbx_autosave.checked,
 		});
 	});
 
@@ -365,6 +467,7 @@
 		el.dataset.col = col;
 		const ta = document.createElement("textarea");
 		el.append(ta);
+		ta.id = "cell_" + `${Math.random()}`.slice(2);
 		ta.value = value;
 		ta.rows = 1;
 		if (row == 0)
@@ -378,7 +481,11 @@
 			ta.style.height = "0px";
 			ta.style.minHeight = `${ta.scrollHeight}px`;
 			ta.style.height = "auto";
-			if (!isDirty)
+			if (settings.autosave && !disabled)
+			{
+				autosave();
+			}
+			else if (!isDirty)
 			{
 				isDirty = true;
 				vscode.postMessage({ command: "setDirty" });
@@ -386,10 +493,86 @@
 		});
 		ta.addEventListener("keydown", (e) =>
 		{
-			const altMove = e.altKey && e.shiftKey || e.key == "PageDown" || e.key == "PageUp";
-			if (!altMove && ta.selectionStart != ta.selectionEnd) return;
+			const ctrl = event.ctrlKey || event.metaKey;
 			const row = parseInt(el.dataset.row);
 			const col = parseInt(el.dataset.col);
+			if (!e.altKey && !e.shiftKey && ctrl && e.key == "Enter")
+			{
+				addRow(parseInt(el.dataset.row));
+				focus(0, 1, true);
+				return;
+			}
+			if (!e.altKey && e.shiftKey && ctrl && e.key == "Enter")
+			{
+				if (row == 0) return;
+				addRow(row - 1);
+				focus(0, -1, true);
+				return;
+			}
+			if (e.altKey && e.shiftKey && !ctrl && e.key == "Enter")
+			{
+				if (col == 0) return;
+				addCol(col - 1);
+				focus(0, 0, true);
+				return;
+			}
+			if (e.altKey && !e.shiftKey && !ctrl && e.key == "Enter")
+			{
+				addCol(parseInt(el.dataset.col));
+				focus(1, 0, true);
+				return;
+			}
+			if (!e.altKey && e.shiftKey && ctrl && e.key == "Backspace")
+			{
+				if (row == 0) return;
+				deleteRow(parseInt(el.dataset.row));
+				focus(0, 0, true);
+				return;
+			}
+			if (e.altKey && e.shiftKey && !ctrl && e.key == "Backspace")
+			{
+				if (columnCount == 1) return;
+				deleteCol(parseInt(el.dataset.col));
+				focus(0, 0, true);
+				return;
+			}
+			if (!e.altKey && !e.shiftKey && ctrl && e.code == "KeyD")
+			{
+				cloneRow(row);
+				focus(0, 1, true);
+				return;
+			}
+			if (e.altKey && e.shiftKey && ctrl)
+			{
+				if (e.key == "ArrowUp")
+				{
+					swapRows(row, -1);
+					focus(0, -1, false);
+					return;
+				}
+				if (e.key == "ArrowDown")
+				{
+					swapRows(row, 1);
+					focus(0, 1, true);
+					return;
+				}
+				if (e.key == "ArrowLeft")
+				{
+					swapCols(col, -1);
+					focus(-1, 0, false);
+					return;
+				}
+				if (e.key == "ArrowRight")
+				{
+					swapCols(col, 1);
+					focus(1, 0, true);
+					return;
+				}
+			}
+			// swapCols
+			// swapRows
+			const altMove = e.altKey && e.shiftKey || e.key == "PageDown" || e.key == "PageUp";
+			if (!altMove && ta.selectionStart != ta.selectionEnd) return;
 			if ((e.key == "ArrowUp" || e.key == "PageUp") && (ta.selectionStart == 0 || altMove))
 				focus(0, -1, false);
 			if ((e.key == "ArrowDown" || e.key == "PageDown") && (ta.selectionStart == ta.value.length || altMove))
@@ -480,6 +663,7 @@
 		});
 		if (columnCount == 2)
 			table.children[0].querySelector(".delBtn").style.display = "";
+		autosave();
 	}
 
 	function addRow(rowIndex)
@@ -493,6 +677,7 @@
 		{
 			el.dataset.row = Math.floor(i / columnCount);
 		});
+		autosave();
 	}
 
 	function deleteCol(colIndex)
@@ -519,6 +704,7 @@
 		});
 		if (columnCount == 1)
 			table.children[0].querySelector(".delBtn").style.display = "none";
+		autosave();
 	}
 
 	function deleteRow(rowIndex)
@@ -532,10 +718,59 @@
 		{
 			el.dataset.row = Math.floor(i / columnCount);
 		});
+		autosave();
 	}
 
+	function swapCols(j, di)
+	{
+		const j1 = j;
+		const j2 = (j + di + columnCount) % columnCount
+		const rowCount = Math.floor(table.children.length) / columnCount;
+		for (let i = 0; i < rowCount; i++)
+		{
+			const el1 = table.children[i * columnCount + j1];
+			const el2 = table.children[i * columnCount + j2];
+			[el1.firstChild.value, el2.firstChild.value] = [el2.firstChild.value, el1.firstChild.value];
+		}
+		autosave();
+	}
 
-	function save()
+	function swapRows(i, di)
+	{
+		const rowCount = Math.floor(table.children.length) / columnCount;
+		const i1 = i;
+		const i2 = (i + di + rowCount) % rowCount
+		for (let j = 0; j < columnCount; j++)
+		{
+			const el1 = table.children[i1 * columnCount + j];
+			const el2 = table.children[i2 * columnCount + j];
+			[el1.firstChild.value, el2.firstChild.value] = [el2.firstChild.value, el1.firstChild.value];
+		}
+		autosave();
+	}
+
+	function cloneRow(i)
+	{
+		addRow(i);
+		for (let j = 0; j < columnCount; j++)
+		{
+			const el1 = table.children[i * columnCount + j];
+			const el2 = table.children[(i + 1) * columnCount + j];
+			el2.firstChild.value = el1.firstChild.value;
+		}
+		autosave();
+	}
+
+	function autosave()
+	{
+		if (autosave_timeout) return;
+		autosave_timeout = setTimeout(() =>
+		{
+			autosave_timeout = null;
+			save(true);
+		}, 250);
+	}
+	function save(silent = false)
 	{
 		const newData = {
 			align: data.align,
@@ -548,7 +783,7 @@
 			const ta = el.firstChild;
 			newData.rows[rowI].push(ta.value);
 		});
-		vscode.postMessage({ command: "saveData", newData });
+		vscode.postMessage({ command: "saveData", newData, silent });
 		isDirty = false;
 	}
 	function close_editor()

@@ -46,6 +46,7 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 			.replaceAll("{{data}}", JSON.stringify(data))
 			.replaceAll("{{settings}}", JSON.stringify({
 				wide: context.globalState.get("tableEditor_wide", false),
+				autosave: context.globalState.get("tableEditor_autosave", true),
 			}));
 
 		const trackedRangeDecoration = new TextEditorDecorationBlock({
@@ -100,8 +101,15 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 			const table = stringifyTable(message.newData);
 			edit.replace(uri, tracker.range, table);
 			await vscode.workspace.applyEdit(edit);
-			vscode.window.showInformationMessage("File was updated");
+			if (!message.silent)
+				vscode.window.showInformationMessage("File was updated");
 		});
+		panel.onDidChangeViewState(e =>
+		{
+			const webviewPanel = e.webviewPanel;
+			if (webviewPanel.active)
+				webviewPanel.webview.postMessage({ command: "restore_focus" });
+		}, null, context.subscriptions);
 		panel.onDidDispose(
 			() =>
 			{
