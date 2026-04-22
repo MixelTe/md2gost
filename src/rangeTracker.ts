@@ -7,6 +7,7 @@ export class RangeTracker
 	private _disposable: vscode.Disposable[];
 	private _isValid = true;
 	private _onUnvalidated: (() => void)[] = []
+	private _onContentChange: (() => void)[] = []
 
 	constructor(
 		private document: vscode.TextDocument,
@@ -20,14 +21,12 @@ export class RangeTracker
 		this._disposable = [
 			vscode.workspace.onDidChangeTextDocument(e =>
 			{
-				if (e.document == this.document)
-				{
-					if (trackLines)
-						this._updateRange_textLine(e.contentChanges);
-					else
-						this._updateRange_textBlock(e.contentChanges);
-					this.applyDecoration();
-				}
+				if (e.document != this.document) return;
+				if (trackLines)
+					this._updateRange_textLine(e.contentChanges);
+				else
+					this._updateRange_textBlock(e.contentChanges);
+				this.applyDecoration();
 			}),
 			vscode.window.onDidChangeActiveTextEditor(editor =>
 			{
@@ -48,6 +47,11 @@ export class RangeTracker
 	public onUnvalidated(f: () => void)
 	{
 		this._onUnvalidated.push(f);
+	}
+
+	public onContentChange(f: () => void)
+	{
+		this._onContentChange.push(f);
 	}
 
 	private applyDecoration(editor?: vscode.TextEditor)
@@ -78,6 +82,9 @@ export class RangeTracker
 		let startDelta = 0;
 		let endDelta = 0;
 
+		let call_onUnvalidated = false;
+		let call_onContentChange = false;
+
 		for (const change of changes)
 		{
 			const changeStart = change.rangeOffset;
@@ -92,17 +99,20 @@ export class RangeTracker
 			else if (changeStart >= startOffset && changeEnd <= endOffset)
 			{
 				endDelta += diff;
+				call_onContentChange = true;
 			}
 			else if (changeStart > endOffset) { }
 			else
 			{
+				call_onUnvalidated = this._isValid;
 				this._isValid = false;
-				this._onUnvalidated.forEach(f => f());
 				break;
 			}
 		}
 
+		if (call_onUnvalidated) this._onUnvalidated.forEach(f => f());
 		if (!this._isValid) return;
+
 		const newStart = startOffset + startDelta;
 		const newEnd = endOffset + endDelta;
 
@@ -110,6 +120,7 @@ export class RangeTracker
 			this.document.positionAt(newStart),
 			this.document.positionAt(newEnd)
 		);
+		if (call_onContentChange) this._onContentChange.forEach(f => f());
 	}
 
 	private _updateRange_textLine(changes: readonly vscode.TextDocumentContentChangeEvent[])
@@ -119,12 +130,15 @@ export class RangeTracker
 		let startLine = this._range.start.line;
 		let endLine = this._range.end.line;
 
+		let call_onUnvalidated = false;
+		let call_onContentChange = false;
+
 		for (const change of changes)
 		{
 			const changeStartLine = change.range.start.line;
 			const changeEndLine = change.range.end.line;
 
-			const linesAdded = change.text.split('\n').length - 1;
+			const linesAdded = change.text.split("\n").length - 1;
 			const linesRemoved = changeEndLine - changeStartLine;
 			const lineDelta = linesAdded - linesRemoved;
 
@@ -133,19 +147,22 @@ export class RangeTracker
 				startLine += lineDelta;
 				endLine += lineDelta;
 			}
-			else if (changeStartLine >= startLine && changeEndLine <= endLine)
+			else if ((changeStartLine >= startLine && changeEndLine <= endLine)
+				|| (changeEndLine == endLine + 1 && change.range.end.character == 0))
 			{
 				endLine += lineDelta;
+				call_onContentChange = true;
 			}
 			else if (changeStartLine > endLine) { }
 			else
 			{
+				call_onUnvalidated = this._isValid;
 				this._isValid = false;
-				this._onUnvalidated.forEach(f => f());
 				break;
 			}
 		}
 
+		if (call_onUnvalidated) this._onUnvalidated.forEach(f => f());
 		if (!this._isValid) return;
 
 		const validatedStart = Math.max(0, startLine);
@@ -155,6 +172,7 @@ export class RangeTracker
 		const endPos = this.document.lineAt(validatedEnd).range.end;
 
 		this._range = new vscode.Range(startPos, endPos);
+		if (call_onContentChange) this._onContentChange.forEach(f => f());
 	}
 
 	dispose()

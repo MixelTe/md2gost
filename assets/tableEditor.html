@@ -76,18 +76,26 @@
 		cursor: not-allowed;
 	}
 
-	.hint {
+	.rightBtns {
 		display: flex;
 		flex-direction: column;
+		gap: 0.5em;
+	}
+
+	.hint {
+		display: grid;
+		grid-template-columns: auto auto;
+		width: fit-content;
 		gap: 1em;
 		color: var(--vscode-descriptionForeground);
 		font-size: 0.85em;
 		margin-top: 8px;
 	}
 
-	.hint>div {
-		display: flex;
-		gap: 0.75em;
+	@media screen and (max-width: 500px) {
+		.hint {
+			grid-template-columns: auto;
+		}
 	}
 
 	.gap {
@@ -95,7 +103,6 @@
 	}
 
 	.toggle {
-		margin-top: 0.25em;
 		float: left;
 		cursor: pointer;
 		overflow: hidden;
@@ -170,6 +177,33 @@
 	.checkbox:has(:checked) svg {
 		opacity: 1;
 	}
+
+	.button {
+		width: 20px;
+		height: 20px;
+		font-size: 16px;
+		border: 1px solid transparent;
+		border-radius: 3px;
+		padding: 0;
+		background-color: transparent;
+		color: var(--vscode-settings-checkboxForeground);
+		cursor: pointer;
+	}
+
+	.button_danger {
+		color: var(--vscode-editorError-foreground);
+	}
+
+	.button:hover {
+		background-color: var(--vscode-toolbar-hoverBackground);
+		outline: 1px dashed var(--vscode-toolbar-hoverOutline);
+		outline-offset: -1px;
+	}
+
+	.button:focus-within {
+		outline: 1px solid var(--vscode-focusBorder);
+		outline-offset: -1px;
+	}
 </style>
 <!-- table -->
 <style>
@@ -177,12 +211,14 @@
 		flex-grow: 1;
 		display: grid;
 		grid-template-rows: auto;
-		margin: 2em;
-		margin-right: 1em;
+		padding: 34px 0.8em 1em 2em;
+		margin-right: 0.2em;
+		margin-bottom: 1em;
 		max-width: 700px;
+		overflow: auto;
 	}
 
-	.table>* {
+	.cell {
 		position: relative;
 		display: flex;
 		margin-top: -1px;
@@ -207,6 +243,43 @@
 </style>
 <!-- table buttons -->
 <style>
+	.topBtns {
+		position: absolute;
+		left: 50%;
+		top: -33px;
+		translate: -50% 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		opacity: 0.75;
+	}
+
+	.topBtns>div {
+		display: flex;
+	}
+
+	.topBtns .button,
+	.leftBtns .button {
+		width: 16px;
+		height: 16px;
+		font-size: 13px;
+	}
+
+	.topBtns .toggle {
+		width: 14px;
+		height: 14px;
+		font-size: 11px;
+	}
+
+	.leftBtns {
+		position: absolute;
+		top: 50%;
+		left: -16px;
+		translate: 0 -50%;
+		display: flex;
+		opacity: 0.75;
+	}
+
 	.addBtn {
 		position: absolute;
 		right: 1px;
@@ -260,54 +333,6 @@
 		height: 0.8em;
 		clip-path: polygon(100% 50%, 0% 0%, 0% 100%);
 	}
-
-	.delBtn {
-		padding: 0;
-		position: absolute;
-		left: 50%;
-		top: 0px;
-		translate: -50% -100%;
-		background: var(--vscode-editorWidget-background);
-		color: var(--vscode-errorForeground);
-		border: 1px solid var(--vscode-errorForeground);
-		/* border-radius: 50%; */
-		border-width: 1px 1px 0px 1px;
-		border-radius: 50% 50% 0 0;
-		width: 1.05em;
-		height: 1.05em;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		cursor: pointer;
-		opacity: 0.5;
-		transition: opacity 250ms;
-	}
-
-	.delBtn::before,
-	.delBtn::after {
-		content: "";
-		position: absolute;
-		width: 0.5em;
-		height: 1px;
-		background: var(--vscode-errorForeground);
-		rotate: 45deg;
-	}
-
-	.delBtn::after {
-		rotate: -45deg;
-	}
-
-	.delBtn:hover {
-		opacity: 1;
-	}
-
-	.delBtn_hor {
-		top: 50%;
-		left: 0px;
-		translate: -100% -50%;
-		border-width: 1px 0px 1px 1px;
-		border-radius: 50% 0 0 50%;
-	}
 </style>
 
 
@@ -321,38 +346,31 @@
 
 <div class="body">
 	<div class="table" id="table"></div>
-	<label class="toggle">
-		<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">
-			<path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160Zm640-560H160v480h640v-480Zm-640 0v480-480Zm200 360v-240L240-480l120 120Zm360-120L600-600v240l120-120Z" />
-		</svg>
-		<input type="checkbox" id="cbx_wide">
-	</label>
+	<div class="rightBtns">
+		<label class="toggle" title="Wide view">
+			<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">
+				<path d="M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160Zm640-560H160v480h640v-480Zm-640 0v480-480Zm200 360v-240L240-480l120 120Zm360-120L600-600v240l120-120Z" />
+			</svg>
+			<input type="checkbox" id="cbx_wide">
+		</label>
+		<button class="button" id="btn_transpose" onclick="transpose()" title="Transpose table" style="opacity: 0.75;">
+			<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">
+				<path d="M400-640v-200h360q33 0 56.5 23.5T840-760v120H400ZM200-120q-33 0-56.5-23.5T120-200v-360h200v440H200Zm-80-520v-120q0-33 23.5-56.5T200-840h120v200H120ZM520-80 360-240l160-160 56 56-62 64h86q33 0 56.5-23.5T680-360v-88l-64 64-56-56 160-160 160 160-56 56-64-64v88q0 66-47 113t-113 47h-86l62 64-56 56Z" />
+			</svg>
+		</button>
+	</div>
 </div>
 
 <div class="hint">
-	<div>
-		<span><kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>Arrows</kbd> to navigate cells</span>
-		<span>|</span>
-		<span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>Arrows</kbd> to move rows/columns</span>
-	</div>
-	<div>
-		<span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to add row bellow</span>
-		<span>|</span>
-		<span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> to add row above</span>
-	</div>
-	<div>
-		<span><kbd>Alt</kbd>+<kbd>Enter</kbd> to add column to right</span>
-		<span>|</span>
-		<span><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> to add column to left</span>
-	</div>
-	<div>
-		<span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Backspace</kbd> to delete current row</span>
-		<span>|</span>
-		<span><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>Backspace</kbd> to delete current column</span>
-	</div>
-	<div>
-		<span><kbd>Ctrl</kbd>+<kbd>D</kbd> to duplicate row</span>
-	</div>
+	<span><kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>Arrows</kbd> to navigate cells</span>
+	<span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>Arrows</kbd> to move rows/columns</span>
+	<span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to add row bellow</span>
+	<span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> to add row above</span>
+	<span><kbd>Alt</kbd>+<kbd>Enter</kbd> to add column to right</span>
+	<span><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> to add column to left</span>
+	<span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Backspace</kbd> to delete current row</span>
+	<span><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>Backspace</kbd> to delete current column</span>
+	<span><kbd>Ctrl</kbd>+<kbd>D</kbd> to duplicate row</span>
 </div>
 
 <div class="gap"></div>
@@ -373,10 +391,57 @@
 	</div>
 	<div class="disabled" id="disabled">The document has been changed too much, open the editor again</div>
 </div>
+<template id="leftBtns">
+	<div class="leftBtns">
+		<button class="button button_danger" tabindex="-1" title="Delete row" onclick="deleteRow(parseInt(this.closest('.cell').dataset.row))">
+			<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">
+				<path d="m336-280-56-56 144-144-144-143 56-56 144 144 143-144 56 56-144 143 144 144-56 56-143-144-144 144Z" />
+			</svg>
+		</button>
+	</div>
+</template>
+<template id="topBtns">
+	<div class="topBtns">
+		<div>
+			<button class="button button_danger" tabindex="-1" title="Delete column" onclick="deleteCol(parseInt(this.closest('.cell').dataset.col))">
+				<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">
+					<path d="m336-280-56-56 144-144-144-143 56-56 144 144 143-144 56 56-144 143 144 144-56 56-143-144-144 144Z" />
+				</svg>
+			</button>
+			<button class="button" tabindex="-1" title="Sort by column" onclick="sortByCol(parseInt(this.closest('.cell').dataset.col))">
+				<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">
+					<path d="m80-280 150-400h86l150 400h-82l-34-96H196l-32 96H80Zm140-164h104l-48-150h-6l-50 150Zm328 164v-76l202-252H556v-72h282v76L638-352h202v72H548ZM360-760l120-120 120 120H360ZM480-80 360-200h240L480-80Z" />
+				</svg>
+			</button>
+		</div>
+		<div>
+			<label class="toggle" tabindex="-1" title="Align left">
+				<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">
+					<path d="M80-80v-800h80v800H80Zm160-200v-120h400v120H240Zm0-280v-120h640v120H240Z" />
+				</svg>
+				<input type="checkbox" id="inp_align_left" onchange="setColumnAlign(parseInt(this.closest('.cell').dataset.col), 'left')">
+			</label>
+			<label class="toggle" tabindex="-1" title="Align center">
+				<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">
+					<path d="M440-80v-200H240v-120h200v-160H120v-120h320v-200h80v200h320v120H520v160h200v120H520v200h-80Z" />
+				</svg>
+				<input type="checkbox" id="inp_align_center" onchange="setColumnAlign(parseInt(this.closest('.cell').dataset.col), 'center')">
+			</label>
+			<label class="toggle" tabindex="-1" title="Align right">
+				<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">
+					<path d="M800-80v-800h80v800h-80ZM320-280v-120h400v120H320ZM80-560v-120h640v120H80Z" />
+				</svg>
+				<input type="checkbox" id="inp_align_right" onchange="setColumnAlign(parseInt(this.closest('.cell').dataset.col), 'right')">
+			</label>
+		</div>
+	</div>
+</template>
 
 <script>
 	const vscode = acquireVsCodeApi();
 	const table = document.getElementById("table");
+	const topBtns_template = document.getElementById("topBtns");
+	const leftBtns_template = document.getElementById("leftBtns");
 	const cbx_wide = document.getElementById("cbx_wide");
 	cbx_wide.checked = settings.wide;
 	table.style.maxWidth = settings.wide ? "unset" : "700px";
@@ -418,6 +483,11 @@
 			if (targetElement)
 				targetElement.focus();
 		}
+		else if (message.command == "set_data")
+		{
+			if (settings.autosave)
+				setData(message.data);
+		}
 	});
 	window.addEventListener("keydown", e =>
 	{
@@ -448,21 +518,24 @@
 			key: "autosave",
 			value: cbx_autosave.checked,
 		});
+		if (isDirty) save(silent);
 	});
 
 	function createTable()
 	{
-		table.style.gridTemplateColumns = repeat(columnCount, "1fr").join(" ");
+		updateGridTemplateColumns();
+		const align = data.align.map(v => ({ "l": "left", "c": "center", "r": "right" }[v]));
 		for (let i = 0; i < data.rows.length; i++)
 		{
 			const row = data.rows[i];
 			for (let j = 0; j < row.length; j++)
-				table.append(createCell(i, j, row[j]));
+				table.append(createCell(i, j, row[j], align[j]));
 		}
 	}
-	function createCell(row, col, value)
+	function createCell(row, col, value, align = null)
 	{
 		const el = document.createElement("div");
+		el.classList.add("cell");
 		el.dataset.row = row;
 		el.dataset.col = col;
 		const ta = document.createElement("textarea");
@@ -470,10 +543,12 @@
 		ta.id = "cell_" + `${Math.random()}`.slice(2);
 		ta.value = value;
 		ta.rows = 1;
+		align = align || table.children[col]?.dataset.align || "left";
+		ta.style.textAlign = align;
 		if (row == 0)
 		{
 			ta.style.fontWeight = "bold";
-			ta.style.textAlign = "center"
+			ta.style.textAlign = "center";
 		}
 		ta.addEventListener("input", () =>
 		{
@@ -481,15 +556,7 @@
 			ta.style.height = "0px";
 			ta.style.minHeight = `${ta.scrollHeight}px`;
 			ta.style.height = "auto";
-			if (settings.autosave && !disabled)
-			{
-				autosave();
-			}
-			else if (!isDirty)
-			{
-				isDirty = true;
-				vscode.postMessage({ command: "setDirty" });
-			}
+			onChanged();
 		});
 		ta.addEventListener("keydown", (e) =>
 		{
@@ -583,7 +650,7 @@
 				focus(1, 0, true);
 			function focus(dx, dy, atStart)
 			{
-				const rowCount = Math.floor(table.children.length) / columnCount;
+				const rowCount = Math.floor(table.children.length / columnCount);
 				const nrow = (row + dy + rowCount) % rowCount;
 				const ncol = (col + dx + columnCount) % columnCount;
 				const i = nrow * columnCount + ncol;
@@ -600,17 +667,20 @@
 
 		if (row == 0)
 		{
+			const topBtns = topBtns_template.content.cloneNode(true);
+			el.append(topBtns);
+			el.dataset.align = align;
+			el.querySelector("#inp_align_left").checked = align == "left";
+			el.querySelector("#inp_align_center").checked = align == "center";
+			el.querySelector("#inp_align_right").checked = align == "right";
+
 			const addBtn = document.createElement("button");
 			addBtn.classList.add("addBtn");
 			addBtn.innerText = "+";
 			addBtn.tabIndex = -1;
+			addBtn.title = "Add column";
 			addBtn.addEventListener("click", () => addCol(parseInt(addBtn.parentElement.dataset.col)));
 			el.append(addBtn);
-			const delBtn = document.createElement("button");
-			delBtn.classList.add("delBtn");
-			delBtn.tabIndex = -1;
-			delBtn.addEventListener("click", () => deleteCol(parseInt(delBtn.parentElement.dataset.col)));
-			el.append(delBtn);
 		}
 		if (col == 0)
 		{
@@ -618,15 +688,13 @@
 			addBtn.classList.add("addBtn", "addBtn_hor");
 			addBtn.innerText = "+";
 			addBtn.tabIndex = -1;
+			addBtn.title = "Add row";
 			addBtn.addEventListener("click", () => addRow(parseInt(addBtn.parentElement.dataset.row)));
 			el.append(addBtn);
 			if (row > 0)
 			{
-				const delBtn = document.createElement("button");
-				delBtn.classList.add("delBtn", "delBtn_hor");
-				delBtn.tabIndex = -1;
-				delBtn.addEventListener("click", () => deleteRow(parseInt(delBtn.parentElement.dataset.row)));
-				el.append(delBtn);
+				const leftBtns = leftBtns_template.content.cloneNode(true);
+				el.append(leftBtns);
 			}
 		}
 		return el;
@@ -647,26 +715,42 @@
 		});
 	}
 
-	function addCol(colIndex)
+	function setColumnAlign(col, align, save = true)
 	{
-		const rowCount = Math.floor(table.children.length) / columnCount;
+		const el = table.children[col];
+		el.dataset.align = align;
+		el.querySelector("#inp_align_left").checked = align == "left";
+		el.querySelector("#inp_align_center").checked = align == "center";
+		el.querySelector("#inp_align_right").checked = align == "right";
+		const rowCount = Math.floor(table.children.length / columnCount);
+		for (let i = 1; i < rowCount; i++)
+		{
+			const el = table.children[i * columnCount + col]?.firstChild;
+			if (el) el.style.textAlign = align;
+		}
+		if (save) onChanged();
+	}
+
+	function addCol(colIndex, save = true)
+	{
+		const rowCount = Math.floor(table.children.length / columnCount);
 		for (let i = 0; i < rowCount; i++)
 		{
 			const prevEl = table.children[i * columnCount + colIndex + i];
 			prevEl.after(createCell(i, colIndex + 1, ""));
 		}
 		columnCount++;
-		table.style.gridTemplateColumns = repeat(columnCount, "1fr").join(" ");
+		updateGridTemplateColumns();
 		Array.from(table.children).forEach((el, i) =>
 		{
 			el.dataset.col = i % columnCount;
 		});
 		if (columnCount == 2)
-			table.children[0].querySelector(".delBtn").style.display = "";
-		autosave();
+			table.children[0].querySelector(".button_danger").style.display = "";
+		if (save) onChanged();
 	}
 
-	function addRow(rowIndex)
+	function addRow(rowIndex, save = true)
 	{
 		const prevEl = table.children[(rowIndex + 1) * columnCount - 1];
 		for (let j = columnCount - 1; j >= 0; j--)
@@ -677,10 +761,10 @@
 		{
 			el.dataset.row = Math.floor(i / columnCount);
 		});
-		autosave();
+		if (save) onChanged();
 	}
 
-	function deleteCol(colIndex)
+	function deleteCol(colIndex, save = true)
 	{
 		const children = Array.from(table.children);
 		children.forEach((el, i) =>
@@ -691,23 +775,23 @@
 				if (colI == 0 && children[i + 1])
 				{
 					lt(el.querySelector(".addBtn_hor"), ch => children[i + 1].append(ch));
-					lt(el.querySelector(".delBtn_hor"), ch => children[i + 1].append(ch));
+					lt(el.querySelector(".leftBtns"), ch => children[i + 1].append(ch));
 				}
 				table.removeChild(el);
 			}
 		});
 		columnCount--;
-		table.style.gridTemplateColumns = repeat(columnCount, "1fr").join(" ");
+		updateGridTemplateColumns();
 		Array.from(table.children).forEach((el, i) =>
 		{
 			el.dataset.col = i % columnCount;
 		});
 		if (columnCount == 1)
-			table.children[0].querySelector(".delBtn").style.display = "none";
-		autosave();
+			table.children[0].querySelector(".button_danger").style.display = "none";
+		if (save) onChanged();
 	}
 
-	function deleteRow(rowIndex)
+	function deleteRow(rowIndex, save = true)
 	{
 		Array.from(table.children).forEach((el, i) =>
 		{
@@ -718,26 +802,26 @@
 		{
 			el.dataset.row = Math.floor(i / columnCount);
 		});
-		autosave();
+		if (save) onChanged();
 	}
 
 	function swapCols(j, di)
 	{
 		const j1 = j;
 		const j2 = (j + di + columnCount) % columnCount
-		const rowCount = Math.floor(table.children.length) / columnCount;
+		const rowCount = Math.floor(table.children.length / columnCount);
 		for (let i = 0; i < rowCount; i++)
 		{
 			const el1 = table.children[i * columnCount + j1];
 			const el2 = table.children[i * columnCount + j2];
 			[el1.firstChild.value, el2.firstChild.value] = [el2.firstChild.value, el1.firstChild.value];
 		}
-		autosave();
+		onChanged();
 	}
 
 	function swapRows(i, di)
 	{
-		const rowCount = Math.floor(table.children.length) / columnCount;
+		const rowCount = Math.floor(table.children.length / columnCount);
 		const i1 = i;
 		const i2 = (i + di + rowCount) % rowCount
 		for (let j = 0; j < columnCount; j++)
@@ -746,7 +830,7 @@
 			const el2 = table.children[i2 * columnCount + j];
 			[el1.firstChild.value, el2.firstChild.value] = [el2.firstChild.value, el1.firstChild.value];
 		}
-		autosave();
+		onChanged();
 	}
 
 	function cloneRow(i)
@@ -758,27 +842,128 @@
 			const el2 = table.children[(i + 1) * columnCount + j];
 			el2.firstChild.value = el1.firstChild.value;
 		}
-		autosave();
+		onChanged();
 	}
 
-	function autosave()
+	function transpose()
 	{
-		if (autosave_timeout) return;
-		autosave_timeout = setTimeout(() =>
+		const rowCount = Math.floor(table.children.length / columnCount);
+		let rows = repeat(rowCount,
+			i => repeat(columnCount,
+				j => table.children[i * columnCount + j].firstChild.value
+			));
+		rows = rows[0].map((_, j) => rows.map(row => row[j]));
+		columnCount = rows[0].length;
+		updateGridTemplateColumns();
+		table.innerHTML = "";
+		for (let i = 0; i < rows.length; i++)
 		{
-			autosave_timeout = null;
-			save(true);
-		}, 250);
+			const row = rows[i];
+			for (let j = 0; j < row.length; j++)
+				table.append(createCell(i, j, row[j]));
+		}
+		resizeTable();
+		onChanged();
+	}
+
+	function sortByCol(col)
+	{
+		const rowCount = Math.floor(table.children.length / columnCount);
+		const all_rows = repeat(rowCount,
+			i => [i, ...repeat(columnCount,
+				j => table.children[i * columnCount + j].firstChild.value
+			)]);
+		const header = all_rows[0].slice(1);
+		const rows = all_rows.slice(1);
+		col++;
+		const allNums = rows.every(row => isFinite(parseFloat(row[col])));
+		if (allNums) rows.forEach(row => { row[col] = parseFloat(row[col]) });
+		rows.sort((a, b) => a[col] < b[col] ? -1 : a[col] > b[col] ? 1 : 0);
+		const noChanges = rows.every((row, i) => row[0] == i + 1);
+		if (noChanges) rows.reverse();
+		setRows([header, ...rows.map(row => row.slice(1))]);
+		onChanged();
+	}
+
+	function updateGridTemplateColumns()
+	{
+		table.style.gridTemplateColumns = `repeat(${columnCount}, minmax(5em, 1fr))`;
+	}
+
+	function setData(data)
+	{
+		let rowCount = Math.floor(table.children.length / columnCount);
+		if (rowCount != data.rows.length || columnCount != data.rows[0]?.length)
+		{
+			const newRowCount = data.rows.length;
+			const newColCount = data.rows[0]?.length || 0;
+			while (columnCount > newColCount) deleteCol(columnCount - 1, false);
+			while (columnCount < newColCount) addCol(columnCount - 1, false);
+			while (rowCount > newRowCount)
+			{
+				deleteRow(rowCount - 1, false);
+				rowCount = Math.floor(table.children.length / columnCount);
+			}
+			while (rowCount < newRowCount)
+			{
+				addRow(rowCount - 1, false);
+				rowCount = Math.floor(table.children.length / columnCount);
+			}
+		}
+		setRows(data.rows);
+		const align = data.align.map(v => ({ "l": "left", "c": "center", "r": "right" }[v]));
+		for (let j = 0; j < columnCount; j++)
+			setColumnAlign(j, align[j], false);
+	}
+	function setRows(rows)
+	{
+		console.log(rows);
+		for (let i = 0; i < rows.length; i++)
+		{
+			const row = rows[i];
+			for (let j = 0; j < row.length; j++)
+			{
+				const v = row[j];
+				const ta = table.children[i * columnCount + j]?.firstChild;
+				if (ta && ta.value != v)
+				{
+					ta.value = v;
+					ta.style.minHeight = "0px";
+					ta.style.height = "0px";
+					ta.style.minHeight = `${ta.scrollHeight}px`;
+					ta.style.height = "auto";
+				}
+			}
+		}
+	}
+
+	function onChanged()
+	{
+		if (settings.autosave && !disabled)
+		{
+			if (autosave_timeout) return;
+			autosave_timeout = setTimeout(() =>
+			{
+				autosave_timeout = null;
+				save(true);
+			}, 250);
+		}
+		else if (!isDirty)
+		{
+			isDirty = true;
+			vscode.postMessage({ command: "setDirty" });
+		}
 	}
 	function save(silent = false)
 	{
 		const newData = {
-			align: data.align,
+			align: [],
 			rows: [],
 		}
 		Array.from(table.children).forEach((el, i) =>
 		{
 			const rowI = Math.floor(i / columnCount);
+			if (rowI == 0) newData.align.push((el.dataset.align || "l")[0]);
 			if (newData.rows.length <= rowI) newData.rows.push([]);
 			const ta = el.firstChild;
 			newData.rows[rowI].push(ta.value);

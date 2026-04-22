@@ -69,7 +69,14 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 		tracker.onUnvalidated(() =>
 		{
 			panel.title = "Table Editor (Locked)";
-			panel.webview.postMessage({ command: "disable" })
+			panel.webview.postMessage({ command: "disable" });
+		});
+		let skip_changes = false;
+		tracker.onContentChange(() =>
+		{
+			if (skip_changes || !tracker.isValid) return;
+			const data = parseTable(document.getText(tracker.range));
+			panel.webview.postMessage({ command: "set_data", data });
 		});
 
 		panel.webview.onDidReceiveMessage(async message =>
@@ -100,7 +107,9 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 			const edit = new vscode.WorkspaceEdit();
 			const table = stringifyTable(message.newData);
 			edit.replace(uri, tracker.range, table);
+			skip_changes = true;
 			await vscode.workspace.applyEdit(edit);
+			skip_changes = false;
 			if (!message.silent)
 				vscode.window.showInformationMessage("File was updated");
 		});
@@ -195,9 +204,9 @@ function stringifyTable(table: Table)
 	{
 		const row = table.rows[i];
 		while (row.length < cols) row.push("");
-		res += prefix + row.map((v, i) =>
+		res += (prefix + row.map((v, i) =>
 			v + repeat(lens[i] - v.length, " ").join("")
-		).join(" | ") + postfix + "\n";
+		).join(" | ") + postfix).trim() + "\n";
 		if (i == 0)
 			res += prefix.replace(" ", "") + table.align.map((v, i) => ({
 				v, sep: repeat(lens[i] + 1 + (i == 0 && !border ? 0 : 1), "-").join("")

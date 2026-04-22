@@ -76,7 +76,7 @@ export function md_inlineCompletion(document: TextDocument, position: Position):
 			)
 		];
 	}
-	const m_olist = /^(\s*)(\d+)(.|\))\s/.exec(prevLine);
+	const m_olist = /^(\s*)(\d+)(\.|\))\s/.exec(prevLine);
 	if (m_olist)
 		return [
 			new InlineCompletionItem(
