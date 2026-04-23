@@ -19,10 +19,7 @@ Sub RenderSegmentsToPDF()
     UpdateAllFields
     mainDoc.Repaginate
 
-    Dim i As Long
-    For i = 1 To mainDoc.Paragraphs.Count
-        Set p = mainDoc.Paragraphs(i)
-
+    For Each p In mainDoc.Paragraphs
         Dim includeData As Object
         Set includeData = ParseIncludeSyntax(p.Range.Text)
 
@@ -40,7 +37,7 @@ Sub RenderSegmentsToPDF()
             newStart = SkipTrailingSectionBreaks(mainDoc, p.Range.End)
             Set startRange = mainDoc.Range(newStart, newStart)
         End If
-    Next i
+    Next p
 
     ' Export trailing content
     If startRange.End < mainDoc.Content.End Then

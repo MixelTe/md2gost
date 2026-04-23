@@ -4,7 +4,6 @@ Sub AutoListingContinuation()
     Dim doc As Document
     Set doc = ActiveDocument
 
-    Dim i As Long
     Dim listingNumber As String
     Dim currentPage As Long
     Dim lastPage As Long
@@ -16,18 +15,14 @@ Sub AutoListingContinuation()
 
     UpdateAllFields
 
-    For i = 1 To doc.Paragraphs.Count
-
-        Set para = doc.Paragraphs(i)
-
+    For Each para In doc.Paragraphs
         ' 1. Нашли подпись листинга
         If para.Style = "Листинг_Подпись" Then
             listingNumber = ExtractListingNumber(para.Range.text)
             codeStart = False
-        End If
 
         ' 2. Начался код листинга
-        If para.Style = "Листинг_Код" Then
+        ElseIf para.Style = "Листинг_Код" Then
 
             currentPage = para.Range.Information(wdActiveEndPageNumber)
 
@@ -51,7 +46,7 @@ Sub AutoListingContinuation()
             codeStart = False
         End If
 
-    Next i
+    Next para
 
     ' MsgBox "Готово", vbInformation
     Exit Sub
