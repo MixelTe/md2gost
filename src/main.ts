@@ -132,10 +132,12 @@ function runDocxMacro(progress: SetProgressFn, assets: string, cwd: string, fin:
 			data = `${data}`;
 			const m = /\[\*(\d)\]/.exec(data);
 			if (m) progress(20, {
-				// "1": "Fixing breaks",
+				// "1": "Fixing breaks (listings)",
 				"1": render_fixingBreaks(),
-				// "2": "Rendering to PDF",
-				"2": render_renderPDF(),
+				// "2": "Fixing breaks (tables)",
+				"2": render_fixingBreaks(),
+				// "3": "Rendering to PDF",
+				"3": render_renderPDF(),
 			}[m[1]] || "Make some work");
 			console.log(`PS: ${data}`);
 		});

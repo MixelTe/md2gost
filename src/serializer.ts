@@ -6,6 +6,7 @@ import { imageSize } from "image-size";
 import path from "path";
 
 const STYLE_list = "aff0";
+const STYLE_table_title = "aff5";
 const STYLE_code_title = "afe";
 const STYLE_code = "af6";
 
@@ -129,12 +130,8 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						...(node.title ? [
 							new Paragraph({
 								children: renderText(node.title),
-								indent: { firstLine: 0 },
-								spacing: {
-									line: 240,
-									...(prevChild instanceof Table ? { before: 8 * 20 } : {}),
-								},
-								keepNext: true,
+								style: STYLE_table_title,
+								...(prevChild instanceof Table ? { spacing: { before: 8 * 20 } } : {}),
 							}),
 						] : prevChild instanceof Table ? [
 							new Paragraph({ spacing: { line: 40, }, }),

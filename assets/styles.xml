@@ -1107,4 +1107,23 @@
 <w:link w:val="a"/>
 <w:rsid w:val="00D8402D"/>
 </w:style>
+<w:style w:type="paragraph" w:customStyle="1" w:styleId="aff5">
+<w:name w:val="Таблица_Подпись"/>
+<w:basedOn w:val="a2"/>
+<w:next w:val="a2"/>
+<w:link w:val="aff6"/>
+<w:qFormat/>
+<w:rsid w:val="00D25F98"/>
+<w:pPr>
+<w:keepNext/>
+<w:spacing w:line="240" w:lineRule="auto"/>
+<w:ind w:firstLine="0"/>
+</w:pPr>
+</w:style>
+<w:style w:type="character" w:customStyle="1" w:styleId="aff6">
+<w:name w:val="Таблица_Подпись Знак"/>
+<w:basedOn w:val="aff"/>
+<w:link w:val="aff5"/>
+<w:rsid w:val="00D25F98"/>
+</w:style>
 </w:styles>

@@ -19,7 +19,7 @@ export function md_completion(document: TextDocument, position: Position): Compl
 		r.push(item);
 	}
 	const range = new Range(position, line.range.end);
-	function addHint(text: string, word: string, detail: string, documentation?: string, sortText?: string)
+	function addHint(text: string, word: string, detail: string, documentation?: string, sortText?: string, mod?: (item: CompletionItem) => void)
 	{
 		const rem = { v: "" };
 		if (completeWord(text, word, rem))
@@ -34,11 +34,14 @@ export function md_completion(document: TextDocument, position: Position): Compl
 			item.range = range;
 			item.documentation = new MarkdownString(documentation || detail);
 			item.sortText = sortText;
+			mod?.(item);
 			r.push(item);
 			return item;
 		}
 	}
-	addHint(linePrefix, "!!rule", "Вставить правило");
+	addHint(linePrefix, "!!rule ", "Вставить правило", undefined, undefined, item =>
+		item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" }
+	);
 	if (linePrefix.startsWith("!!rule "))
 	{
 		const rule = linePrefix.slice("!!rule ".length);

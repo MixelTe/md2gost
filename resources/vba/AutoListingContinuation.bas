@@ -100,37 +100,6 @@ Sub InsertContinuation(p As Paragraph, listingNumber As String)
         End If
     End If
 
-    ' --- СЛУЧАЙ 2 ---
-    ' Код продолжается не сразу после подписи
-    ' Разрыв страницы перед prev
-
-    ' Set r = prev.Range
-    ' r.Collapse wdCollapseStart
-    ' r.MoveStart Unit:=wdCharacter, Count:=-1
-
-    ' ' Теперь r выделяет только знак абзаца (перенос строки) перед листингом.
-    ' ' Заменяем его на: Разрыв страницы + Текст продолжения + Новый перенос строки
-    ' r.Text = Chr(12) & "Продолжение листинга " & listingNumber & vbCr
-
-
-    ' Set r = prev.Range
-    ' r.Collapse wdCollapseStart
-    ' r.InsertBreak Type:=wdPageBreak
-
-    ' ' Вставляем continuation после разрыва
-    ' r.InsertBefore "Продолжение листинга " & listingNumber & vbCr
-
-    ' Set contPara = prev.Previous
-
-    ' ' Назначаем стиль
-    ' On Error Resume Next
-    ' contPara.Style = "Листинг_Продолжение"
-    ' If Err.Number <> 0 Then
-    '     contPara.Style = "Листинг_Подпись"
-    '     Err.Clear
-    ' End If
-    ' On Error GoTo 0
-
     Set r = prev.Range
     r.Collapse wdCollapseStart
 

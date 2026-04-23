@@ -51,11 +51,15 @@ try {
     Write-Host "[*1] Generating continued listings..."
     $word.Run("AutoListingContinuation")
 
+    Write-Host "[*2] Generating continued tables..."
+    $word.Run("AutoTableContinuation")
+
     # --- Saving -----------------------------------------------
     $doc.SaveAs($OutputDoc, 16)
 
     if ($RenderPDF) {
-        Write-Host "[*2] Render to PDF..."
+        Write-Host "[*3] Render to PDF..."
+        # Template is used to render segments cause they are new files
         $doc.AttachedTemplate = $Template
         $word.Run("RenderSegmentsToPDF")
         $doc.AttachedTemplate = "Normal"
