@@ -163,7 +163,8 @@ function showChangelogOnUpdate(context: vscode.ExtensionContext)
 	if (pageVersion !== lastVersion)
 	{
 		context.globalState.update("extension_version", pageVersion);
-		vscode.commands.executeCommand("md2gost.whats_new");
+		if (lastVersion)
+			vscode.commands.executeCommand("md2gost.whats_new");
 	}
 
 	context.subscriptions.push(
@@ -191,6 +192,10 @@ function showChangelogOnUpdate(context: vscode.ExtensionContext)
 
 function showFormatterSuggest()
 {
+	const cfg = vscode.workspace.getConfiguration("md2gost");
+	const suppressDefaultPrompt = cfg.get<boolean>("formatter.suppressDefaultPrompt", false);
+	if (suppressDefaultPrompt) return;
+
 	const myExtensionId = "MixelTe.md2gost";
 	const config = vscode.workspace.getConfiguration("editor", { languageId: "markdown" });
 	const defaultFormatter = config.get<string>("defaultFormatter");

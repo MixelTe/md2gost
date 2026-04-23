@@ -1,3 +1,4 @@
+export type JSONValue = string | number | boolean | null | { [x: string]: JSONValue } | Array<JSONValue>;
 export function lt<T, R>(v: T | null | undefined, fn: (v: T) => R)
 {
 	if (v) return fn(v);

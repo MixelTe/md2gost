@@ -79,20 +79,30 @@
     "configuration": {
       "title": "md2gost",
       "properties": {
-        "md2gost.tableEditor": {
+        "md2gost.tables.editor.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Отображать кнопку для открытия редактора таблиц."
+          "description": "Отображать кнопку для открытия визуального редактора таблиц."
         },
-        "md2gost.inlayHints": {
+        "md2gost.tables.borderStyle": {
+          "type": "string",
+          "enum": [
+            "enclosed",
+            "none",
+            "preserve"
+          ],
+          "default": "preserve",
+          "description": "Стиль внешних границ таблиц: \"enclosed\" (добавлять «|» по краям), \"none\" (убирать границы), \"preserve\" (не изменять)."
+        },
+        "md2gost.ui.inlayHints": {
           "type": "boolean",
           "default": true,
-          "description": "Отображать прозрачные подсказки в тексте. Например \"Рисунок # -\""
+          "description": "Отображать встроенные подсказки в тексте (например, «Рисунок # –»)."
         },
-        "md2gost.preferOuterPipes": {
+        "md2gost.formatter.suppressDefaultPrompt": {
           "type": "boolean",
           "default": false,
-          "description": "Добавлять ли ведущие и замыкающие символы «|» при форматировании таблиц."
+          "description": "Отключает предложение использовать md2gost в качестве форматировщика по умолчанию."
         }
       }
     }

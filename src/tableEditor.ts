@@ -111,7 +111,7 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 			panel.title = "Table Editor";
 			OpenedEditors[uriStr].isDirty = false;
 			const edit = new vscode.WorkspaceEdit();
-			const table = stringifyTable(message.newData);
+			const table = stringifyTable({ ...message.newData, bordered: data.bordered });
 			edit.replace(uri, tracker.range, table);
 			skip_changes = true;
 			await vscode.workspace.applyEdit(edit);
@@ -141,11 +141,12 @@ interface Table
 {
 	align: ("l" | "c" | "r")[],
 	rows: string[][],
+	bordered: boolean,
 }
 
 function parseTable(text: string)
 {
-	const table: Table = { rows: [], align: [] };
+	const table: Table = { rows: [], align: [], bordered: false };
 	const lines = text.split("\n");
 	const trim = (line: string) =>
 	{
@@ -160,6 +161,7 @@ function parseTable(text: string)
 
 	for (let i = 0; i < lines.length; i++)
 	{
+		if (i == 1 && lines[i][0] == "|" && lines[i].trim().at(-1) == "|") table.bordered = true;
 		const line = trim(lines[i]);
 		if (i == 1)
 			table.align = line.split("|").map(v => v.trim()).map(v =>
@@ -203,9 +205,10 @@ function stringifyTable(table: Table)
 	while (table.align.length > cols) table.align.pop();
 
 	const config = vscode.workspace.getConfiguration("md2gost");
-	const preferOuterPipes = config.get<boolean>("preferOuterPipes", false);
+	const borderStyle = config.get<"enclosed" | "none" | "preserve">("tables.borderStyle");
+	const userPreferBorder = borderStyle == "enclosed" || borderStyle == "preserve" && table.bordered;
 
-	const border = preferOuterPipes || cols == 1 ||
+	const border = userPreferBorder || cols == 1 ||
 		table.rows.some(row => !row[0]) || !table.rows[0].at(-1);
 	const prefix = border ? "| " : "";
 	const postfix = border ? " |" : "";

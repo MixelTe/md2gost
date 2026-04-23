@@ -3,7 +3,7 @@ import { TextDocument, Range, FormattingOptions, CancellationToken, TextEdit, wo
 export async function md_formatter(document: TextDocument, range: Range, options: FormattingOptions, token: CancellationToken): Promise<TextEdit[]>
 {
 	const config = workspace.getConfiguration("md2gost");
-	const preferOuterPipes = config.get<boolean>("preferOuterPipes", false);
+	const borderStyle = config.get<"enclosed" | "none" | "preserve">("tables.borderStyle");
 
 	range = new Range(
 		document.lineAt(range.start.line).range.start,

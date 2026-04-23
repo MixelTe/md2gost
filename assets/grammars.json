@@ -7,23 +7,55 @@
 			"match": "\\[[a-zA-Zа-яА-ЯёЁ_\\d#]+\\s*[+\\-]?\\s*\\d*\\]"
 		},
 		{
-			"name": "constant.other.placeholder",
+			"name": "constant.other.placeholder.markdown",
 			"match": "\\[![a-zA-Zа-яА-ЯёЁ_\\d#]+\\s*[+\\-]?\\s*\\d*\\]"
 		},
 		{
-			"match": "^(!!rule|!!section)\\s+(.+)$",
+			"match": "^(!!rule|!!section)(\\s+(.+))?\\s*$",
 			"captures": {
 				"1": {
-					"name": "keyword.control"
+					"name": "keyword.control.magic.markdown"
 				},
-				"2": {
-					"name": "string.quoted.double"
+				"3": {
+					"name": "string.quoted.double.markdown"
 				}
 			}
 		},
 		{
 			"name": "keyword.control",
-			"match": "^#\\s+(РЕФЕРАТ|ОГЛАВЛЕНИЕ|ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ|ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ|ВВЕДЕНИЕ|ЗАКЛЮЧЕНИЕ|СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ)\\s*$"
+			"match": "^#\\s+(?i:РЕФЕРАТ|ОГЛАВЛЕНИЕ|ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ|ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ|ВВЕДЕНИЕ|ЗАКЛЮЧЕНИЕ|СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ)\\s*$"
+		},
+		{
+			"comment": "!!(path){json}",
+			"begin": "(!!)(\\()([^\\)]+)(\\))\\s*(\\{)",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.magic.markdown"
+				},
+				"2": {
+					"name": "punctuation.definition.parameters.begin.markdown"
+				},
+				"3": {
+					"name": "string.other.link.path.markdown"
+				},
+				"4": {
+					"name": "punctuation.definition.parameters.end.markdown"
+				},
+				"5": {
+					"name": "punctuation.definition.dict.begin.json"
+				}
+			},
+			"end": "\\}",
+			"endCaptures": {
+				"0": {
+					"name": "punctuation.definition.dict.end.json"
+				}
+			},
+			"patterns": [
+				{
+					"include": "source.json"
+				}
+			]
 		}
 	]
 }

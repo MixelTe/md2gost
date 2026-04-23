@@ -1,6 +1,6 @@
 import { Doc, tableRow, type DocNode, type NodeListItem, type NodeTable, type Rune, type RunicDoc, type Runify } from "./doc";
 import fs from "fs/promises";
-import { hslToHex, toCapitalCase, trimEnd, trimStart } from "./utils";
+import { hslToHex, toCapitalCase, trimEnd, trimStart, type JSONValue } from "./utils";
 import path from "path";
 
 export async function parseMD(file: string)
@@ -254,8 +254,32 @@ function findDocs(nodes: DocNode[])
 		nodes.splice(i, 1, {
 			type: "externalDoc",
 			path: trimEnd(trimStart(m_doc[1]!, "<", '"'), ">", '"'),
-			dict,
+			dict: stringifyDict(dict),
 		});
+	}
+	function stringifyDict(dict: Record<string, JSONValue>)
+	{
+		const r = {} as Record<string, string>;
+		for (const key in dict)
+		{
+			let v = dict[key];
+			if (typeof v == "string" || typeof v == "boolean" || typeof v == "number")
+			{
+				r[key] = `${v}`;
+				continue
+			}
+			if (!v) continue;
+			if (v instanceof Array)
+			{
+				const d = {} as Record<string, JSONValue>;
+				v.forEach((v, i) => d[`${i}`] = v);
+				v = d;
+			}
+			const d = stringifyDict(v);
+			for (const k in d)
+				r[key + "." + k] = d[k];
+		}
+		return r;
 	}
 }
 

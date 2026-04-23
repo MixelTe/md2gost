@@ -136,7 +136,7 @@ export function md_hover(document: TextDocument, position: Position): Hover | un
 export function md_inlineHints(document: TextDocument, range: Range): InlayHint[] | undefined
 {
 	const config = workspace.getConfiguration("md2gost");
-	const isEnabled = config.get<boolean>("inlayHints", true);
+	const isEnabled = config.get<boolean>("ui.inlayHints", true);
 	if (!isEnabled) return;
 	const hints: { position: number, label: string, paddingLeft?: boolean, paddingRight?: boolean }[] = [];
 	const textFull = document.getText();
@@ -204,7 +204,7 @@ export class TableCodeLensProvider implements CodeLensProvider
 	public provideCodeLenses(document: TextDocument): CodeLens[]
 	{
 		const config = workspace.getConfiguration("md2gost");
-		const isEnabled = config.get<boolean>("tableEditor", true);
+		const isEnabled = config.get<boolean>("tables.editor.enabled", true);
 		if (!isEnabled) return [];
 		const lenses: CodeLens[] = [];
 		const trim = (line: string) =>
