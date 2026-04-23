@@ -9,6 +9,7 @@ import { existsSync } from "fs";
 import { PDFDocument } from "pdf-lib";
 import type { Doc, RunicDoc } from "./doc";
 import { alchemist } from "./alchemist";
+import PizZip from "pizzip";
 
 const DISABLE_MACRO = false;
 
@@ -82,6 +83,7 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 			console.error(err);
 			throw new Error(`Всё сломалось. VBA error: ${err}`);
 		}
+		await updateMetadata(fout, doc);
 		if (renderPDF)
 		{
 			// progress(40, "Combine all together")
@@ -105,7 +107,7 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 function hasReasonForRunningMacros(doc: RunicDoc)
 {
 	if (DISABLE_MACRO) return false;
-	return doc.nodes.some(n => n.type == "code");
+	return doc.nodes.some(n => n.type == "code" || n.type == "table");
 }
 
 function runDocxMacro(progress: SetProgressFn, assets: string, cwd: string, fin: string, fout: string, renderPDF: boolean)
@@ -182,6 +184,56 @@ async function mergePDFs(files: string[], fout: string, doc?: Doc)
 	await fs.writeFile(fout, pdfBytes);
 }
 
+async function updateMetadata(docfile: string, doc: Doc)
+{
+	if (!(doc.ctime || doc.mtime || doc.author || doc.etime)) return;
+	const content = await fs.readFile(docfile);
+	const zip = new PizZip(content);
+
+	function replaceTag(xml: string, tag: string, value: string): string
+	{
+		const regex = new RegExp(`(<${tag}\\b[^>]*>)(.*?)(</${tag}>)`, "gs");
+		return xml.replace(regex, (m, otag, old, ctag) =>
+			`${otag}${escapeXml(value)}${ctag}`
+		);
+	}
+
+	let coreXml = zip.file("docProps/core.xml")!.asText();
+	// if (doc.title) coreXml = replaceTag(coreXml, "dc:title", doc.title);
+	// if (doc.subject) coreXml = replaceTag(coreXml, "dc:subject", doc.subject);
+	if (doc.ctime) coreXml = replaceTag(coreXml, "dcterms:created", doc.ctime.toISOString());
+	if (doc.mtime) coreXml = replaceTag(coreXml, "dcterms:modified", doc.mtime.toISOString());
+	if (doc.author) coreXml = replaceTag(coreXml, "cp:lastModifiedBy", doc.author);
+	zip.file("docProps/core.xml", coreXml);
+
+	if (doc.etime)
+	{
+		let appXml = zip.file("docProps/app.xml")!.asText();
+		appXml = replaceTag(appXml, "TotalTime", `${doc.etime}`);
+		zip.file("docProps/app.xml", appXml);
+	}
+
+	const buffer = zip.generate({ type: "nodebuffer" });
+	await fs.writeFile(docfile, buffer);
+
+	function escapeXml(unsafe: string)
+	{
+		return unsafe.replaceAll(/[<>&"']/g, (ch) =>
+		{
+			switch (ch)
+			{
+				case '<': return '&lt;';
+				case '>': return '&gt;';
+				case '&': return '&amp;';
+				case '"': return '&quot;';
+				case "'": return '&apos;';
+				default: return ch;
+			}
+		});
+	}
+}
+
+
 // Эпос офисной магии
 const phrase_renderDocx = () => choice(
 	"Материализуем бумажный артефакт...",
@@ -204,6 +256,7 @@ const phrase_runMacros = () => choice(
 
 const render_fixingBreaks = () => choice(
 	"Подклеиваем \"продолжение листинга\" на разорванные страницы...",
+	"Подклеиваем \"продолжение таблицы\" на разорванные страницы...",
 	"Укрепляем стены секций связующими словами...",
 	"Наносим руны преемственности на разрывы страниц...",
 	"Чиним баг разрыва повествования...",

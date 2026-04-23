@@ -191,6 +191,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 									type: type as any,
 									data,
 									transformation: { width, height },
+									...(type == "svg" ? { fallback: { data: "", type: "png" } } : {}),
 								}),
 							],
 						}),

@@ -11,6 +11,7 @@ export class Doc
 	public author: string | undefined;
 	public etime: number | undefined;
 	public ctime: Date | undefined;
+	public ctime_changed = false;
 	public mtime: Date | undefined;
 
 	public appendText(text: string)

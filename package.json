@@ -65,7 +65,17 @@
           "group": "navigation"
         }
       ]
-    }
+    },
+    "grammars": [
+      {
+        "scopeName": "markdown.custom.injection",
+        "path": "./assets/grammars.json",
+        "injectTo": [
+          "text.html.markdown"
+        ],
+        "injectionSelector": "L:text.html.markdown"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
@@ -99,6 +109,7 @@
     "docx": "^9.5.1",
     "image-size": "^2.0.2",
     "pdf-lib": "^1.17.1",
+    "pizzip": "^3.2.0",
     "prismjs": "^1.30.0"
   }
 }

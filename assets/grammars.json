@@ -1,0 +1,29 @@
+{
+	"scopeName": "markdown.custom.injection",
+	"injectionSelector": "L:text.html.markdown",
+	"patterns": [
+		{
+			"name": "constant.numeric.integer.markdown",
+			"match": "\\[[a-zA-Zа-яА-ЯёЁ_\\d#]+\\s*[+\\-]?\\s*\\d*\\]"
+		},
+		{
+			"name": "constant.other.placeholder",
+			"match": "\\[![a-zA-Zа-яА-ЯёЁ_\\d#]+\\s*[+\\-]?\\s*\\d*\\]"
+		},
+		{
+			"match": "^(!!rule|!!section)\\s+(.+)$",
+			"captures": {
+				"1": {
+					"name": "keyword.control"
+				},
+				"2": {
+					"name": "string.quoted.double"
+				}
+			}
+		},
+		{
+			"name": "keyword.control",
+			"match": "^#\\s+(РЕФЕРАТ|ОГЛАВЛЕНИЕ|ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ|ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ|ВВЕДЕНИЕ|ЗАКЛЮЧЕНИЕ|СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ)\\s*$"
+		}
+	]
+}

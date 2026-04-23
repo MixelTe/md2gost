@@ -116,7 +116,7 @@ export async function parseMD(file: string)
 			"title": v => doc.title = v,
 			"author": v => doc.author = v,
 			"etime": v => doc.etime = tryParseInt(v),
-			"ctime": v => doc.ctime = tryParseDate(v),
+			"ctime": v => { doc.ctime = tryParseDate(v); doc.ctime_changed = true; },
 			"mtime": v => doc.mtime = tryParseDate(v),
 			"numbering lazy": v => doc.numberingLazy = !v || v == "on",
 			"numbering sections": v => doc.numberingSections = !v || v == "on",
@@ -347,7 +347,7 @@ export function runifyDoc(doc: Doc): RunicDoc
 		if (node.type == "list")
 			node.items.forEach(runifyNode);
 	}
-	doc.nodes.forEach(runifyNode)
+	doc.nodes.forEach(runifyNode);
 	return doc as RunicDoc;
 }
 
@@ -485,7 +485,7 @@ function replaceAmpCodes(text: string)
 		"&curren;": "¤",
 		"&fnof;": "ƒ",
 		"&permil;": "‰",
-	}
+	};
 
 	for (const code in codes)
 	{

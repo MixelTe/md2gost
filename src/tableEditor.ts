@@ -5,17 +5,19 @@ import { repeat } from "./utils";
 import { RangeTracker } from "./rangeTracker";
 import { TextEditorDecorationBlock } from "./textEditorDecorationBlock";
 
-const OpenedEditors: Record<string, vscode.WebviewPanel> = {};
+const OpenedEditors: Record<string, { panel: vscode.WebviewPanel, isDirty: boolean }> = {};
 
 export function onEditTableCommand(context: vscode.ExtensionContext)
 {
 	return async function (uri: vscode.Uri, range: vscode.Range)
 	{
-		if (OpenedEditors[uri.toString()])
+		const uriStr = uri.toString();
+		if (OpenedEditors[uriStr] && OpenedEditors[uriStr].isDirty)
 		{
-			OpenedEditors[uri.toString()].reveal();
+			OpenedEditors[uriStr].panel.reveal();
 			return;
 		}
+		OpenedEditors[uriStr]?.panel.dispose();
 		const panel = vscode.window.createWebviewPanel(
 			"md2gost.tableEditor",
 			"Table Editor",
@@ -35,7 +37,7 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 			vscode.window.showErrorMessage(`Document not found: ${uri}`);
 			return;
 		}
-		OpenedEditors[uri.toString()] = panel;
+		OpenedEditors[uriStr] = { panel, isDirty: false };
 		const data = parseTable(document.getText(range));
 
 		const rootUri = panel.webview.asWebviewUri(context.extensionUri);
@@ -68,6 +70,8 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 		const tracker = new RangeTracker(document, range, trackedRangeDecoration, true);
 		tracker.onUnvalidated(() =>
 		{
+			if (!OpenedEditors[uriStr].isDirty)
+				return panel.dispose();
 			panel.title = "Table Editor (Locked)";
 			panel.webview.postMessage({ command: "disable" });
 		});
@@ -88,6 +92,7 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 			}
 			if (message.command == "setDirty")
 			{
+				OpenedEditors[uriStr].isDirty = true;
 				if (!tracker.isValid) return;
 				panel.title = "● Table Editor";
 				return;
@@ -104,6 +109,7 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 				return;
 			}
 			panel.title = "Table Editor";
+			OpenedEditors[uriStr].isDirty = false;
 			const edit = new vscode.WorkspaceEdit();
 			const table = stringifyTable(message.newData);
 			edit.replace(uri, tracker.range, table);
@@ -122,13 +128,13 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 		panel.onDidDispose(
 			() =>
 			{
-				delete OpenedEditors[uri.toString()];
+				delete OpenedEditors[uriStr];
 				tracker.dispose();
 			},
 			null,
 			context.subscriptions
 		);
-	}
+	};
 }
 
 interface Table
@@ -150,7 +156,7 @@ function parseTable(text: string)
 	};
 
 	while (lines[lines.length - 1].trim() == "")
-		lines.pop()
+		lines.pop();
 
 	for (let i = 0; i < lines.length; i++)
 	{

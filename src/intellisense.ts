@@ -8,15 +8,22 @@ export function md_completion(document: TextDocument, position: Position): Compl
 	const r = [] as CompletionItem[];
 	if (linePrefix == "!" || linePrefix == "")
 	{
-		const item = new CompletionItem({
+		const item1 = new CompletionItem({
 			label: "Вставить docx",
 			description: "!(файл.docx){}"
 		}, CompletionItemKind.Snippet);
-		item.insertText = new SnippetString('!(${1:путькфайлу}){\n\t"${2:поле}": "${3:значение}",\n}');
-		item.sortText = "!doc"
-		item.documentation = new MarkdownString("Вставляет блок для вставки docx");
-		item.documentation.appendCodeblock('!(путькфайлу){\n\t"поле": "значение",\n}')
-		r.push(item);
+		item1.insertText = new SnippetString('!(${1:путькфайлу}){\n\t"${2:поле}": "${3:значение}",\n}');
+		item1.sortText = "!doc";
+		item1.documentation = new MarkdownString("Вставляет блок для вставки docx");
+		item1.documentation.appendCodeblock('!(путькфайлу){\n\t"поле": "значение",\n}');
+		r.push(item1);
+		const item2 = new CompletionItem({
+			label: "Вставить таблицу",
+			description: "Insert table"
+		}, CompletionItemKind.Snippet);
+		item2.insertText = new SnippetString('${1:h1} | ${2:h2}\n---|---\n${3:v1} | ${4:v2}\n');
+		item2.sortText = "!table";
+		r.push(item2);
 	}
 	const range = new Range(position, line.range.end);
 	function addHint(text: string, word: string, detail: string, documentation?: string, sortText?: string, mod?: (item: CompletionItem) => void)
@@ -161,7 +168,7 @@ export function md_inlineHints(document: TextDocument, range: Range): InlayHint[
 			m.type == "code" ? { shift: m.m[1].length, text: m.m[2], prefix: "Листинг" }
 				: m.type == "img" ? { shift: 2, text: m.m[1], prefix: "Рисунок" }
 					: m.type == "table" ? { shift: 0, text: m.m[2], prefix: "Таблица" }
-						: (() => { throw new Error("switch default") })();
+						: (() => { throw new Error("switch default"); })();
 		if (m.type == "table" && (
 			text.trim() == "" || /^!|^#|^```|^\*\s|^-\s|^\d+(\)|\.)\s|\|/.test(text)
 		)) continue;
@@ -239,7 +246,7 @@ export class TableCodeLensProvider implements CodeLensProvider
 function completeWord(text: string, word: string, rem: { v: string })
 {
 	if (text.toLowerCase() != word.slice(0, text.length).toLowerCase()) return false;
-	rem.v = word.slice(text.length)
+	rem.v = word.slice(text.length);
 	return true;
 }
 
@@ -312,7 +319,7 @@ const Rules: Record<string, {
 		short: "Радуга",
 		doc: "Радуга",
 	},
-}
+};
 const Headings: {
 	keyword: string,
 	text?: string,
@@ -468,4 +475,4 @@ Git    | Система контроля версий, позволяющая о
 3. Документация MDN Web Docs [Электронный ресурс].: URL: https://developer.mozilla.org/, режим доступа: свободный (дата обращения: 18.11.2025).
 \`\`\``,
 },
-	]
+	];

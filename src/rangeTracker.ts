@@ -6,8 +6,8 @@ export class RangeTracker
 	private _range: vscode.Range;
 	private _disposable: vscode.Disposable[];
 	private _isValid = true;
-	private _onUnvalidated: (() => void)[] = []
-	private _onContentChange: (() => void)[] = []
+	private _onUnvalidated: (() => void)[] = [];
+	private _onContentChange: (() => void)[] = [];
 
 	constructor(
 		private document: vscode.TextDocument,
@@ -70,7 +70,7 @@ export class RangeTracker
 	}
 
 	public get range() { return this._range; }
-	public get isValid() { return this._isValid }
+	public get isValid() { return this._isValid; }
 
 	private _updateRange_textBlock(changes: readonly vscode.TextDocumentContentChangeEvent[])
 	{

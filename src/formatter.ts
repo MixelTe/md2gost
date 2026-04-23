@@ -5,7 +5,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 	range = new Range(
 		document.lineAt(range.start.line).range.start,
 		document.lineAt(range.end.line).range.end
-	)
+	);
 	return [
 		// TextEdit.replace(range, document.getText(range).toUpperCase())
 	];
