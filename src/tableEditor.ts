@@ -202,7 +202,11 @@ function stringifyTable(table: Table)
 	while (table.align.length < cols) table.align.push("l");
 	while (table.align.length > cols) table.align.pop();
 
-	const border = cols == 1 || table.rows.some(row => !row[0]) || !table.rows[0].at(-1);
+	const config = vscode.workspace.getConfiguration("md2gost");
+	const preferOuterPipes = config.get<boolean>("preferOuterPipes", false);
+
+	const border = preferOuterPipes || cols == 1 ||
+		table.rows.some(row => !row[0]) || !table.rows[0].at(-1);
 	const prefix = border ? "| " : "";
 	const postfix = border ? " |" : "";
 	let res = "";

@@ -1,4 +1,4 @@
-import { CodeLens, InlineCompletionItem, TextDocument, Position, CompletionItem, CompletionItemKind, Hover, InlayHint, SnippetString, MarkdownString, Range, InlayHintKind, type CodeLensProvider } from "vscode";
+import { CodeLens, InlineCompletionItem, TextDocument, Position, CompletionItem, CompletionItemKind, Hover, InlayHint, SnippetString, MarkdownString, Range, InlayHintKind, type CodeLensProvider, workspace, EventEmitter } from "vscode";
 
 export function md_completion(document: TextDocument, position: Position): CompletionItem[] | undefined
 {
@@ -135,6 +135,9 @@ export function md_hover(document: TextDocument, position: Position): Hover | un
 
 export function md_inlineHints(document: TextDocument, range: Range): InlayHint[] | undefined
 {
+	const config = workspace.getConfiguration("md2gost");
+	const isEnabled = config.get<boolean>("inlayHints", true);
+	if (!isEnabled) return;
 	const hints: { position: number, label: string, paddingLeft?: boolean, paddingRight?: boolean }[] = [];
 	const textFull = document.getText();
 	const text = document.getText(range);
@@ -192,10 +195,17 @@ export function md_inlineHints(document: TextDocument, range: Range): InlayHint[
 
 export class TableCodeLensProvider implements CodeLensProvider
 {
+	private _onDidChangeCodeLenses = new EventEmitter<void>();
+	readonly onDidChangeCodeLenses = this._onDidChangeCodeLenses.event;
+
+	refresh() { this._onDidChangeCodeLenses.fire(); };
 	private re_sep = /^\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/;
 	private re_sep_oneCol = /^\|\s*:?-+:?\s*\|$/;
 	public provideCodeLenses(document: TextDocument): CodeLens[]
 	{
+		const config = workspace.getConfiguration("md2gost");
+		const isEnabled = config.get<boolean>("tableEditor", true);
+		if (!isEnabled) return [];
 		const lenses: CodeLens[] = [];
 		const trim = (line: string) =>
 		{

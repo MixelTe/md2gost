@@ -75,7 +75,27 @@
         ],
         "injectionSelector": "L:text.html.markdown"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "md2gost",
+      "properties": {
+        "md2gost.tableEditor": {
+          "type": "boolean",
+          "default": true,
+          "description": "Отображать кнопку для открытия редактора таблиц."
+        },
+        "md2gost.inlayHints": {
+          "type": "boolean",
+          "default": true,
+          "description": "Отображать прозрачные подсказки в тексте. Например \"Рисунок # -\""
+        },
+        "md2gost.preferOuterPipes": {
+          "type": "boolean",
+          "default": false,
+          "description": "Добавлять ли ведущие и замыкающие символы «|» при форматировании таблиц."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

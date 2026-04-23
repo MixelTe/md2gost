@@ -58,14 +58,29 @@ export function activate(context: vscode.ExtensionContext)
 		{ language: "markdown", pattern: "**/*.g.md" },
 		{ provideHover: md_hover }
 	));
+	const onDidChangeInlayHints = new vscode.EventEmitter<void>();
 	context.subscriptions.push(vscode.languages.registerInlayHintsProvider(
 		{ language: "markdown", pattern: "**/*.g.md" },
-		{ provideInlayHints: md_inlineHints }
+		{
+			provideInlayHints: md_inlineHints,
+			onDidChangeInlayHints: onDidChangeInlayHints.event
+		}
 	));
+	const tableCodeLensProvider = new TableCodeLensProvider();
 	context.subscriptions.push(vscode.languages.registerCodeLensProvider(
 		{ language: "markdown", pattern: "**/*.g.md" },
-		new TableCodeLensProvider(),
+		tableCodeLensProvider,
 	));
+
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeConfiguration(e =>
+		{
+			if (e.affectsConfiguration("md2gost.inlayHints"))
+				onDidChangeInlayHints.fire();
+			if (e.affectsConfiguration("md2gost.tableEditor"))
+				tableCodeLensProvider.refresh();
+		})
+	);
 }
 
 export function deactivate() { }
