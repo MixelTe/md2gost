@@ -52,10 +52,12 @@ End Sub
 Function ParseIncludeSyntax(txt As String) As Object
     On Error GoTo Fail
 
-    Dim re As Object
-    Set re = CreateObject("VBScript.RegExp")
-    re.Pattern = "^\s*!!\((.*?)\)\s*(\{.*\})\s*$"
-    re.Global = False
+    Static re As Object
+    If re Is Nothing Then
+        Set re = CreateObject("VBScript.RegExp")
+        re.Pattern = "^\s*!!\((.*?)\)\s*(\{.*\})\s*$"
+        re.Global = False
+    End If
 
     Dim result As Object
     Set result = CreateObject("Scripting.Dictionary")

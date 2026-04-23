@@ -1,52 +1,45 @@
 Sub AutoListingContinuation()
     On Error GoTo ErrorHandler
 
-    Dim doc As Document
-    Set doc = ActiveDocument
-
+    Dim nextPara As Paragraph
     Dim listingNumber As String
     Dim currentPage As Long
     Dim lastPage As Long
-    Dim para As Paragraph
-    Dim codeStart As Boolean
-
-    codeStart = False
-    listingNumber = ""
 
     UpdateAllFields
 
-    For Each para In doc.Paragraphs
-        ' 1. Нашли подпись листинга
-        If para.Style = "Листинг_Подпись" Then
-            listingNumber = ExtractListingNumber(para.Range.text)
-            codeStart = False
+    Dim rng As Range
+    Set rng = ActiveDocument.Content
+    With rng.Find
+        .ClearFormatting
+        .Style = "Листинг_Подпись"
+        .Text = ""
+        .Forward = True
+        .Wrap = wdFindStop
 
-        ' 2. Начался код листинга
-        ElseIf para.Style = "Листинг_Код" Then
+        Do While .Execute
+            listingNumber = ExtractListingNumber(rng.Text)
 
-            currentPage = para.Range.Information(wdActiveEndPageNumber)
+            Set nextPara = rng.Paragraphs(1).Next
+            lastPage = -1
+            Do While Not nextPara Is Nothing
+                If nextPara.Style <> "Листинг_Код" Then Exit Do
 
-            If Not codeStart Then
-                lastPage = currentPage
-                codeStart = True
-            Else
-                ' 3. Код перешёл на новую страницу
-                If currentPage <> lastPage Then
+                currentPage = nextPara.Range.Information(wdActiveEndPageNumber)
 
-                    ' Проверяем, нет ли уже "Продолжения"
-                    If Not IsContinuationAlreadyInserted(para) Then
-                        InsertContinuation para, listingNumber
+                If currentPage <> lastPage And lastPage <> -1 Then
+                    If Not IsContinuationAlreadyInserted(nextPara) Then
+                        InsertContinuation nextPara, listingNumber
                     End If
-
-                    lastPage = currentPage
                 End If
-            End If
 
-        Else
-            codeStart = False
-        End If
+                lastPage = currentPage
+                Set nextPara = nextPara.Next
+            Loop
 
-    Next para
+            rng.Collapse wdCollapseEnd
+        Loop
+    End With
 
     ' MsgBox "Готово", vbInformation
     Exit Sub

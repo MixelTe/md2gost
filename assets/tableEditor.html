@@ -531,6 +531,8 @@
 			for (let j = 0; j < row.length; j++)
 				table.append(createCell(i, j, row[j], align[j]));
 		}
+		if (columnCount == 1)
+			table.children[0].querySelector(".button_danger").style.display = "none";
 	}
 	function createCell(row, col, value, align = null)
 	{
@@ -917,7 +919,6 @@
 	}
 	function setRows(rows)
 	{
-		console.log(rows);
 		for (let i = 0; i < rows.length; i++)
 		{
 			const row = rows[i];

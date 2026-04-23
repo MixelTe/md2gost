@@ -16,7 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - fix one-column table parsing
 - allow table title without newline
-- signicantly speed up vba macros (n^2 -> n)
+- signicantly speed up vba macros (up to 20 times)
 ### Security
 
 ## [0.7.0] - 2026-04-07
