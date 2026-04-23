@@ -196,7 +196,7 @@ export async function parseMD(file: string)
 }
 
 type Prefix = "" | "#" | "##" | "###" | "####" | "#####" | "######" | "*" | "1)" | "---" | "\t" | "Img" | "Code" | "Comment" | "!!section" | "!!rule";
-function parseLine(line: string): { prefix: Prefix, text: string, level: number, parts: string[] }
+export function parseLine(line: string): { prefix: Prefix, text: string, level: number, parts: string[] }
 {
 	let level = 0;
 	while (line.startsWith("    ") || line.startsWith("\t"))
@@ -246,7 +246,7 @@ function findDocs(nodes: DocNode[])
 	{
 		const node = nodes[i]!;
 		if (node.type != "text") continue;
-		const m_doc = re_doc.exec(node.text.replaceAll(re_remTrailingComma, "$1"));
+		const m_doc = re_doc.exec(node.text.trimEnd().replaceAll(re_remTrailingComma, "$1"));
 		if (!m_doc) continue;
 		let dict = {};
 		try { dict = JSON.parse(`{${m_doc[2]!}}`); }

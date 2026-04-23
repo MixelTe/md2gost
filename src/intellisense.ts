@@ -142,10 +142,10 @@ export function md_inlineHints(document: TextDocument, range: Range): InlayHint[
 	const textFull = document.getText();
 	const text = document.getText(range);
 	const startOffset = document.offsetAt(range.start);
-	const autoprefix = !/^!!rule numbering autoprefix off\s*$/im.test(textFull);
+	const autoprefix = !/^!!rule\s+numbering\s+autoprefix\s+off\s*$/im.test(textFull);
 	if (!autoprefix) return;
-	const lazy = /^!!rule numbering lazy(| on)\s*$/im.test(textFull);
-	const sections = /^!!rule numbering sections(| on)\s*$/im.test(textFull);
+	const lazy = /^!!rule\s+numbering\s+lazy(|\s+on)\s*$/im.test(textFull);
+	const sections = /^!!rule\s+numbering\s+sections(|\s+on)\s*$/im.test(textFull);
 
 	const re_code = /^(```[^\s]+)(.*)$/gm;
 	const codeMatches = Array.from(text.matchAll(re_code)).map(m => (
