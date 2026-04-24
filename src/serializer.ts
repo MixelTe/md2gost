@@ -225,8 +225,9 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					const doc_path = getPath(node.path);
 					if (!fs.existsSync(doc_path))
 						throw new Error(`File not exist: ${node.path}`);
-					if (path.extname(doc_path) != ".docx")
-						throw new Error(`File not .docx: ${node.path}`);
+					const ext = path.extname(doc_path);
+					if (ext != ".docx" && ext != ".pdf")
+						throw new Error(`File not .docx or .pdf: ${node.path}`);
 					return new Paragraph({
 						text: `!!(${doc_path})${JSON.stringify(node.dict)}`,
 						indent: { firstLine: 0 },

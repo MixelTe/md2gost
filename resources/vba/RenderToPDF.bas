@@ -149,19 +149,32 @@ Function ExportPagesAsPDF(srcDoc As Document, startPos As Long, endPos As Long, 
     ExportPagesAsPDF = True
 End Function
 Sub RenderIncludeToPDF(info As Object, outDir As String, index As Integer)
-    Dim doc As Document
-    Set doc = Documents.Open(info("path"), ReadOnly:=True, Visible:=False)
-
-    Dim k As Variant
-    For Each k In info("fields").Keys
-        ReplaceAll doc, "{{" & k & "}}", info("fields")(k)
-    Next k
-
     Dim pdfPath As String
-    pdfPath = outDir & Format(index, "000") & "-include.pdf"
+    Dim sourcePath As String
+    sourcePath = info("path")
 
-    doc.ExportAsFixedFormat pdfPath, wdExportFormatPDF
-    doc.Close False
+    If LCase(Right(sourcePath, 4)) = ".pdf" Then
+        pdfPath = outDir & Format(index, "000") & "-pdf.pdf"
+
+        Dim fso As Object
+        Set fso = CreateObject("Scripting.FileSystemObject")
+
+        If fso.FileExists(sourcePath) Then
+            fso.CopyFile sourcePath, pdfPath, True ' True allows overwriting
+        End If
+    Else
+        pdfPath = outDir & Format(index, "000") & "-include.pdf"
+        Dim doc As Document
+        Set doc = Documents.Open(sourcePath, ReadOnly:=True, Visible:=False)
+
+        Dim k As Variant
+        For Each k In info("fields").Keys
+            ReplaceAll doc, "{{" & k & "}}", info("fields")(k)
+        Next k
+
+        doc.ExportAsFixedFormat pdfPath, wdExportFormatPDF
+        doc.Close False
+    End If
 End Sub
 Sub ReplaceAll(doc As Document, findText As String, ByVal replaceText As String)
     With doc.Content.Find

@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - html codes for ~60 symbol (e.g. `&pi;` to `π`)
 - add AutoTableContinuation
 - feature: sources list
+- allow pdf in doc include
 ### Changed
 - rule `backtick_mono`: `off` - no style now, added `italic` option instead
 ### Deprecated
