@@ -1,4 +1,4 @@
-import type { DocNode, NodeList, NodeTable, NodeTitle, Rune, RunicDoc, Runify } from "./doc";
+import type { DocNode, NodeList, NodeTable, NodeText, NodeTitle, Rune, RunicDoc, Runify } from "./doc";
 import { repeat, toCapitalCase } from "./utils";
 
 export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = console.warn)
@@ -21,6 +21,8 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 	let nextNum = -1;
 	let nextPrefix = "";
 	let prefix = "";
+
+	let synopsis = null as Runify<NodeText> | null;
 
 	if (doc.numberingLazy) addLazyNumbering(doc);
 
@@ -50,6 +52,9 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 			}
 			nextPrefix = l1 > 0 && doc.numberingSections ? `${l1}.` : "";
 		}
+
+		if (node.tags && node.type == "text" && node.tags.includes("synopsis"))
+			synopsis = node;
 
 		if (node.type == "title")
 		{
@@ -96,6 +101,19 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 	{
 		if (v instanceof Array) logwarn(`Неизвестная ссылка [${k}]`);
 	});
+
+	if (synopsis)
+	{
+		synopsis.text = [
+			"Отчет ",
+			"pages",
+			" с.",
+			counter.imgs > 0 && `, ${counter.imgs} рис.`,
+			counter.tables > 0 && `, ${counter.tables} табл.`,
+			counter.codes > 0 && `, ${counter.codes} лист.`,
+			sourcesCount > 0 && `, ${sourcesCount} источн.`,
+		].filter(v => !!v).map((text, i) => ({ text: text as string, type: i == 1 ? "val" : "text" }));
+	}
 
 	function getTitleNum(node: Runify<NodeTitle>)
 	{

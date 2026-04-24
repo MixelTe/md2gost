@@ -32,9 +32,10 @@ export function tableRow(...items: string[]): DocNode[]
 	return items.map(v => ({ type: "text", text: v }));
 }
 
-export type DocNode =
+export type DocNode = (
 	NodeText | NodeTitle | NodePageBreak | NodeTableOfContents | NodeTable
-	| NodeList | NodeImage | NodeCode | NodeExternalDoc | NodeSectionBreak;
+	| NodeList | NodeImage | NodeCode | NodeExternalDoc | NodeSectionBreak
+) & { tags?: string[] };
 
 export interface Rune
 {

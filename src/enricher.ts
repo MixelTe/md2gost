@@ -22,7 +22,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 				nextNode.noIndent = true;
 				nextNode.text = trimEnd(nextNode.text, ".").toUpperCase();
 			}
-			doc.nodes.splice(i + 1, 0, { type: "text", text: "Отчет [!pages] с., [!imgs] рис., [!tables] табл., [!codes] лист., [!sources] источн." });
+			doc.nodes.splice(i + 1, 0, { type: "text", tags: ["synopsis"], text: "Отчет [!pages] с., [!imgs] рис., [!tables] табл., [!codes] лист., [!sources] источн." });
 			while (i + 1 < doc.nodes.length && doc.nodes[i + 1]?.type != "title") i++;
 			doc.nodes.splice(i + 1, 0, { type: "pageBreak" });
 		}
