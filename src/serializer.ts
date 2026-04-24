@@ -308,7 +308,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 				...(rune.mono ? (
 					doc.backtickMono == "outline" ? { font: "consolas", size: 24, border: { style: "single", space: 2 } }
 						: doc.backtickMono == "on" ? { font: "consolas", size: 24 }
-							: { italics: true }
+							: doc.backtickMono == "italic" ? { italics: true } : {}
 				) : {}),
 			});
 		}

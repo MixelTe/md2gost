@@ -172,7 +172,11 @@
 ![демонстрация разницы переносов строк](imgs/screenshot_linebreaks.png)
 
 Выделение с помощью обратных кавычек ``` `монотекст` ``` по умолчанию отображается как курсив. С помощью [правила](#правила) `backtick_mono` можно именить отображение:
-* `!!rule backtick_mono off` - курсив (по умолчанию)
+* `!!rule backtick_mono italic` - курсив (по умолчанию)
+
+	![backtick_mono italic](imgs/backtick_mono_italic.png)
+
+* `!!rule backtick_mono off` - обычный текст
 
 	![backtick_mono off](imgs/backtick_mono_off.png)
 
@@ -598,6 +602,8 @@
 - `&Tab;` на отступ (таб)
 - `&Star;` на `*`
 - `&#124;` на `|`
+- `&shy;` на Soft Hyphen (мягкий перенос)
+- `&#x200B;` на ничего (используйте чтобы обмануть парсер)
 - `&alpha; &beta; &gamma; &delta; &epsilon; &zeta; &eta; &theta; &iota; &kappa; &lambda; &mu; &nu; &xi; &omicron; &pi; &rho; &sigma; &tau; &upsilon; &phi; &chi; &psi; &omega; &Delta; &Sigma; &Omega;` на `α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ τ υ φ χ ψ ω Δ Σ Ω`
 - `&infin; &sum; &prod; &radic; &int; &part; &asymp; &ne; &lt; &gt; &le; &ge; &plusmn; &times; &divide;` на `∞ ∑ ∏ √ ∫ ∂ ≈ ≠ < > ≤ ≥ ± × ÷`
 - `&copy; &reg; &trade; &sect; &para; &hellip; &bull; &middot; &deg; &euro; &pound; &yen; &cent; &curren; &fnof; &permil;` на `© ® ™ § ¶ … • · ° € £ ¥ ¢ ¤ ƒ ‰`

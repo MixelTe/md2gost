@@ -6,8 +6,6 @@ import { parseTable, stringifyTable } from "./tableEditor";
 export async function md_formatter(document: TextDocument, range: Range, options: FormattingOptions, token: CancellationToken): Promise<TextEdit[]>
 {
 	const gmd = document.fileName.endsWith(".g.md");
-	const config = workspace.getConfiguration("md2gost");
-	const borderStyle = config.get<"enclosed" | "none" | "preserve">("tables.borderStyle");
 
 	range = new Range(
 		document.lineAt(range.start.line).range.start,
@@ -106,7 +104,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 				"# ВВЕДЕНИЕ",
 				"# ЗАКЛЮЧЕНИЕ",
 				"# СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ",
-			].find(v => v == textTrim.toUpperCase()), v => applyNewText(v))
+			].find(v => v == textTrim.toUpperCase()), v => applyNewText(v));
 		}
 		const m_header = /^(#+)\s+(.*)/.exec(text);
 		if (m_header)

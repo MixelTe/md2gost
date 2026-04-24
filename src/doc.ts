@@ -6,12 +6,11 @@ export class Doc
 	public numberingLazy = false;
 	public numberingSections = false;
 	public numberingAutoprefix = true;
-	public backtickMono: "off" | "on" | "outline" = "off";
+	public backtickMono: "italic" | "off" | "on" | "outline" = "italic";
 	public title: string | undefined;
 	public author: string | undefined;
 	public etime: number | undefined;
 	public ctime: Date | undefined;
-	public ctime_changed = false;
 	public mtime: Date | undefined;
 
 	public appendText(text: string)

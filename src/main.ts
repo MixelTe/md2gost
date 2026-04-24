@@ -1,7 +1,7 @@
 import path from "path";
 import { parseMD, runifyDoc } from "./parser";
 import { serializeDocx } from "./serializer";
-import { checkIfFileIsBlocked, choice, trimEnd, type SetProgressFn } from "./utils";
+import { checkIfFileIsBlocked, choice, randomInt, trimEnd, type SetProgressFn } from "./utils";
 import { enrichDoc } from "./enricher";
 import { spawn } from "child_process";
 import fs from "fs/promises";
@@ -186,7 +186,6 @@ async function mergePDFs(files: string[], fout: string, doc?: Doc)
 
 async function updateMetadata(docfile: string, doc: Doc)
 {
-	if (!(doc.ctime || doc.mtime || doc.author || doc.etime)) return;
 	const content = await fs.readFile(docfile);
 	const zip = new PizZip(content);
 
@@ -199,19 +198,17 @@ async function updateMetadata(docfile: string, doc: Doc)
 	}
 
 	let coreXml = zip.file("docProps/core.xml")!.asText();
-	// if (doc.title) coreXml = replaceTag(coreXml, "dc:title", doc.title);
+	coreXml = replaceTag(coreXml, "dc:title", doc.title || "Document");
 	// if (doc.subject) coreXml = replaceTag(coreXml, "dc:subject", doc.subject);
 	if (doc.ctime) coreXml = replaceTag(coreXml, "dcterms:created", doc.ctime.toISOString());
 	if (doc.mtime) coreXml = replaceTag(coreXml, "dcterms:modified", doc.mtime.toISOString());
-	if (doc.author) coreXml = replaceTag(coreXml, "cp:lastModifiedBy", doc.author);
+	coreXml = replaceTag(coreXml, "dc:creator", doc.author || "Student");
+	coreXml = replaceTag(coreXml, "cp:lastModifiedBy", doc.author || "Student");
 	zip.file("docProps/core.xml", coreXml);
 
-	if (doc.etime)
-	{
-		let appXml = zip.file("docProps/app.xml")!.asText();
-		appXml = replaceTag(appXml, "TotalTime", `${doc.etime}`);
-		zip.file("docProps/app.xml", appXml);
-	}
+	let appXml = zip.file("docProps/app.xml")!.asText();
+	appXml = replaceTag(appXml, "TotalTime", `${doc.etime || randomInt(30, 120)}`);
+	zip.file("docProps/app.xml", appXml);
 
 	const buffer = zip.generate({ type: "nodebuffer" });
 	await fs.writeFile(docfile, buffer);

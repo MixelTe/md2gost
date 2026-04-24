@@ -116,15 +116,17 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			"title": v => doc.title = v,
 			"author": v => doc.author = v,
 			"etime": v => doc.etime = tryParseInt(v),
-			"ctime": v => { doc.ctime = tryParseDate(v); doc.ctime_changed = true; },
+			"ctime": v => doc.ctime = tryParseDate(v),
 			"mtime": v => doc.mtime = tryParseDate(v),
 			"numbering lazy": v => doc.numberingLazy = !v || v == "on",
 			"numbering sections": v => doc.numberingSections = !v || v == "on",
 			"numbering autoprefix": v => doc.numberingAutoprefix = v == "on",
-			"backtick_mono": v => doc.backtickMono = choices(v, "off", "on", "outline"),
+			"backtick_mono": v => doc.backtickMono = choices(v, "italic", "off", "on", "outline"),
 		};
 
-		const rulePrefix = Object.keys(rules).find(prefix => textl.startsWith(prefix));
+		const rulePrefix = Object.keys(rules).find(prefix =>
+			textl.startsWith(prefix) && !textl.slice(prefix.length)[0]?.trim()
+		);
 		if (rulePrefix) rules[rulePrefix](text.slice(rulePrefix.length).trim());
 		else logwarn(`Wrong rule: "${text}"`);
 
@@ -266,7 +268,7 @@ function findDocs(nodes: DocNode[], logwarn: (msg: string) => void = console.war
 			if (typeof v == "string" || typeof v == "boolean" || typeof v == "number")
 			{
 				r[key] = `${v}`;
-				continue
+				continue;
 			}
 			if (!v) continue;
 			if (v instanceof Array)
@@ -422,10 +424,6 @@ function runifyText(text: string, rainbow = false): Rune[]
 			linebreak: i == 0 && rune.linebreak,
 			mono: i % 2 == 1,
 		}) as Rune)).flat()
-		.map(rune => ({
-			...rune,
-			text: rune.text.replaceAll("&Star;", "*"),
-		}) as Rune)
 		.map(rune => rune.link ? [rune] : rune.text.split(/(\[!?[a-zA-Zа-яА-ЯёЁ_\d#]+\s*[+\-]?\s*\d*\])/g).map((p, i) =>
 		{
 			const m = /\[(!?([a-zA-Zа-яА-ЯёЁ_\d]+|#)(\s*[-\+]\s*\d+)?)\]/.exec(p);
@@ -438,6 +436,14 @@ function runifyText(text: string, rainbow = false): Rune[]
 				linebreak: i == 0 && rune.linebreak,
 			} as Rune;
 		})).flat()
+		.map(rune => ({
+			...rune,
+			...(rune.type == "text" ? {
+				text: rune.text
+					.replaceAll("&Star;", "*")
+					.replaceAll("&#x200B;", ""),
+			} : {})
+		}) as Rune)
 		.map(rune => !rainbow || (rune.type && rune.type != "text") ? [rune] : rune.text.split("").map((p, i) => ({
 			...rune,
 			text: p,
@@ -451,6 +457,7 @@ function replaceAmpCodes(text: string)
 {
 	const codes = {
 		"&#124;": "|",
+		"&shy;": "\u00AD",
 		"&alpha;": "α",
 		"&beta;": "β",
 		"&gamma;": "γ",

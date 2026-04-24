@@ -26,7 +26,7 @@ export function md_completion(document: TextDocument, position: Position): Compl
 		r.push(item2);
 	}
 	const range = new Range(position, line.range.end);
-	function addHint(text: string, word: string, detail: string, documentation?: string, sortText?: string, mod?: (item: CompletionItem) => void)
+	function addHint(text: string, word: string, detail: string, documentation?: string, deft?: string | (() => string), mod?: (item: CompletionItem) => void)
 	{
 		const rem = { v: "" };
 		if (completeWord(text, word, rem))
@@ -38,12 +38,11 @@ export function md_completion(document: TextDocument, position: Position): Compl
 				description: detail,
 			}, CompletionItemKind.Constant);
 			item.insertText = rem.v;
+			if (deft) item.insertText += " " + (typeof deft == "function" ? deft() : deft);
 			item.range = range;
 			item.documentation = new MarkdownString(documentation || detail);
-			item.sortText = sortText;
 			mod?.(item);
 			r.push(item);
-			return item;
 		}
 	}
 	addHint(linePrefix, "!!rule ", "Вставить правило", undefined, undefined, item =>
@@ -54,15 +53,21 @@ export function md_completion(document: TextDocument, position: Position): Compl
 		const rule = linePrefix.slice("!!rule ".length);
 		Object.values(Rules).forEach(v =>
 		{
-			addHint(rule, v.keyword, v.short, v.doc, v.sortText);
+			addHint(rule, v.keyword, v.short, v.doc, v.default, it =>
+			{
+				it.sortText = v.sortText;
+			});
 		});
 	}
 	if (linePrefix == "#" || linePrefix == "")
 	{
 		Headings.forEach((v, i) =>
 		{
-			const item = addHint(linePrefix, "# " + v.keyword, v.short, v.doc, `${i}`);
-			if (item && v.text) item.insertText += v.text;
+			addHint(linePrefix, "# " + v.keyword, v.short, v.doc, undefined, it =>
+			{
+				it.sortText = `${i}`;
+				if (v.text) it.insertText += v.text;
+			});
 		});
 	}
 	return r;
@@ -266,6 +271,7 @@ const Rules: Record<string, {
 	short: string,
 	doc: string,
 	sortText?: string,
+	default?: string | (() => string),
 }> = {
 	numbering_lazy: {
 		keyword: "numbering lazy",
@@ -276,13 +282,20 @@ const Rules: Record<string, {
 	title: {
 		keyword: "title",
 		short: "Заголовок документа",
-		doc: "Добавить заголовок документа",
+		doc: "Указать заголовок документа\n\n- Синтаксис: `!!rule title <text>`\n- Пример: `!!rule title Мой Отчет` \n- По умолчанию: `Document`",
+		default: "Document",
 		sortText: "2",
 	},
 	author: {
 		keyword: "author",
-		short: "Автора документа",
-		doc: "Указать автора документа",
+		short: "Автор документа",
+		default: "Student",
+		doc: "Указать автора документа\n\n- Синтаксис: `!!rule author <name>`\n- Пример: `!!rule author Иван Иванов` \n- По умолчанию: `Student`",
+	},
+	backtick_mono_off: {
+		keyword: "backtick_mono off",
+		short: "Не рендерить моношрифт",
+		doc: "Рендерить ``` `монотекст` ``` как обычный текст\n\nПо умолчанию рендерится как курсив",
 	},
 	backtick_mono_on: {
 		keyword: "backtick_mono on",
@@ -292,27 +305,50 @@ const Rules: Record<string, {
 	backtick_mono_outline: {
 		keyword: "backtick_mono outline",
 		short: "Моношрифт в рамке",
-		doc: "Рендерить ``` `монотекст` ``` как моношрифт в рамке",
+		doc: "Рендерить ``` `монотекст` ``` как моношрифт в рамке\n\nПо умолчанию рендерится как курсив",
 	},
 	ctime: {
 		keyword: "ctime",
 		short: "Указать время создания",
-		doc: "Указать время создания",
+		doc: "Установить время создания\n- Синтаксис: `!!rule ctime <ISO 8601>`\n- Пример: `!!rule ctime 2026-02-18`\n- По умолчанию время создания `.g.md` файла.",
+		sortText: "timeC",
+		default: () =>
+		{
+			const date = new Date();
+			const year = date.getFullYear();
+			const month = String(date.getMonth() + 1).padStart(2, "0");
+			const day = String(date.getDate()).padStart(2, "0");
+			return `${year}-${month}-${day}`;
+		},
 	},
 	etime: {
 		keyword: "etime",
 		short: "Указать время редактирования в минутах",
-		doc: "Указать время редактирования в минутах",
+		doc: "Установить время редактирования\n- Синтаксис: `!!rule etime <int>`\n- Пример: `!!rule etime 123`\n- По умолчанию случайное число от 30 до 120.",
+		sortText: "timeE",
+		default: "210",
 	},
 	highlight_code: {
 		keyword: "highlight code",
 		short: "Подсветка синтаксиса",
-		doc: "Включить подсветку синтаксиса в блоках кода",
+		doc: "Включить подсветку синтаксиса в блоках кода.",
 	},
 	mtime: {
 		keyword: "mtime",
 		short: "Указать время изменения",
-		doc: "Указать время изменения",
+		doc: "Установить время изменения\n- Синтаксис: `!!rule mtime <ISO 8601>`\n- Пример: `!!rule mtime 2026-02-18T12:30:00`\n- По умолчанию время рендера.",
+		sortText: "timeM",
+		default: () =>
+		{
+			const date = new Date();
+			const year = date.getFullYear();
+			const month = String(date.getMonth() + 1).padStart(2, "0");
+			const day = String(date.getDate()).padStart(2, "0");
+			const hour = String(date.getHours()).padStart(2, "0");
+			const minutes = String(date.getMinutes()).padStart(2, "0");
+			const seconds = String(date.getSeconds()).padStart(2, "0");
+			return `${year}-${month}-${day}T${hour}:${minutes}:${seconds}`;
+		},
 	},
 	numbering_autoprefix_off: {
 		keyword: "numbering autoprefix off",
@@ -335,7 +371,6 @@ const Headings: {
 	text?: string,
 	short: string,
 	doc: string,
-	sortText?: string,
 }[] = [{
 	keyword: "РЕФЕРАТ",
 	text: '\nКлючевые, слова, 5-15 ШТУК\n\nТекст реферата на одной странице.',
