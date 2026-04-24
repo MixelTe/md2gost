@@ -1,5 +1,7 @@
 import { TextDocument, Range, FormattingOptions, CancellationToken, TextEdit, workspace } from "vscode";
 import { parseLine } from "./parser";
+import { lt, trimEnd } from "./utils";
+import { parseTable, stringifyTable } from "./tableEditor";
 
 export async function md_formatter(document: TextDocument, range: Range, options: FormattingOptions, token: CancellationToken): Promise<TextEdit[]>
 {
@@ -12,11 +14,16 @@ export async function md_formatter(document: TextDocument, range: Range, options
 		document.lineAt(range.end.line).range.end
 	);
 
+
+	const re_sep = /^\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/;
+	const re_sep_oneCol = /^\|\s*:?-+:?\s*\|$/;
+
 	const edits = [] as TextEdit[];
 	for (let i = range.start.line; i <= range.end.line; i++)
 	{
 		const line = document.lineAt(i);
 		const text = line.text;
+		const textTrim = line.text.trim().replaceAll(/\s+/g, " ");
 		if (gmd)
 		{
 			if ((text.startsWith("!!rule") || text.startsWith("!!section")))
@@ -38,8 +45,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 					const line = document.lineAt(i);
 					const text = line.text.trim();
 					const { prefix } = parseLine(text);
-					if (prefix != "") { isDoc = false; break; }
-					if (text == "" || text.startsWith("!")) { i--; break; }
+					if (prefix != "" || text == "" || text.startsWith("!")) { i--; break; }
 					json += text;
 				}
 				if (isDoc)
@@ -72,12 +78,62 @@ export async function md_formatter(document: TextDocument, range: Range, options
 				}
 				i = startI;
 			}
+			if (textTrim.toUpperCase() == "# РЕФЕРАТ")
+			{
+				applyNewText("# РЕФЕРАТ");
+				const startI = i;
+				while (true)
+				{
+					i++;
+					if (i >= document.lineCount) { i = startI; break; }
+					const line = document.lineAt(i);
+					const text = line.text.trim();
+					const { prefix } = parseLine(text);
+					if (prefix != "" || text.startsWith("!")) { i = startI; break; }
+					if (text == "") continue;
+					edits.push(TextEdit.replace(
+						line.range,
+						trimEnd(text.toUpperCase(), "."),
+					));
+					break;
+				}
+			}
+			lt([
+				"# РЕФЕРАТ",
+				"# ОГЛАВЛЕНИЕ",
+				"# ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ",
+				"# ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ",
+				"# ВВЕДЕНИЕ",
+				"# ЗАКЛЮЧЕНИЕ",
+				"# СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ",
+			].find(v => v == textTrim.toUpperCase()), v => applyNewText(v))
 		}
 		const m_header = /^(#+)\s+(.*)/.exec(text);
 		if (m_header)
 		{
 			applyNewText(`${m_header[1]} ${m_header[2]}`);
 			continue;
+		}
+
+		if (re_sep.test(tableTrim(text)) || re_sep_oneCol.test(text))
+		{
+			const line = tableTrim(text);
+			const prevLine = document.lineAt(i - 1);
+			const cols = line.split("|");
+			const header = tableTrim(prevLine.text).split("|").map(v => v.trim());
+			if (header.length != cols.length) continue;
+			while (i < document.lineCount)
+			{
+				const line = document.lineAt(i).text;
+				if (line.trim() == "") break;
+				i++;
+			}
+			const range = new Range(prevLine.range.start, document.lineAt(i - 1).range.end);
+			const oldTable = document.getText(range);
+			const table = parseTable(oldTable);
+			const newTable = stringifyTable(table);
+			if (oldTable != newTable)
+				edits.push(TextEdit.replace(range, newTable));
 		}
 
 
@@ -88,6 +144,13 @@ export async function md_formatter(document: TextDocument, range: Range, options
 		}
 	}
 
-	// TextEdit.replace(range, document.getText(range).toUpperCase())
 	return edits;
+
+	function tableTrim(line: string)
+	{
+		line = line.trim();
+		if (line.at(0) == "|") line = line.slice(1);
+		if (line.at(-1) == "|") line = line.slice(0, -1);
+		return line.trim();
+	};
 }

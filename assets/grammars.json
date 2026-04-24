@@ -27,7 +27,7 @@
 		},
 		{
 			"comment": "!!(path){json}",
-			"begin": "(!!)(\\()([^\\)]+)(\\))\\s*(\\{)",
+			"begin": "(!!)(\\()([^\\)]+)(\\))\\s*(?=\\{)",
 			"beginCaptures": {
 				"1": {
 					"name": "keyword.control.magic.markdown"
@@ -40,17 +40,9 @@
 				},
 				"4": {
 					"name": "punctuation.definition.parameters.end.markdown"
-				},
-				"5": {
-					"name": "punctuation.definition.dict.begin.json"
 				}
 			},
-			"end": "\\}",
-			"endCaptures": {
-				"0": {
-					"name": "punctuation.definition.dict.end.json"
-				}
-			},
+			"end": "(?<=\\})",
 			"patterns": [
 				{
 					"include": "source.json"

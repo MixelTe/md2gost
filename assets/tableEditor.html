@@ -878,9 +878,12 @@
 		const header = all_rows[0].slice(1);
 		const rows = all_rows.slice(1);
 		col++;
-		const allNums = rows.every(row => isFinite(parseFloat(row[col])));
-		if (allNums) rows.forEach(row => { row[col] = parseFloat(row[col]) });
-		rows.sort((a, b) => a[col] < b[col] ? -1 : a[col] > b[col] ? 1 : 0);
+		rows.sort((a, b) => {
+			const an = parseFloat(a[col]);
+			const bn = parseFloat(b[col]);
+			if (isFinite(an) && isFinite(bn)) return an - bn;
+			return a[col] < b[col] ? -1 : a[col] > b[col] ? 1 : 0
+		});
 		const noChanges = rows.every((row, i) => row[0] == i + 1);
 		if (noChanges) rows.reverse();
 		setRows([header, ...rows.map(row => row.slice(1))]);

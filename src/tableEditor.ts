@@ -144,7 +144,7 @@ interface Table
 	bordered: boolean,
 }
 
-function parseTable(text: string)
+export function parseTable(text: string)
 {
 	const table: Table = { rows: [], align: [], bordered: false };
 	const lines = text.split("\n");
@@ -182,7 +182,7 @@ function parseTable(text: string)
 	return table;
 }
 
-function stringifyTable(table: Table)
+export function stringifyTable(table: Table)
 {
 	if (table.rows.length == 0) return "";
 	const cols = Math.max(...table.rows.map(l => l.length));

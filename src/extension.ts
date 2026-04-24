@@ -75,9 +75,9 @@ export function activate(context: vscode.ExtensionContext)
 	context.subscriptions.push(
 		vscode.workspace.onDidChangeConfiguration(e =>
 		{
-			if (e.affectsConfiguration("md2gost.inlayHints"))
+			if (e.affectsConfiguration("md2gost.ui.inlayHints"))
 				onDidChangeInlayHints.fire();
-			if (e.affectsConfiguration("md2gost.tableEditor"))
+			if (e.affectsConfiguration("md2gost.tables.editor.enabled"))
 				tableCodeLensProvider.refresh();
 		})
 	);
