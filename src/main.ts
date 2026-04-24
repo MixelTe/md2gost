@@ -13,22 +13,22 @@ import PizZip from "pizzip";
 
 const DISABLE_MACRO = false;
 
-export async function render(progress: SetProgressFn, assets: string, file: string, renderPDF: boolean, disableMacros: boolean)
+export async function render(progress: SetProgressFn, assets: string, file: string, renderPDF: boolean, disableMacros: boolean, logwarn: (msg: string) => void = console.warn)
 {
 	// progress(10, "Trying to understand your scribbles");
 	progress(10, "Пытаемся понять, что вы тут написали...");
 	const fin = path.resolve(file);
-	const doc = await parseMD(fin);
+	const doc = await parseMD(fin, logwarn);
 	// console.log(doc);
 
 	// progress(10, "Trying to understand your scribbles");
 	progress(10, "Колдуем над синтаксисом...");
-	enrichDoc(doc);
+	enrichDoc(doc, logwarn);
 	// console.log(doc);
 
 	const runicDoc = runifyDoc(doc);
 	// console.log(runicDoc);
-	alchemist(runicDoc);
+	alchemist(runicDoc, logwarn);
 	// console.log(runicDoc);
 
 	const p = path.parse(fin);

@@ -1,7 +1,7 @@
-import type { DocNode, NodeTitle, Rune, RunicDoc, Runify } from "./doc";
+import type { DocNode, NodeList, NodeTable, NodeTitle, Rune, RunicDoc, Runify } from "./doc";
 import { repeat, toCapitalCase } from "./utils";
 
-export function alchemist(doc: RunicDoc)
+export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = console.warn)
 {
 	const counter = {
 		codesAll: 0,
@@ -13,8 +13,9 @@ export function alchemist(doc: RunicDoc)
 		titles: { l1: 0, l2: 0, l3: 0, l4: 0, l5: 0 },
 	};
 	type TtKeys = keyof typeof counter["titles"];
-	const named: { [name: string]: { n: number, prefix: string } | ((n: number, prefix: string) => void)[] } = {};
+	const named: { [name: string]: { n: number, prefix: string } | { f: (n: number, prefix: string) => void, i: number }[] } = {};
 	const vals: { [name: string]: ((n: number) => void)[] } = {};
+	let lastRefI = 0;
 	let prevNum = -1;
 	let prevPrefix = "";
 	let nextNum = -1;
@@ -71,10 +72,7 @@ export function alchemist(doc: RunicDoc)
 			}
 		}
 
-		if ("text" in node && node.text)
-			materializeRunes(node.text, node);
-		if ("title" in node && node.title)
-			materializeRunes(node.title, node);
+		materializeNode(node);
 
 		if (node.type == "code" || node.type == "image" || node.type == "table")
 		{
@@ -87,9 +85,17 @@ export function alchemist(doc: RunicDoc)
 		}
 	});
 
+	const sourcesCount = crystallizeSources();
+
 	vals["codes"]?.forEach(f => f(counter.codes));
 	vals["imgs"]?.forEach(f => f(counter.imgs));
 	vals["tables"]?.forEach(f => f(counter.tables));
+	vals["sources"]?.forEach(f => f(sourcesCount));
+
+	Object.entries(named).forEach(([k, v]) =>
+	{
+		if (v instanceof Array) logwarn(`Неизвестная ссылка [${k}]`);
+	});
 
 	function getTitleNum(node: Runify<NodeTitle>)
 	{
@@ -100,6 +106,32 @@ export function alchemist(doc: RunicDoc)
 		const num = parseInt(m?.[1] || "");
 		if (!isFinite(num)) return null;
 		return num;
+	}
+
+	function materializeNode(node: Runify<DocNode>)
+	{
+		if ("text" in node && node.text)
+			materializeRunes(node.text, node);
+		if ("title" in node && node.title)
+			materializeRunes(node.title, node);
+		if (node.type == "list") materializeList(node);
+		if (node.type == "table") materializeTable(node);
+	}
+
+	function materializeList(node: Runify<NodeList>)
+	{
+		node.items.forEach(item =>
+		{
+			if (item.type == "list") materializeList(item);
+			else materializeRunes(item.text, node);
+		});
+	}
+	function materializeTable(node: Runify<NodeTable>)
+	{
+		node.rows.forEach(row => row.forEach(item =>
+		{
+			materializeNode(item);
+		}));
 	}
 
 	function materializeRunes(runes: Rune[], node: Runify<DocNode>)
@@ -134,7 +166,7 @@ export function alchemist(doc: RunicDoc)
 			{
 				const num = counter.titles[`l${node.level}` as TtKeys];
 				const prefix = node.level <= 1 ? "" : repeat(node.level - 1, i => counter.titles[`l${i + 1}` as TtKeys]).join(".") + ".";
-				if (v instanceof Array) v.forEach(fn => fn(num, prefix));
+				if (v instanceof Array) v.forEach(fn => fn.f(num, prefix));
 				named[tag] = { n: num, prefix };
 				rune.type = "text";
 				rune.text = repeat(node.level, i => counter.titles[`l${i + 1}` as TtKeys]).join(".");
@@ -164,7 +196,8 @@ export function alchemist(doc: RunicDoc)
 					text = `${text} ${prefix}${num} \u2013 `;
 				}
 				else text = `${prefix}${num}`;
-				if (v instanceof Array) v.forEach(fn => fn(num, prefix));
+				if (v instanceof Array) v.forEach(fn => fn.f(num, prefix));
+				else if (v) logwarn(`id [${tag}] ${type == "code" ? "листинга" : type == "image" ? "рисунка" : type == "table" ? "таблицы" : ""} уже занято чем-то другим`);
 				named[tag] = { n: num, prefix };
 				rune.type = "text";
 				rune.text = text;
@@ -182,13 +215,13 @@ export function alchemist(doc: RunicDoc)
 			}
 			if (!v || v instanceof Array)
 			{
-				const fn = (n: number, prefix: string) =>
+				const f = (n: number, prefix: string) =>
 				{
 					rune.type = "text";
 					rune.text = `${prefix}${applyMath(n)}`;
 				};
-				if (v) v.push(fn);
-				else named[tag] = [fn];
+				if (v) v.push({ f, i: lastRefI++ });
+				else named[tag] = [{ f, i: lastRefI++ }];
 			}
 			else
 			{
@@ -196,6 +229,47 @@ export function alchemist(doc: RunicDoc)
 				rune.text = `${v.prefix}${applyMath(v.n)}`;
 			}
 		});
+	}
+
+	function crystallizeSources()
+	{
+		const sourcesList = doc.nodes.find(node => node.type == "list" && node.alternativeStyle);
+		if (!sourcesList || sourcesList.type != "list") return 0;
+		const items = sourcesList.items
+			.filter(v => v.type == "listItem")
+			.map(v => v.text)
+			.map((item, i) =>
+			{
+				const refI = item[0]?.text ? 0 : 1;
+				const ref = item[refI];
+				if (ref?.type != "ref")
+				{
+					logwarn(`Отсутствует id у источника: ${item.map(v => v.text).join("")}`);
+					return { text: item, ref: "", i: 99999 + i };
+				}
+				const refs = named[ref.text];
+				if (refs && !(refs instanceof Array))
+				{
+					logwarn(`id [${ref.text}] источника уже занято чем-то другим`);
+					return { text: item.slice(refI + 1), ref: "", i: 99999 + i };
+				}
+				const firstOccurrenceI = Math.min(...refs.map(v => v.i));
+				return { text: item.slice(refI + 1), ref: ref.text, i: firstOccurrenceI };
+			});
+		items.sort((a, b) => a.i - b.i);
+		sourcesList.items = items.map((item, i) =>
+		{
+			const refs = named[item.ref];
+			named[item.ref] = { prefix: "", n: i + 1 };
+			if (refs instanceof Array)
+			{
+				if (refs.length <= 1)
+					logwarn(`Отсутствуют ссылки на источник: ${item.ref || item.text.map(v => v.text).join("")}`);
+				refs.forEach(r => r.f(i + 1, ""));
+			}
+			return { type: "listItem", text: item.text };
+		});
+		return sourcesList.items.length;
 	}
 }
 
@@ -210,4 +284,3 @@ function addLazyNumbering(doc: RunicDoc)
 		runes.splice(0, 0, { text: "#", type: "ref" });
 	});
 }
-

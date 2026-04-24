@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import { hslToHex, toCapitalCase, trimEnd, trimStart, type JSONValue } from "./utils";
 import path from "path";
 
-export async function parseMD(file: string)
+export async function parseMD(file: string, logwarn: (msg: string) => void = console.warn)
 {
 	const lines = (await fs.readFile(file, { encoding: "utf8" })).split("\n");
 	const doc = new Doc();
@@ -126,7 +126,7 @@ export async function parseMD(file: string)
 
 		const rulePrefix = Object.keys(rules).find(prefix => textl.startsWith(prefix));
 		if (rulePrefix) rules[rulePrefix](text.slice(rulePrefix.length).trim());
-		else console.error(`Wrong rule: "${text}"`);
+		else logwarn(`Wrong rule: "${text}"`);
 
 		function tryParseInt(v: string)
 		{
@@ -188,7 +188,7 @@ export async function parseMD(file: string)
 	}
 
 	doc.nodes = doc.nodes.filter(n => n.type != "text" || n.text != "");
-	findDocs(doc.nodes);
+	findDocs(doc.nodes, logwarn);
 	findTables(doc.nodes);
 	findPageBreaks(doc.nodes);
 
@@ -238,7 +238,7 @@ export function parseLine(line: string): { prefix: Prefix, text: string, level: 
 	return { prefix: "", text: line.trim(), level, parts };
 }
 
-function findDocs(nodes: DocNode[])
+function findDocs(nodes: DocNode[], logwarn: (msg: string) => void = console.warn)
 {
 	const re_doc = /^!!\(([^{}]*)\)\s*{(.*)}$/s;
 	const re_remTrailingComma = /,(\s*[}\]])/g;
@@ -250,7 +250,7 @@ function findDocs(nodes: DocNode[])
 		if (!m_doc) continue;
 		let dict = {};
 		try { dict = JSON.parse(`{${m_doc[2]!}}`); }
-		catch (x) { console.error(`Cant parse doc dict: {${m_doc[2]!.replaceAll("\n", " ")}}`); }
+		catch (x) { logwarn(`Cant parse doc dict: {${m_doc[2]!.replaceAll("\n", " ")}}`); }
 		nodes.splice(i, 1, {
 			type: "externalDoc",
 			path: trimEnd(trimStart(m_doc[1]!, "<", '"'), ">", '"'),

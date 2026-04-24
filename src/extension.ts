@@ -117,6 +117,7 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean, di
 					file,
 					renderPDF,
 					disableMacros,
+					msg => vscode.window.showWarningMessage(msg),
 				);
 				if (err == "inPS") vscode.window.showErrorMessage(`Unknown error! Возможно у вас не установлен Word или установлен неправильно`);
 				if (err == "noPS") vscode.window.showErrorMessage(`Cant start PowerShell! Возможно он не прописан у вас в PATH`);

@@ -1,7 +1,7 @@
 import { tableRow, type Doc, type DocNode, type NodeList } from "./doc";
-import { toCapitalCase, trimEnd } from "./utils";
+import { trimEnd } from "./utils";
 
-export function enrichDoc(doc: Doc)
+export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.warn)
 {
 	for (let i = 0; i < doc.nodes.length; i++)
 	{
@@ -36,7 +36,7 @@ export function enrichDoc(doc: Doc)
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
-			const warn = () => console.warn("Wrong format of ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ");
+			const warn = () => logwarn("Wrong format of ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ");
 			const list = doc.nodes[i + 1];
 			if (list?.type != "list") { warn(); continue; }
 			const rows: DocNode[][] = [tableRow("Термин", "Определение")];
@@ -56,7 +56,7 @@ export function enrichDoc(doc: Doc)
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
-			const warn = () => console.warn("Wrong format of ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ");
+			const warn = () => logwarn("Wrong format of ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ");
 			const list = doc.nodes[i + 1];
 			if (list?.type != "list") { warn(); continue; }
 			const items: DocNode[] = [];
@@ -96,10 +96,24 @@ export function enrichDoc(doc: Doc)
 			node.text = node.text.toUpperCase();
 			doc.nodes.splice(i, 0, { type: "pageBreak" });
 			i++;
-			const list = doc.nodes[i + 1];
-			if (list?.type != "list") { console.warn("Wrong format of СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"); continue; }
-			list.alternativeStyle = true;
-			i++;
+			const list: NodeList = {
+				type: "list",
+				startIndex: 1,
+				alternativeStyle: true,
+				ordered: true,
+				items: [],
+			};
+			const startI = i + 1;
+			while (true)
+			{
+				const textNode = doc.nodes[i + 1];
+				if (textNode?.type != "text") break;
+				const items = textNode.text.split(/\n\s*(?=\[[a-zA-Zа-яА-ЯёЁ_\d]+\])/);
+				for (const item of items)
+					list.items.push({ type: "listItem", text: item });
+				i++;
+			}
+			doc.nodes.splice(startI, i - startI + 1, list);
 		}
 		else if (node.type == "list")
 		{
