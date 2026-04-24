@@ -4,11 +4,11 @@
 	"patterns": [
 		{
 			"name": "constant.numeric.integer.markdown",
-			"match": "\\[[a-zA-Zа-яА-ЯёЁ_\\d#]+\\s*[+\\-]?\\s*\\d*\\]"
+			"match": "\\[[a-zA-Zа-яА-ЯёЁ_\\d#]+\\s*[+\\-]?\\s*\\d*\\](?!\\()"
 		},
 		{
 			"name": "constant.other.placeholder.markdown",
-			"match": "\\[![a-zA-Zа-яА-ЯёЁ_\\d#]+\\s*[+\\-]?\\s*\\d*\\]"
+			"match": "\\[![a-zA-Zа-яА-ЯёЁ_\\d#]+\\s*[+\\-]?\\s*\\d*\\](?!\\()"
 		},
 		{
 			"match": "^(!!rule|!!section)(\\s+(.+))?\\s*$",
