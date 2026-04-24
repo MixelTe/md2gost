@@ -99,6 +99,11 @@
           "default": true,
           "description": "Отображать встроенные подсказки в тексте (например, «Рисунок # –»)."
         },
+        "md2gost.ui.disableHighlighting": {
+          "type": "boolean",
+          "default": false,
+          "description": "Отключить кастомную подсветку Markdown (требуется перезагрузка окна)."
+        },
         "md2gost.formatter.suppressDefaultPrompt": {
           "type": "boolean",
           "default": false,

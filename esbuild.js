@@ -48,13 +48,13 @@ async function main()
 		plugins: [
 			/* add to the end of plugins array */
 			esbuildProblemMatcherPlugin,
-			// copy({
-			// 	resolveFrom: 'cwd',
-			// 	assets: {
-			// 		from: ['./assets/**/*'],
-			// 		to: ['./dist/assets'],
-			// 	},
-			// }),
+			copy({
+				resolveFrom: 'cwd',
+				assets: {
+					from: ['./assets/grammars.json'],
+					to: ['./assets/grammars.copy.json'],
+				},
+			}),
 		],
 	});
 	if (watch)

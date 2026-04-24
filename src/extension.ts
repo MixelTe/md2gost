@@ -73,12 +73,14 @@ export function activate(context: vscode.ExtensionContext)
 	));
 
 	context.subscriptions.push(
-		vscode.workspace.onDidChangeConfiguration(e =>
+		vscode.workspace.onDidChangeConfiguration(async e =>
 		{
 			if (e.affectsConfiguration("md2gost.ui.inlayHints"))
 				onDidChangeInlayHints.fire();
 			if (e.affectsConfiguration("md2gost.tables.editor.enabled"))
 				tableCodeLensProvider.refresh();
+			if (e.affectsConfiguration("md2gost.ui.disableHighlighting"))
+				onDisableHighlighting(assets);
 		})
 	);
 }
@@ -212,4 +214,51 @@ function showFormatterSuggest()
 		if (selection != "Да" && selection != "Конечно") return;
 		config.update("defaultFormatter", myExtensionId, vscode.ConfigurationTarget.Global, true);
 	});
+}
+
+function onDisableHighlighting(assets: string)
+{
+	const config = vscode.workspace.getConfiguration("md2gost");
+	const isDisabled = config.get<boolean>("ui.disableHighlighting", false);
+
+	const grammarPath = path.join(assets, "grammars.json");
+	const grammarCopyPath = path.join(assets, "grammars.copy.json");
+
+	if (!fs.existsSync(grammarPath) || !fs.existsSync(grammarCopyPath))
+	{
+		vscode.window.showErrorMessage("md2gost: Cant update highlighting");
+		return;
+	}
+
+	const emptyGrammar = `{"scopeName":"markdown.custom.injection","injectionSelector":"L:text.html.markdown","patterns":[]}`;
+	const currentContent = fs.readFileSync(grammarPath, "utf8");
+	const targetContent = isDisabled ? emptyGrammar : fs.readFileSync(grammarCopyPath, "utf8");
+
+	if (currentContent == targetContent) return;
+
+	try
+	{
+		fs.writeFileSync(grammarPath, targetContent);
+
+		const action = "Reload Window";
+		vscode.window.showInformationMessage(
+			"Для применения настроек подсветки требуется перезагрузка окна.",
+			action
+		).then(selectedAction =>
+			selectedAction === action && vscode.commands.executeCommand("workbench.action.reloadWindow")
+		);
+	} catch (err)
+	{
+		const action = "Copy Path";
+		vscode.window.showErrorMessage(
+			`md2gost: Permission denied. Please manually edit grammars.json to ${isDisabled ? "disable" : "enable"} highlighting.`,
+			action
+		).then(selectedAction =>
+		{
+			if (selectedAction != action) return;
+			vscode.env.clipboard.writeText(grammarPath);
+			vscode.window.showInformationMessage("Path copied to clipboard!");
+		});
+		console.error(`Manual fix: replace content of ${grammarPath} with: ${targetContent}`);
+	}
 }
