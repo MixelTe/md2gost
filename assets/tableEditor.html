@@ -938,8 +938,8 @@
 		resizeTable();
 	}
 
-	var sizers_onmousemove = null;
-	var sizers_onmouseup = null;
+	var sizers_moving = null;
+	var sizers_startX = null;
 	function updateGridTemplateColumns()
 	{
 		const DX = -3.5;
@@ -964,89 +964,87 @@
 			el.dataset.i = i;
 			el.style.left = `${cell.getBoundingClientRect().right - offset + DX}px`;
 		}
-		if (sizers_onmousemove) window.removeEventListener("mousemove", sizers_onmousemove);
-		if (sizers_onmouseup) window.removeEventListener("mouseup", sizers_onmouseup);
-		let moving = null;
-		let startX = 0;
-		sizers.onmousedown = e =>
-		{
-			moving = e.target;
-			moving.classList.add("sizer_active");
-			startX = moving.getBoundingClientRect().left;
-		};
-		sizers_onmousemove = e =>
-		{
-			if (!moving) return;
-			moving.style.left = `${e.pageX - sizers.getBoundingClientRect().left + DX}px`;
-		};
-		sizers_onmouseup = e =>
-		{
-			if (!moving) return;
-			moving.style.left = `${e.pageX - sizers.getBoundingClientRect().left + DX}px`;
-			moving.classList.remove("sizer_active");
-			const x = moving.getBoundingClientRect().left;
-			const dx = x - startX;
-
-			// const i = parseInt(moving.dataset.i) + (dx < 0 ? 1 : 0);
-			// moving = null;
-			// const cells = Array.from(table.children).slice(0, columnCount);
-			// // const sizes = cells.map(el => parseFloat(el.dataset.width || "1"));
-			// const widths = cells.map(el => el.getBoundingClientRect().width);
-			// if (cells.length <= i) return;
-			// const newWidth = widths[i] + Math.abs(dx);
-			// const fullWidth = widths.reduce((pv, v) => pv + v, 0);
-			// const fullWidth_others_old = fullWidth - widths[i];
-			// const fullWidth_others_new = fullWidth - newWidth;
-			// const sizes = widths.map(w => Math.round(w / fullWidth_others_old * fullWidth_others_new));
-			// sizes[i] = Math.round(newWidth);
-			// const fullWidthNew = widths.reduce((pv, v) => pv + v, 0);
-			// sizes[i] -= fullWidthNew - fullWidth;
-			// const frs = sizes.map(s => Math.round(s / fullWidth * 100));
-			// table.style.gridTemplateColumns = frs.map(s => `${s}fr`).join(" ");
-
-			const i = parseInt(moving.dataset.i);
-			moving = null;
-			const cells = Array.from(table.children).slice(0, columnCount);
-			const widths = cells.map(el => el.getBoundingClientRect().width);
-			if (cells.length <= i + 1) return;
-			const MIN_WIDTH = 70;
-			let ndx = dx;
-			if (dx > 0)
-			{
-				const maxDx = Math.max(0, widths[i + 1] - MIN_WIDTH);
-				ndx = Math.min(dx, maxDx);
-			} else
-			{
-				const maxDx = Math.max(0, widths[i] - MIN_WIDTH);
-				ndx = Math.max(dx, -maxDx);
-			}
-			widths[i] += ndx;
-			widths[i + 1] -= ndx;
-			const fullWidth = widths.reduce((pv, v) => pv + v, 0);
-			const frs = widths.map(s => Math.round(s / fullWidth * 100));
-			table.style.gridTemplateColumns = frs.map(s => `${s}fr`).join(" ");
-
-			const nWidths = [];
-			Array.from(sizers.children).forEach((el, i) =>
-			{
-				const cell = cells[i];
-				if (!cell) return;
-				const bcr = cell.getBoundingClientRect();
-				nWidths.push(bcr.width);
-				el.style.left = `${bcr.right - offset + DX}px`;
-			});
-			nWidths.push(table.children[columnCount - 1].getBoundingClientRect().width);
-			const nfullWidth = nWidths.reduce((pv, v) => pv + v, 0);
-			const nfrs = nWidths.map(s => Math.round(s / nfullWidth * 100));
-			Array.from(table.children).slice(0, columnCount).forEach((el, i) =>
-			{
-				el.dataset.width = nfrs[i];
-			});
-			resizeTable();
-		};
-		window.addEventListener("mousemove", sizers_onmousemove);
-		window.addEventListener("mouseup", sizers_onmouseup);
 	}
+	sizers.addEventListener("mousedown", e =>
+	{
+		sizers_moving = e.target;
+		sizers_moving.classList.add("sizer_active");
+		sizers_startX = sizers_moving.getBoundingClientRect().left;
+	});
+	window.addEventListener("mousemove", e =>
+	{
+		const DX = -3.5;
+		if (!sizers_moving) return;
+		sizers_moving.style.left = `${e.pageX - sizers.getBoundingClientRect().left + DX}px`;
+	});
+	window.addEventListener("mouseup", e =>
+	{
+		const DX = -3.5;
+		if (!sizers_moving) return;
+		sizers_moving.style.left = `${e.pageX - sizers.getBoundingClientRect().left + DX}px`;
+		sizers_moving.classList.remove("sizer_active");
+		const x = sizers_moving.getBoundingClientRect().left;
+		const dx = x - sizers_startX;
+
+		// const i = parseInt(sizers_moving.dataset.i) + (dx < 0 ? 1 : 0);
+		// sizers_moving = null;
+		// const cells = Array.from(table.children).slice(0, columnCount);
+		// // const sizes = cells.map(el => parseFloat(el.dataset.width || "1"));
+		// const widths = cells.map(el => el.getBoundingClientRect().width);
+		// if (cells.length <= i) return;
+		// const newWidth = widths[i] + Math.abs(dx);
+		// const fullWidth = widths.reduce((pv, v) => pv + v, 0);
+		// const fullWidth_others_old = fullWidth - widths[i];
+		// const fullWidth_others_new = fullWidth - newWidth;
+		// const sizes = widths.map(w => Math.round(w / fullWidth_others_old * fullWidth_others_new));
+		// sizes[i] = Math.round(newWidth);
+		// const fullWidthNew = widths.reduce((pv, v) => pv + v, 0);
+		// sizes[i] -= fullWidthNew - fullWidth;
+		// const frs = sizes.map(s => Math.round(s / fullWidth * 100));
+		// table.style.gridTemplateColumns = frs.map(s => `${s}fr`).join(" ");
+
+		const i = parseInt(sizers_moving.dataset.i);
+		sizers_moving = null;
+		const cells = Array.from(table.children).slice(0, columnCount);
+		const widths = cells.map(el => el.getBoundingClientRect().width);
+		if (cells.length <= i + 1) return;
+		const MIN_WIDTH = 70;
+		let ndx = dx;
+		if (dx > 0)
+		{
+			const maxDx = Math.max(0, widths[i + 1] - MIN_WIDTH);
+			ndx = Math.min(dx, maxDx);
+		} else
+		{
+			const maxDx = Math.max(0, widths[i] - MIN_WIDTH);
+			ndx = Math.max(dx, -maxDx);
+		}
+		console.log(ndx);
+		widths[i] += ndx;
+		widths[i + 1] -= ndx;
+		const fullWidth = widths.reduce((pv, v) => pv + v, 0);
+		const frs = widths.map(s => Math.round(s / fullWidth * 100));
+		table.style.gridTemplateColumns = frs.map(s => `${s}fr`).join(" ");
+
+		const offset = cells[0]?.getBoundingClientRect().left;
+		const nWidths = [];
+		Array.from(sizers.children).forEach((el, i) =>
+		{
+			const cell = cells[i];
+			if (!cell) return;
+			const bcr = cell.getBoundingClientRect();
+			nWidths.push(bcr.width);
+			el.style.left = `${bcr.right - offset + DX}px`;
+		});
+		nWidths.push(table.children[columnCount - 1].getBoundingClientRect().width);
+		const nfullWidth = nWidths.reduce((pv, v) => pv + v, 0);
+		const nfrs = nWidths.map(s => Math.round(s / nfullWidth * 100));
+		Array.from(table.children).slice(0, columnCount).forEach((el, i) =>
+		{
+			el.dataset.width = nfrs[i];
+		});
+		resizeTable();
+	});
 
 	function setData(data)
 	{
