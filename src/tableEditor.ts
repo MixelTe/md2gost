@@ -168,9 +168,9 @@ export function parseTable(text: string)
 				v.startsWith(":") && v.endsWith(":") ? "c" :
 					v.endsWith(":") ? "r" : "l" as const);
 		else
-			table.rows.push(line.split("|").map(v => v.trim()
+			table.rows.push(line.split(/(?<!\\)\|/).map(v => v.trim()
 				.replaceAll("<br>", "\n")
-				.replaceAll("&#124;", "|")
+				.replaceAll("\\|", "|")
 				.replaceAll("&lt;", "<")
 				.replaceAll("&gt;", ">")
 			));
@@ -193,7 +193,7 @@ export function stringifyTable(table: Table)
 		for (let j = 0; j < row.length; j++)
 		{
 			row[j] = row[j].trim()
-				.replaceAll("|", "&#124;")
+				.replaceAll("|", "\\|")
 				.replaceAll("<", "&lt;")
 				.replaceAll(">", "&gt;")
 				.replaceAll("\n", "<br>");
@@ -207,6 +207,7 @@ export function stringifyTable(table: Table)
 	const config = vscode.workspace.getConfiguration("md2gost");
 	const borderStyle = config.get<"enclosed" | "none" | "preserve">("tables.borderStyle");
 	const compact = config.get<boolean>("tables.compact");
+	const alwaysAddLeftColon = config.get<boolean>("tables.alwaysAddLeftColon");
 	const userPreferBorder = borderStyle == "enclosed" || borderStyle == "preserve" && table.bordered;
 
 	const border = userPreferBorder || cols == 1 ||
@@ -225,7 +226,7 @@ export function stringifyTable(table: Table)
 			res += prefix.replace(" ", "") + table.align.map((v, i) => ({
 				v, sep: (compact ? "---" : repeat(lens[i] + 1 + (i == 0 && !border ? 0 : 1), "-").join(""))
 			})).map(({ v, sep }) =>
-				v == "c" ? `:${sep.slice(2)}:` : v == "r" ? `${sep.slice(1)}:` : sep
+				v == "c" ? `:${sep.slice(2)}:` : v == "r" ? `${sep.slice(1)}:` : (alwaysAddLeftColon ? `:${sep.slice(1)}` : sep)
 			).join("|") + postfix.replace(" ", "") + "\n";
 	}
 	return res.trim();

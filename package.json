@@ -94,6 +94,11 @@
           "default": "preserve",
           "description": "Стиль внешних границ таблиц: \"enclosed\" (добавлять «|» по краям), \"none\" (убирать границы), \"preserve\" (не изменять)."
         },
+        "md2gost.tables.alwaysAddLeftColon": {
+          "type": "boolean",
+          "default": false,
+          "description": "Определяет, нужно ли явно добавлять двоеточие для выравнивания по левому краю (например, ':---' вместо '---')."
+        },
         "md2gost.tables.compact": {
           "type": "boolean",
           "default": false,

@@ -287,7 +287,7 @@ function findDocs(nodes: DocNode[], logwarn: (msg: string) => void = console.war
 
 function findTables(nodes: DocNode[])
 {
-	const re_sep = /^(\s*:?-+:?\s*\|)+\s*:?-+:?\s*$/;
+	const re_sep = /^(\s*:?-+:?\s*(?<!\\)\|)+\s*:?-+:?\s*$/;
 	const re_sep_oneCol = /^\|\s*:?-+:?\s*\|$/;
 	const trim = (line: string) =>
 	{
@@ -307,7 +307,7 @@ function findTables(nodes: DocNode[])
 		const sep = trim(lines[1 + offset]!);
 		if (!re_sep.test(sep) && !re_sep_oneCol.test(lines[1 + offset]!)) continue;
 		const cols = sep.split("|");
-		const header = trim(lines[offset]!).split("|").map(v => v.trim());
+		const header = trim(lines[offset]!).split(/(?<!\\)\|/).map(v => v.trim());
 		if (header.length != cols.length) continue;
 		const align = cols.map(v => v.trim()).map(v =>
 			v.startsWith(":") && v.endsWith(":") ? "c" :
@@ -315,7 +315,7 @@ function findTables(nodes: DocNode[])
 		const rows = [tableRow(...header)];
 		for (const line of lines.slice(2 + offset))
 		{
-			const row = trim(line).split("|").map(v => v.trim());
+			const row = trim(line).split(/(?<!\\)\|/).map(v => v.trim());
 			while (row.length < cols.length) row.push("");
 			rows.push(tableRow(...row));
 		}
