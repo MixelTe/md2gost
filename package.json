@@ -94,6 +94,11 @@
           "default": "preserve",
           "description": "Стиль внешних границ таблиц: \"enclosed\" (добавлять «|» по краям), \"none\" (убирать границы), \"preserve\" (не изменять)."
         },
+        "md2gost.tables.compact": {
+          "type": "boolean",
+          "default": false,
+          "description": "Ячейки не будут дополняться пробелами для визуального выравнивания столбцов."
+        },
         "md2gost.ui.inlayHints": {
           "type": "boolean",
           "default": true,
@@ -108,6 +113,11 @@
           "type": "boolean",
           "default": false,
           "description": "Отключает предложение использовать md2gost в качестве форматировщика по умолчанию."
+        },
+        "md2gost.formatter.replaceEmDash": {
+          "type": "boolean",
+          "default": true,
+          "description": "Заменять Em dash (—) на En dash (–)"
         }
       }
     }

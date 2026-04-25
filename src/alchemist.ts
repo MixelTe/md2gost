@@ -215,7 +215,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 				}
 				else text = `${prefix}${num}`;
 				if (v instanceof Array) v.forEach(fn => fn.f(num, prefix));
-				else if (v) logwarn(`id [${tag}] ${type == "code" ? "листинга" : type == "image" ? "рисунка" : type == "table" ? "таблицы" : ""} уже занято чем-то другим`);
+				else if (v && tag != "#") logwarn(`id [${tag}] ${type == "code" ? "листинга" : type == "image" ? "рисунка" : type == "table" ? "таблицы" : ""} уже занято чем-то другим`);
 				named[tag] = { n: num, prefix };
 				rune.type = "text";
 				rune.text = text;

@@ -176,8 +176,8 @@ export function md_inlineHints(document: TextDocument, range: Range): InlayHint[
 
 	for (const m of allMatches)
 	{
-		const num = sections ? "#.#" : "#";
-		const { shift, text, prefix } =
+		let num = sections ? "#.#" : "#";
+		let { shift, text, prefix } =
 			m.type == "code" ? { shift: m.m[1].length, text: m.m[2], prefix: "Листинг" }
 				: m.type == "img" ? { shift: 2, text: m.m[1], prefix: "Рисунок" }
 					: m.type == "table" ? { shift: 0, text: m.m[2], prefix: "Таблица" }
@@ -185,12 +185,28 @@ export function md_inlineHints(document: TextDocument, range: Range): InlayHint[
 		if (m.type == "table" && (
 			text.trim() == "" || /^!|^#|^```|^\*\s|^-\s|^\d+(\)|\.)\s|\|/.test(text)
 		)) continue;
-		const tag = /^\s*\[([a-zA-Zа-яА-ЯёЁ_\d]+|#)\]/.exec(text);
+		let tag = /^(.*?)\[([a-zA-Zа-яА-ЯёЁ_\d]+|#)\]/.exec(text);
 		if (!lazy && !tag) continue;
 		let position = m.index + shift;
-		if (tag) position += tag[0].length;
-		const space = text.at(tag ? tag[0].length : 0) == " " ? "" : " ";
-		hints.push({ position, label: `${prefix} ${num} -${space}`, paddingLeft: !!tag || m.type == "code" });
+		prefix += " ";
+		let paddingLeft = !!tag || m.type == "code";
+		if (tag)
+		{
+			if (tag[1].trim().toLowerCase() == prefix.trim().toLowerCase())
+			{
+				prefix = ""
+				num = ""
+				paddingLeft = false;
+				position += tag[0].length;
+			}
+			else if (tag[1].trim()) tag = null;
+			else position += tag[0].length;
+		}
+		const lbl = text.slice(tag ? tag[0].length : 0);
+		const ending = lbl.trim()[0] == "-" ? (lbl[0] == " " ? "" : " ") : (lbl[0] == " " ? " -" : " - ");
+		const label = prefix + num + ending;
+		if (label)
+			hints.push({ position, label, paddingLeft: paddingLeft });
 	}
 
 	return hints.map(hint =>

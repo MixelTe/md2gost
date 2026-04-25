@@ -206,6 +206,7 @@ export function stringifyTable(table: Table)
 
 	const config = vscode.workspace.getConfiguration("md2gost");
 	const borderStyle = config.get<"enclosed" | "none" | "preserve">("tables.borderStyle");
+	const compact = config.get<boolean>("tables.compact");
 	const userPreferBorder = borderStyle == "enclosed" || borderStyle == "preserve" && table.bordered;
 
 	const border = userPreferBorder || cols == 1 ||
@@ -218,11 +219,11 @@ export function stringifyTable(table: Table)
 		const row = table.rows[i];
 		while (row.length < cols) row.push("");
 		res += (prefix + row.map((v, i) =>
-			v + repeat(lens[i] - v.length, " ").join("")
+			v + (compact ? "" : repeat(lens[i] - v.length, " ").join(""))
 		).join(" | ") + postfix).trim() + "\n";
 		if (i == 0)
 			res += prefix.replace(" ", "") + table.align.map((v, i) => ({
-				v, sep: repeat(lens[i] + 1 + (i == 0 && !border ? 0 : 1), "-").join("")
+				v, sep: (compact ? "---" : repeat(lens[i] + 1 + (i == 0 && !border ? 0 : 1), "-").join(""))
 			})).map(({ v, sep }) =>
 				v == "c" ? `:${sep.slice(2)}:` : v == "r" ? `${sep.slice(1)}:` : sep
 			).join("|") + postfix.replace(" ", "") + "\n";
