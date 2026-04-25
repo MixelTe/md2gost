@@ -1,6 +1,6 @@
 import { TextDocument, Range, FormattingOptions, CancellationToken, TextEdit, workspace } from "vscode";
 import { parseLine } from "./parser";
-import { lt, trimEnd } from "./utils";
+import { lt, repeat, trimEnd } from "./utils";
 import { parseTable, stringifyTable } from "./tableEditor";
 
 export async function md_formatter(document: TextDocument, range: Range, options: FormattingOptions, token: CancellationToken): Promise<TextEdit[]>
@@ -134,6 +134,68 @@ export async function md_formatter(document: TextDocument, range: Range, options
 				edits.push(TextEdit.replace(range, newTable));
 		}
 
+		processList();
+		function processList(level = 0)
+		{
+			const line = document.lineAt(i);
+			const text = line.text;
+			if (!new RegExp(`^\\s{${level * 4}}[^\\s]`).test(text)) return;
+			const textT = text.trim();
+			let itemN = -1;
+			let sign = "";
+			let txt = ""
+			const m_ulist = /^(\*|\-)\s+(.*)/.exec(textT);
+			if (m_ulist)
+			{
+				sign = m_ulist[1];
+				txt = m_ulist[2];
+			}
+			else
+			{
+				const m_olist = /^(\d+)(\.|\))\s+(.*)/.exec(textT)
+				if (!m_olist) return
+				itemN = parseInt(m_olist[1]);
+				sign = m_olist[2];
+				txt = m_olist[3];
+			}
+			const indentS = repeat(level * 4, " ").join("");
+			const newText = itemN < 0 ?
+				`${indentS}${sign} ${txt}` :
+				`${indentS}${itemN++}${sign} ${txt}`;
+			if (text != newText) edits.push(TextEdit.replace(line.range, newText));
+
+			let prevLineIsEmpty = false;
+			while (++i < document.lineCount)
+			{
+				const line = document.lineAt(i);
+				const text = line.text;
+				if (text.trim() == "")
+				{
+					prevLineIsEmpty = true;
+					continue;
+				}
+				const m = /^(\s*)(((\d+[\.\)])|\*|\-)\s+(.*)|([^\s].*))/.exec(text);
+				if (!m) { i--; return; }
+				if (m[6])
+				{
+					if (prevLineIsEmpty) { i--; return; }
+					const indentS = repeat((level + 1) * 4, " ").join("");
+					const newText = indentS + m[6];
+					if (text != newText) edits.push(TextEdit.replace(line.range, newText));
+					continue;
+				}
+				const indent = m[1].length / 4;
+				if (indent < level) { i--; return; }
+				if (indent == level + 1) { processList(level + 1); continue; }
+				// const mark = m[3];
+				const indentS = repeat(level * 4, " ").join("");
+				const txt = m[5];
+				const newText = itemN < 0 ?
+					`${indentS}${sign} ${txt}` :
+					`${indentS}${itemN++}${sign} ${txt}`;
+				if (text != newText) edits.push(TextEdit.replace(line.range, newText));
+			}
+		}
 
 		function applyNewText(newText: string)
 		{
