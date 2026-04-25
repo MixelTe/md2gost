@@ -169,7 +169,7 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean, di
 function showChangelogOnUpdate(context: vscode.ExtensionContext)
 {
 	const packageVersion = context.extension.packageJSON.version;
-	const pageVersion = "2";
+	const pageVersion = "3";
 	const lastVersion = context.globalState.get<string>("extension_version");
 
 	if (pageVersion !== lastVersion)
