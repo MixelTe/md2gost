@@ -21,6 +21,7 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "markdown.markdownItPlugins": true,
     "commands": [
       {
         "command": "md2gost.whats_new",
@@ -142,6 +143,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "@types/prismjs": "^1.26.6",

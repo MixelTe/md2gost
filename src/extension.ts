@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import MarkdownIt from "markdown-it";
 import { render } from "./main";
 import { openFile, trimStart } from "./utils";
 import fs from "fs";
@@ -6,6 +7,7 @@ import path from "path";
 import { md_formatter } from "./formatter";
 import { md_completion, md_hover, md_inlineCompletion, md_inlineHints, TableCodeLensProvider } from "./intellisense";
 import { onEditTableCommand } from "./tableEditor";
+import { markdownItPlugin } from "./markdownPlugin";
 
 export function activate(context: vscode.ExtensionContext)
 {
@@ -83,6 +85,13 @@ export function activate(context: vscode.ExtensionContext)
 				onDisableHighlighting(assets);
 		})
 	);
+
+	return {
+		extendMarkdownIt(md: MarkdownIt)
+		{
+			return md.use(markdownItPlugin);
+		}
+	};
 }
 
 export function deactivate() { }
