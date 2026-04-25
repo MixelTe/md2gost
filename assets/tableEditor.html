@@ -20,7 +20,7 @@
 		flex-direction: column;
 		gap: 0.2em;
 		padding: 1em 2em 2em 2em;
-		background-color: var(--vscode-editor-background);
+		background-color: var(--vscode-editor-background, #1e1e1e);
 	}
 
 	.buttons:has(:disabled) {
@@ -35,40 +35,40 @@
 
 	.disabled {
 		display: none;
-		color: var(--vscode-editorError-foreground);
+		color: var(--vscode-editorError-foreground, #f14c4c);
 	}
 
 	.btn {
-		color: var(--vscode-button-foreground);
-		background-color: var(--vscode-button-background);
+		color: var(--vscode-button-foreground, #ffffff);
+		background-color: var(--vscode-button-background, #0e639c);
 
 		padding: 6px 14px;
 		border: none;
 		border-radius: 2px;
 
-		font-family: var(--vscode-font-family);
-		font-size: var(--vscode-font-size);
+		font-family: var(--vscode-font-family, "Segoe WPC", "Segoe UI", sans-serif);
+		font-size: var(--vscode-font-size, 13px);
 		cursor: pointer;
 
 		transition: background-color 0.1s ease;
 	}
 
 	.btn:hover {
-		background-color: var(--vscode-button-hoverBackground);
+		background-color: var(--vscode-button-hoverBackground, #1177bb);
 	}
 
 	.btn:focus {
-		outline: 1px solid var(--vscode-focusBorder);
+		outline: 1px solid var(--vscode-focusBorder, #007fd4);
 		outline-offset: 2px;
 	}
 
 	.btn.secondary {
-		color: var(--vscode-button-secondaryForeground);
-		background-color: var(--vscode-button-secondaryBackground);
+		color: var(--vscode-button-secondaryForeground, #cccccc);
+		background-color: var(--vscode-button-secondaryBackground, #2a2d2e);
 	}
 
 	.btn.secondary:hover {
-		background-color: var(--vscode-button-secondaryHoverBackground);
+		background-color: var(--vscode-button-secondaryHoverBackground, #333637);
 	}
 
 	.btn:disabled {
@@ -87,7 +87,7 @@
 		grid-template-columns: auto auto;
 		width: fit-content;
 		gap: 1em;
-		color: var(--vscode-descriptionForeground);
+		color: var(--vscode-descriptionForeground, #ccccccb3);
 		font-size: 0.85em;
 		margin-top: 8px;
 	}
@@ -125,18 +125,18 @@
 	}
 
 	.toggle:focus-within {
-		outline: 1px solid var(--vscode-focusBorder);
+		outline: 1px solid var(--vscode-focusBorder, #007fd4);
 		outline-offset: -1px;
 	}
 
 	.toggle:hover {
-		background-color: var(--vscode-inputOption-hoverBackground);
+		background-color: var(--vscode-inputOption-hoverBackground, #5a5d5e80);
 	}
 
 	.toggle:has(:checked) {
-		color: var(--vscode-inputOption-activeForeground);
-		border-color: var(--vscode-inputOption-activeBorder);
-		background-color: var(--vscode-inputOption-activeBackground);
+		color: var(--vscode-inputOption-activeForeground, #ffffff);
+		border-color: var(--vscode-inputOption-activeBorder, #007acc);
+		background-color: var(--vscode-inputOption-activeBackground, #007fd466);
 	}
 
 	.checkbox {
@@ -160,13 +160,13 @@
 		border: 1px solid transparent;
 		border-radius: 3px;
 		padding: 0;
-		background-color: var(--vscode-settings-checkboxBackground);
-		color: var(--vscode-settings-checkboxForeground);
-		border-color: var(--vscode-settings-checkboxBorder);
+		background-color: var(--vscode-settings-checkboxBackground, #3c3c3c);
+		color: var(--vscode-settings-checkboxForeground, #f0f0f0);
+		border-color: var(--vscode-settings-checkboxBorder, #6b6b6b);
 	}
 
 	.checkbox:focus-within :nth-child(2) {
-		outline: 1px solid var(--vscode-focusBorder);
+		outline: 1px solid var(--vscode-focusBorder, #007fd4);
 		outline-offset: -1px;
 	}
 
@@ -186,36 +186,42 @@
 		border-radius: 3px;
 		padding: 0;
 		background-color: transparent;
-		color: var(--vscode-settings-checkboxForeground);
+		color: var(--vscode-settings-checkboxForeground, #f0f0f0);
 		cursor: pointer;
 	}
 
 	.button_danger {
-		color: var(--vscode-editorError-foreground);
+		color: var(--vscode-editorError-foreground, #f14c4c);
 	}
 
 	.button:hover {
-		background-color: var(--vscode-toolbar-hoverBackground);
+		background-color: var(--vscode-toolbar-hoverBackground, #5a5d5e4f);
 		outline: 1px dashed var(--vscode-toolbar-hoverOutline);
 		outline-offset: -1px;
 	}
 
 	.button:focus-within {
-		outline: 1px solid var(--vscode-focusBorder);
+		outline: 1px solid var(--vscode-focusBorder, #007fd4);
 		outline-offset: -1px;
 	}
 </style>
 <!-- table -->
 <style>
 	.table {
+		position: relative;
+		width: 100%;
+		max-width: 700px;
+		display: flex;
+		overflow: auto;
+		margin-bottom: 1em;
+	}
+
+	.table #table {
 		flex-grow: 1;
 		display: grid;
 		grid-template-rows: auto;
 		padding: 34px 0.8em 1em 2em;
 		margin-right: 0.2em;
-		margin-bottom: 1em;
-		max-width: 700px;
-		overflow: auto;
 	}
 
 	.cell {
@@ -223,6 +229,7 @@
 		display: flex;
 		margin-top: -1px;
 		margin-left: -1px;
+		min-width: 5em;
 	}
 
 	.table textarea {
@@ -230,15 +237,46 @@
 		padding: 0.5em;
 		border: 1px solid currentColor;
 		background: transparent;
-		color: var(--vscode-editor-foreground);
+		color: var(--vscode-editor-foreground, #d4d4d4);
 		resize: none;
 		overflow: hidden;
 	}
 
 	textarea:focus {
 		z-index: 2;
-		outline: 1px solid var(--vscode-focusBorder);
+		outline: 1px solid var(--vscode-focusBorder, #007fd4);
 		outline-offset: -1px;
+	}
+
+	#sizers {
+		position: absolute;
+		top: 34px;
+		right: 1em;
+		bottom: 1em;
+		left: 2em;
+	}
+
+	.sizer {
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		width: 4px;
+		z-index: 10;
+		cursor: col-resize;
+		user-select: none;
+		transition: background-color 150ms ease-out, opacity 150ms 100ms ease-out;
+		opacity: 0;
+		/* background-color: red; */
+	}
+
+	.sizer:hover {
+		background-color: var(--vscode-sash-hoverBorder, #007fd4);
+		opacity: 0.5;
+	}
+
+	.sizer_active {
+		background-color: var(--vscode-sash-hoverBorder, #007fd4);
+		opacity: 1 !important;
 	}
 </style>
 <!-- table buttons -->
@@ -285,9 +323,9 @@
 		right: 1px;
 		top: -1.1em;
 		translate: 50% -50%;
-		background: var(--vscode-editorWidget-background);
-		color: var(--vscode-editorWidget-foreground);
-		border: 1px solid var(--vscode-editorWidget-border);
+		background: var(--vscode-editorWidget-background, #252526);
+		color: var(--vscode-editorWidget-foreground, #cccccc);
+		border: 1px solid var(--vscode-editorWidget-border, #cccccc33);
 		border-radius: 50%;
 		width: 1.2em;
 		height: 1.2em;
@@ -319,7 +357,7 @@
 		translate: -50% 0%;
 		width: 0.8em;
 		height: 0.5em;
-		background: var(--vscode-editorWidget-border);
+		background: var(--vscode-editorWidget-border, #cccccc33);
 		clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
 	}
 
@@ -345,7 +383,10 @@
 </script>
 
 <div class="body">
-	<div class="table" id="table"></div>
+	<div class="table">
+		<div id="sizers"></div>
+		<div id="table"></div>
+	</div>
 	<div class="rightBtns">
 		<label class="toggle" title="Wide view">
 			<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">
@@ -440,11 +481,12 @@
 <script>
 	const vscode = acquireVsCodeApi();
 	const table = document.getElementById("table");
+	const sizers = document.getElementById("sizers");
 	const topBtns_template = document.getElementById("topBtns");
 	const leftBtns_template = document.getElementById("leftBtns");
 	const cbx_wide = document.getElementById("cbx_wide");
 	cbx_wide.checked = settings.wide;
-	table.style.maxWidth = settings.wide ? "unset" : "700px";
+	table.parentElement.style.maxWidth = settings.wide ? "unset" : "700px";
 	const cbx_autosave = document.getElementById("cbx_autosave");
 	cbx_autosave.checked = settings.autosave;
 	let disabled = false;
@@ -503,12 +545,13 @@
 	cbx_wide.addEventListener("change", () =>
 	{
 		settings.wide = cbx_wide.checked;
-		table.style.maxWidth = cbx_wide.checked ? "unset" : "700px";
+		table.parentElement.style.maxWidth = cbx_wide.checked ? "unset" : "700px";
 		vscode.postMessage({
 			command: "saveSetting",
 			key: "wide",
 			value: cbx_wide.checked,
 		});
+		resizeTable();
 	});
 
 	cbx_autosave.addEventListener("change", () =>
@@ -524,7 +567,6 @@
 
 	function createTable()
 	{
-		updateGridTemplateColumns();
 		const align = data.align.map(v => ({ "l": "left", "c": "center", "r": "right" }[v]));
 		for (let i = 0; i < data.rows.length; i++)
 		{
@@ -534,6 +576,7 @@
 		}
 		if (columnCount == 1)
 			table.children[0].querySelector(".button_danger").style.display = "none";
+		updateGridTemplateColumns();
 	}
 	function createCell(row, col, value, align = null)
 	{
@@ -716,6 +759,7 @@
 			ta.style.minHeight = `${ta.scrollHeight}px`;
 			ta.style.height = "auto";
 		});
+		updateGridTemplateColumns();
 	}
 
 	function setColumnAlign(col, align, save = true)
@@ -859,7 +903,6 @@
 			));
 		rows = rows[0].map((_, j) => rows.map(row => row[j]));
 		columnCount = rows[0].length;
-		updateGridTemplateColumns();
 		table.innerHTML = "";
 		for (let i = 0; i < rows.length; i++)
 		{
@@ -895,9 +938,114 @@
 		resizeTable();
 	}
 
+	var sizers_onmousemove = null;
+	var sizers_onmouseup = null;
 	function updateGridTemplateColumns()
 	{
-		table.style.gridTemplateColumns = `repeat(${columnCount}, minmax(5em, 1fr))`;
+		const DX = -3.5;
+		Array.from(sizers.children).map(s => s.remove());
+		const cells = Array.from(table.children).slice(0, columnCount);
+		const _sizes = cells.map(el => el.dataset.width && parseFloat(el.dataset.width)).filter(v => !!v);
+		const mean = Math.round(_sizes.reduce((pv, v) => pv + v, 0) / _sizes.length)
+		const def = isFinite(mean) ? mean : 1;
+		const sizes = cells.map(el => parseFloat(el.dataset.width || def));
+		while (sizes.length < columnCount) sizes.push(def);
+		table.style.gridTemplateColumns = sizes.map(s => `${s}fr`).join(" ");
+		const full = sizes.reduce((pv, v) => pv + v, 0);
+		const offset = cells[0]?.getBoundingClientRect().left;
+		for (let i = 0; i < columnCount - 1; i++)
+		{
+			const cell = cells[i];
+			if (!cell) break;
+			cell.dataset.width = sizes[i];
+			const el = document.createElement("div");
+			sizers.append(el);
+			el.classList.add("sizer");
+			el.dataset.i = i;
+			el.style.left = `${cell.getBoundingClientRect().right - offset + DX}px`;
+		}
+		if (sizers_onmousemove) window.removeEventListener("mousemove", sizers_onmousemove);
+		if (sizers_onmouseup) window.removeEventListener("mouseup", sizers_onmouseup);
+		let moving = null;
+		let startX = 0;
+		sizers.onmousedown = e =>
+		{
+			moving = e.target;
+			moving.classList.add("sizer_active");
+			startX = moving.getBoundingClientRect().left;
+		};
+		sizers_onmousemove = e =>
+		{
+			if (!moving) return;
+			moving.style.left = `${e.pageX - sizers.getBoundingClientRect().left + DX}px`;
+		};
+		sizers_onmouseup = e =>
+		{
+			if (!moving) return;
+			moving.style.left = `${e.pageX - sizers.getBoundingClientRect().left + DX}px`;
+			moving.classList.remove("sizer_active");
+			const x = moving.getBoundingClientRect().left;
+			const dx = x - startX;
+
+			// const i = parseInt(moving.dataset.i) + (dx < 0 ? 1 : 0);
+			// moving = null;
+			// const cells = Array.from(table.children).slice(0, columnCount);
+			// // const sizes = cells.map(el => parseFloat(el.dataset.width || "1"));
+			// const widths = cells.map(el => el.getBoundingClientRect().width);
+			// if (cells.length <= i) return;
+			// const newWidth = widths[i] + Math.abs(dx);
+			// const fullWidth = widths.reduce((pv, v) => pv + v, 0);
+			// const fullWidth_others_old = fullWidth - widths[i];
+			// const fullWidth_others_new = fullWidth - newWidth;
+			// const sizes = widths.map(w => Math.round(w / fullWidth_others_old * fullWidth_others_new));
+			// sizes[i] = Math.round(newWidth);
+			// const fullWidthNew = widths.reduce((pv, v) => pv + v, 0);
+			// sizes[i] -= fullWidthNew - fullWidth;
+			// const frs = sizes.map(s => Math.round(s / fullWidth * 100));
+			// table.style.gridTemplateColumns = frs.map(s => `${s}fr`).join(" ");
+
+			const i = parseInt(moving.dataset.i);
+			moving = null;
+			const cells = Array.from(table.children).slice(0, columnCount);
+			const widths = cells.map(el => el.getBoundingClientRect().width);
+			if (cells.length <= i + 1) return;
+			const MIN_WIDTH = 70;
+			let ndx = dx;
+			if (dx > 0)
+			{
+				const maxDx = Math.max(0, widths[i + 1] - MIN_WIDTH);
+				ndx = Math.min(dx, maxDx);
+			} else
+			{
+				const maxDx = Math.max(0, widths[i] - MIN_WIDTH);
+				ndx = Math.max(dx, -maxDx);
+			}
+			widths[i] += ndx;
+			widths[i + 1] -= ndx;
+			const fullWidth = widths.reduce((pv, v) => pv + v, 0);
+			const frs = widths.map(s => Math.round(s / fullWidth * 100));
+			table.style.gridTemplateColumns = frs.map(s => `${s}fr`).join(" ");
+
+			const nWidths = [];
+			Array.from(sizers.children).forEach((el, i) =>
+			{
+				const cell = cells[i];
+				if (!cell) return;
+				const bcr = cell.getBoundingClientRect();
+				nWidths.push(bcr.width);
+				el.style.left = `${bcr.right - offset + DX}px`;
+			});
+			nWidths.push(table.children[columnCount - 1].getBoundingClientRect().width);
+			const nfullWidth = nWidths.reduce((pv, v) => pv + v, 0);
+			const nfrs = nWidths.map(s => Math.round(s / nfullWidth * 100));
+			Array.from(table.children).slice(0, columnCount).forEach((el, i) =>
+			{
+				el.dataset.width = nfrs[i];
+			});
+			resizeTable();
+		};
+		window.addEventListener("mousemove", sizers_onmousemove);
+		window.addEventListener("mouseup", sizers_onmouseup);
 	}
 
 	function setData(data)
@@ -968,15 +1116,18 @@
 		const newData = {
 			align: [],
 			rows: [],
+			width: [],
 		}
 		Array.from(table.children).forEach((el, i) =>
 		{
 			const rowI = Math.floor(i / columnCount);
 			if (rowI == 0) newData.align.push((el.dataset.align || "l")[0]);
+			if (rowI == 0) newData.width.push(parseInt(el.dataset.width || "1"));
 			if (newData.rows.length <= rowI) newData.rows.push([]);
 			const ta = el.firstChild;
 			newData.rows[rowI].push(ta.value);
 		});
+		console.log(newData);
 		vscode.postMessage({ command: "saveData", newData, silent });
 		isDirty = false;
 	}
