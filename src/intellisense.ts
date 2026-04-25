@@ -9,22 +9,26 @@ export function md_completion(document: TextDocument, position: Position): Compl
 	const r = [] as CompletionItem[];
 	if (linePrefix == "!" || linePrefix == "")
 	{
-		const item1 = new CompletionItem({
+		const item = new CompletionItem({
 			label: "Вставить docx",
 			description: "!(файл.docx){}"
 		}, CompletionItemKind.Snippet);
-		item1.insertText = new SnippetString('!(${1:путькфайлу}){\n\t"${2:поле}": "${3:значение}",\n}');
-		item1.sortText = "!doc";
-		item1.documentation = new MarkdownString("Вставляет блок для вставки docx");
-		item1.documentation.appendCodeblock('!(путькфайлу){\n\t"поле": "значение",\n}');
-		r.push(item1);
-		const item2 = new CompletionItem({
+		const p = linePrefix ? "" : "!"
+		item.insertText = new SnippetString(p + '!(${1:путькфайлу}){\n\t"${2:поле}": "${3:значение}",\n}');
+		item.sortText = "!doc";
+		item.documentation = new MarkdownString("Вставляет блок для вставки docx");
+		item.documentation.appendCodeblock('!(путькфайлу){\n\t"поле": "значение",\n}');
+		r.push(item);
+	}
+	if (linePrefix == "")
+	{
+		const item = new CompletionItem({
 			label: "Вставить таблицу",
 			description: "Insert table"
 		}, CompletionItemKind.Snippet);
-		item2.insertText = new SnippetString('${1:h1} | ${2:h2}\n---|---\n${3:v1} | ${4:v2}\n');
-		item2.sortText = "!table";
-		r.push(item2);
+		item.insertText = new SnippetString('${1:h1} | ${2:h2}\n---|---\n${3:v1} | ${4:v2}\n');
+		item.sortText = "!table";
+		r.push(item);
 	}
 	const range = new Range(position, line.range.end);
 	function addHint(text: string, word: string, detail: string, documentation?: string, deft?: string | (() => string), mod?: (item: CompletionItem) => void)

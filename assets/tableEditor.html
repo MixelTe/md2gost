@@ -491,7 +491,8 @@
 	});
 	window.addEventListener("keydown", e =>
 	{
-		if ((e.ctrlKey || e.metaKey) && e.code === "KeyS")
+		const ctrlKey = e.ctrlKey || e.metaKey;
+		if (ctrlKey && !e.altKey && !e.shiftKey && e.code === "KeyS")
 		{
 			e.preventDefault();
 			save();
@@ -595,14 +596,14 @@
 			{
 				if (row == 0) return;
 				deleteRow(parseInt(el.dataset.row));
-				focus(0, 0, true);
+				focus(0, -1, true);
 				return;
 			}
 			if (e.altKey && e.shiftKey && !ctrl && e.key == "Backspace")
 			{
 				if (columnCount == 1) return;
 				deleteCol(parseInt(el.dataset.col));
-				focus(0, 0, true);
+				focus(-1, 0, true);
 				return;
 			}
 			if (!e.altKey && !e.shiftKey && ctrl && e.code == "KeyD")
@@ -833,6 +834,7 @@
 			[el1.firstChild.value, el2.firstChild.value] = [el2.firstChild.value, el1.firstChild.value];
 		}
 		onChanged();
+		resizeTable();
 	}
 
 	function cloneRow(i)
@@ -845,6 +847,7 @@
 			el2.firstChild.value = el1.firstChild.value;
 		}
 		onChanged();
+		resizeTable();
 	}
 
 	function transpose()
@@ -878,7 +881,8 @@
 		const header = all_rows[0].slice(1);
 		const rows = all_rows.slice(1);
 		col++;
-		rows.sort((a, b) => {
+		rows.sort((a, b) =>
+		{
 			const an = parseFloat(a[col]);
 			const bn = parseFloat(b[col]);
 			if (isFinite(an) && isFinite(bn)) return an - bn;
@@ -888,6 +892,7 @@
 		if (noChanges) rows.reverse();
 		setRows([header, ...rows.map(row => row.slice(1))]);
 		onChanged();
+		resizeTable();
 	}
 
 	function updateGridTemplateColumns()
