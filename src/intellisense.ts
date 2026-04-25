@@ -13,7 +13,7 @@ export function md_completion(document: TextDocument, position: Position): Compl
 			label: "Вставить docx",
 			description: "!(файл.docx){}"
 		}, CompletionItemKind.Snippet);
-		const p = linePrefix ? "" : "!"
+		const p = linePrefix ? "" : "!";
 		item.insertText = new SnippetString(p + '!(${1:путькфайлу}){\n\t"${2:поле}": "${3:значение}",\n}');
 		item.sortText = "!doc";
 		item.documentation = new MarkdownString("Вставляет блок для вставки docx");
@@ -194,8 +194,8 @@ export function md_inlineHints(document: TextDocument, range: Range): InlayHint[
 		{
 			if (tag[1].trim().toLowerCase() == prefix.trim().toLowerCase())
 			{
-				prefix = ""
-				num = ""
+				prefix = "";
+				num = "";
 				paddingLeft = false;
 				position += tag[0].length;
 			}

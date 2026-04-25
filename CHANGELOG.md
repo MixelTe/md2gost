@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+
+## [1.0.0] - 2026-04-26
+### Added
 - intellisense (CompletionItem, InlineCompletionItem, Hover, InlayHints)
 - formatter
 - table editor
@@ -16,15 +25,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - allow pdf in doc include
 ### Changed
 - rule `backtick_mono`: `off` - no style now, added `italic` option instead
-### Deprecated
-### Removed
 ### Fixed
 - fix one-column table parsing
 - allow table title without newline
 - signicantly speed up vba macros (up to 20 times)
 - fix (allow) svg images
 - fix metadata changes lost
-### Security
 
 ## [0.7.0] - 2026-04-07
 ### Added

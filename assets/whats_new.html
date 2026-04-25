@@ -186,6 +186,7 @@
 		.tag {
 			display: block;
 			min-width: 3.7em;
+			flex-shrink: 0;
 			text-align: center;
 			font-size: 0.65rem;
 			font-weight: 700;
@@ -199,8 +200,10 @@
 		}
 
 		.tag.added,
-		.tag.fixed,
-		.tag.improved {
+		.tag.changed,
+		.tag.deprecated,
+		.tag.removed,
+		.tag.fixed {
 			color: var(--_color);
 			background: color-mix(in srgb, var(--_color) 15%, transparent);
 			border-color: color-mix(in srgb, var(--_color) 20%, transparent);
@@ -302,13 +305,31 @@
 	<script>
 		const changelogData = [
 			{
+				date: "2026-04-26",
+				version: "v1.0.0 — Speed & Wisdom",
+				changes: [
+					{ type: "Added", text: "Удобный редактор таблиц." },
+					{ type: "Added", text: "Поддержка IntelliSense для кастомного синтаксиса." },
+					{ type: "Added", text: "Инструмент автоматического форматирования (formatter)." },
+					{ type: "Added", text: "Конвертация HTML-кодов для ~60 символов (например, <code>&amp;pi;</code> в <code>π</code>)." },
+					{ type: "Added", text: "Формирование списка источников." },
+					{ type: "Added", text: "Автоматическая вставка \"Продолжение таблицы #\"." },
+					{ type: "Added", text: "Поддержка вставки PDF-файлов в документы." },
+					{ type: "Changed", text: "Изменено правило backtick_mono: значение off теперь отключает стили, добавлена опция italic (по умолчанию)." },
+					{ type: "Fixed", text: "Исправлен парсинг одноколоночных таблиц." },
+					{ type: "Fixed", text: "Возможность указывать заголовок таблицы без переноса строки." },
+					{ type: "Fixed", text: "Значительное ускорение работы VBA-макросов (до 20 раз)." },
+					{ type: "Fixed", text: "Исправлена поддержка изображений в формате SVG." },
+				]
+			},
+			{
 				date: "2026-04-07",
 				version: "v0.7.0",
 				changes: [
-					{ type: "Added", text: "Новое правило для «ленивой» автонумерации: !!rule numbering lazy." },
+					{ type: "Added", text: "Новое правило для «ленивой» автонумерации: <code>!!rule numbering lazy</code>." },
 					{ type: "Added", text: "Выравнивание столбцов таблиц с помощью двоеточия." },
 					{ type: "Added", text: "Парсинг обратных кавычек как моноширинного текста (курсив по умолчанию)." },
-					{ type: "Added", text: "Новое правило управления моноширинным текстом: !!rule backtick_mono <off/on/outline>." },
+					{ type: "Added", text: "Новое правило управления моноширинным текстом: <code>!!rule backtick_mono <off/on/outline></code>." },
 					{ type: "Added", text: "Конвертация &amp;Star; в звёздочку (*)." },
 					{ type: "Fixed", text: "Исправлено исчезновение звёздочек." },
 					{ type: "Fixed", text: "Исправлен отступ в списках, содержащих 10 и более элементов." },

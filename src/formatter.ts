@@ -158,7 +158,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 			const textT = text.trim();
 			let itemN = -1;
 			let sign = "";
-			let txt = ""
+			let txt = "";
 			const m_ulist = /^(\*|\-)\s+(.*)/.exec(textT);
 			if (m_ulist)
 			{
@@ -167,7 +167,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 			}
 			else
 			{
-				const m_olist = /^(\d+)(\.|\))\s+(.*)/.exec(textT)
+				const m_olist = /^(\d+)(\.|\))\s+(.*)/.exec(textT);
 				if (!m_olist) return false;
 				itemN = parseInt(m_olist[1]);
 				sign = m_olist[2];
@@ -199,7 +199,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 				if (indent < level) { i--; break; }
 				if (indent == level + 1) { processList(level + 1); continue; }
 				const mark = m[3].at(-1);
-				const sameListType = itemN < 0 ? (mark == "*" || mark == "-") : (mark == "." || mark == ")")
+				const sameListType = itemN < 0 ? (mark == "*" || mark == "-") : (mark == "." || mark == ")");
 				if (!sameListType) { i--; break; }
 				const txt = clearText(m[5]);
 				const newText = itemN < 0 ?
