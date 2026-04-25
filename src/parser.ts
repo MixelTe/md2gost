@@ -438,7 +438,7 @@ function runifyText(text: string, rainbow = false): Rune[]
 		})).flat()
 		.map(rune => ({
 			...rune,
-			...(rune.type == "text" ? {
+			...(!rune.type || rune.type == "text" ? {
 				text: rune.text
 					.replaceAll("&Star;", "*")
 					.replaceAll("&#x200B;", ""),
