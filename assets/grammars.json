@@ -27,7 +27,7 @@
 		},
 		{
 			"comment": "!!(path){json}",
-			"begin": "(!!)(\\()([^\\)]+)(\\))\\s*(?=\\{)",
+			"begin": "(!!)(\\()([^{}]*)(\\))\\s*(?=\\{)",
 			"beginCaptures": {
 				"1": {
 					"name": "keyword.control.magic.markdown"

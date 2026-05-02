@@ -14,7 +14,7 @@ export function md_completion(document: TextDocument, position: Position): Compl
 			description: "!(файл.docx){}"
 		}, CompletionItemKind.Snippet);
 		const p = linePrefix ? "" : "!";
-		item.insertText = new SnippetString(p + '!(${1:путькфайлу}){\n\t"${2:поле}": "${3:значение}",\n}');
+		item.insertText = new SnippetString(p + '!(${1:путькфайлу}){\n\t"${2:поле}": "${3:значение}",\n}\n!!section from 2');
 		item.sortText = "!doc";
 		item.documentation = new MarkdownString("Вставляет блок для вставки docx");
 		item.documentation.appendCodeblock('!(путькфайлу){\n\t"поле": "значение",\n}');
@@ -53,6 +53,8 @@ export function md_completion(document: TextDocument, position: Position): Compl
 	addHint(linePrefix, "!!rule ", "Вставить правило", undefined, undefined, item =>
 		item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" }
 	);
+	addHint(linePrefix, "!!section ", "Вставить разрыв секции");
+	addHint(linePrefix, "!!section from", "", undefined, "2", item => item.label = { label: "!!section from", description: "Начать нумерацию страниц" });
 	if (linePrefix.startsWith("!!rule "))
 	{
 		const rule = linePrefix.slice("!!rule ".length);
@@ -131,6 +133,20 @@ export function md_hover(document: TextDocument, position: Position): Hover | un
 			content.appendMarkdown(doc);
 			return new Hover(content);
 		}
+	}
+	if (line.startsWith("!!section"))
+	{
+		const content = new MarkdownString();
+		content.appendMarkdown("### Разрыв секции\n");
+		content.appendText("Создаёт разрыв секции в документе.");
+		content.appendCodeblock(`
+!!section
+Секция без нумерации страниц
+
+!!section from 3
+Секция с нумерацией страниц начиная с 3
+`.trim());
+		return new Hover(content);
 	}
 	if (line.startsWith("#"))
 	{
