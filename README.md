@@ -65,6 +65,7 @@
 	* [Вставка docx/pdf (вставка титульника)](#вставка-внешнего-документа)
 	* [Автозамены](#автозамены)
 * Переключаемые функции:
+	* [Настройка стилей](#настройка-стилей)
 	* [Подсветка синтаксиса кода](#подсветка-синтаксиса-кода)
 	* [Подпись названия и автора](#подпись-названия-и-автора)
 	* [Что-то ещё](#что-то-ещё)
@@ -675,16 +676,104 @@
 - `[!codes]` на кол-во листингов
 - `[!sources]` на кол-во источников
 
+### Настройка стилей
+Строгость ГОСТа не уступает его разнообразию. В этом разделе представлены правила для настройки стилей.
+
+Строку с ключевым словом `!!rule` можно писать в любом месте документа. Правила применяются ко всему документу. Приоритет определяется только порядком правил.
+
+Размеры (size, spacing) задаются в пунктах (pt).
+
+**Правила:**
+* Заголовки
+	* Размер заголовка
+		- `!!rule headings h<1-6>[+] size <int>`
+		- Примеры:
+			* `!!rule headings h1 size 18` – установить размер 18&nbsp;пт для заголовков первого уровня
+			* `!!rule headings h2+ size 14` – установить размер 14&nbsp;пт для заголовков второго и последующих уровней
+		- По умолчанию: 14 для всех заголовков
+	* Интервал до и после
+		- `!!rule headings h<1-6>[+] spacing <before|after> <int>`
+		- Пример: `!!rule headings h1 spacing after 10`
+		- По умолчанию:
+			- h1 – before: 18; after: 4
+			- остальные – before: 8; after: 4
+	* Приведение к верхнему регистру
+		- `!!rule headings h<1-6>[+] uppercase`
+		- Пример: `!!rule headings h1 uppercase`
+		- По умолчанию: выключено для всех
+	* Отступ слева вместо абзацного отступа
+		- `!!rule headings h<1-6>[+] indent <first_line|left>`
+		- Пример: `!!rule headings h1 indent left`
+		- По умолчанию: first_line (абзацный отступ) для всех
+	* Использовать готовый набор стилей
+		- `!!rule headings alt_style_1`
+		- Эквивалентен последовательности обычных `!!rule`. Может быть переопределён правилами, указанными после.
+			```
+			!!rule headings h1+ indent left
+			!!rule headings h1+ spacing after 10
+			!!rule headings h1 size 18
+			!!rule headings h1 uppercase
+			!!rule headings h1 spacing before 0
+			!!rule headings h2 size 16
+			!!rule headings h2+ spacing before 15
+			```
+* Автоматическая расстановка переносов
+	- `!!rule hyphenation`
+	- По умолчанию: выключено
+* Таблицы
+	* Начертание названия
+		- `!!rule table title style <normal|bold|italic>`
+		- По умолчанию: normal
+	* Начертание заголовка
+		- `!!rule table heading style <normal|bold|italic>`
+		- Пример: `!!rule table heading style bold`
+		- По умолчанию: normal
+	* Выравнивание заголовка
+		- `!!rule table heading align <left|center|right>`
+		- Пример: `!!rule table heading align left`
+		- По умолчанию: center
+	* Размер шрифта
+		- `!!rule table text size <int>`
+		- Пример: `!!rule table text size 10`
+		- По умолчанию: 12
+* Листинги
+	* Начертание названия
+		- `!!rule code title style <normal|bold|italic>`
+		- По умолчанию: normal
+	* [Подсветка синтаксиса кода](#подсветка-синтаксиса-кода)
+		- `!!rule code highlight`
+		- По умолчанию: выключено
+
+#### Примеры
+
+1. Крупный заголовок первого уровня:
+	```
+	!!rule headings h1 size 18
+	!!rule headings h1 uppercase
+	```
+2. Все заголовки без абзацного отступа:
+	```
+	!!rule headings h1+ indent left
+	```
+3. Пример настройки под типичный ГОСТ:
+	```
+	!!rule headings alt_style_1
+	!!rule code title style italic
+	!!rule table title style italic
+	!!rule table heading style bold
+	!!rule hyphenation
+	```
+
 ### Подсветка синтаксиса кода
 По ГОСТу листинги просто чёрно-белые, так что этот пункт не для курсовой
 
-Чтобы включить подсветку кода, добавьте строчку `!!rule highlight code` в любом месте (один раз на весь файл).
+Чтобы включить подсветку кода, добавьте строчку `!!rule code highlight` в любом месте (один раз на весь файл).
 
 Поддерживаются следующие языки:
 * html, xml, css, js, ts, jsx, tsx, json, bash, powershell, python, java, c, cpp, csharp, go, rust, php, ruby, swift, kotlin, sql, yaml, markdown, docker, nginx
 
 ````html
-!!rule highlight code
+!!rule code highlight
 
 ```html Листинг 1.1 - Красивый листинг
 <!DOCTYPE html>
