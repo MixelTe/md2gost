@@ -458,6 +458,10 @@ function replaceAmpCodes(text: string)
 	const codes = {
 		"&#124;": "|",
 		"&shy;": "\u00AD",
+		"&laquo;": "«",
+		"&raquo;": "»",
+		"&lsaquo;": "‹",
+		"&rsaquo;": "›",
 		"&alpha;": "α",
 		"&beta;": "β",
 		"&gamma;": "γ",

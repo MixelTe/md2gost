@@ -11,11 +11,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
+
+
+## [1.0.3] - 2026-04-26
+### Added
+- html codes: `&laquo; &raquo; &lsaquo; &rsaquo;` for `« » ‹ ›`
+### Fixed
 - fix quote replacement for non‑ASCII characters and punctuation after closing quotes
 - add missing intellisense
 - fix AutoListingContinuation
-### Security
-
 
 ## [1.0.1] - 2026-04-26
 ### Fixed
