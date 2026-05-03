@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - fix quote replacement for non‑ASCII characters and punctuation after closing quotes
 - add missing intellisense
+- fix AutoListingContinuation
 ### Security
 
 

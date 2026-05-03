@@ -25,7 +25,12 @@ Sub AutoListingContinuation()
             Do While Not nextPara Is Nothing
                 If nextPara.Style <> "Листинг_Код" Then Exit Do
 
-                currentPage = nextPara.Range.Information(wdActiveEndPageNumber)
+                ' currentPage = nextPara.Range.Information(wdActiveEndPageNumber)
+                Dim r As Range
+                Set r = nextPara.Range.Duplicate
+                r.Collapse wdCollapseStart
+                r.Select
+                currentPage = Selection.Information(wdActiveEndPageNumber)
 
                 If currentPage <> lastPage And lastPage <> -1 Then
                     If Not IsContinuationAlreadyInserted(nextPara) Then
