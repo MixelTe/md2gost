@@ -752,6 +752,11 @@
 		- `!!rule code highlight`
 		- По умолчанию: выключено
 * Списки
+	* Символ для ненумерованных списков
+		- `!!rule list unordered style <dash|bullet|keep>`
+		- `keep` – Сохранять символ, использованный в исходном файле
+		- Пример: `!!rule list unordered style keep`
+		- По умолчанию: bullet
 	* Символ для нумерованных списков
 		- `!!rule list ordered style <bracket|dot|keep>`
 		- `keep` – Сохранять символ, использованный в исходном файле
@@ -761,7 +766,6 @@
 		- `!!rule list autopunctuation <on|off>`
 		- Пример: `!!rule list autopunctuation off`
 		- По умолчанию: on
-
 #### Примеры
 
 1. Крупный заголовок первого уровня:

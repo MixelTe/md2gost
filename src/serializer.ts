@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import { AlignmentType, Document, Footer, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark } from "docx";
-import type { NodeList, Rune, RunicDoc, RunicNode, Runify } from "./doc";
+import type { NodeList, NodeListMark, Rune, RunicDoc, RunicNode, Runify } from "./doc";
 import { randomInt, type DeepWriteable } from "./utils";
 import { imageSize } from "image-size";
 import path from "path";
@@ -86,10 +86,18 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					});
 				case "title":
 					if (node.level < 0 || node.level > 6) throw new Error("Wrong heading level");
+					const level = (node.level == 0 ? 1 : node.level) as 1 | 2 | 3 | 4 | 5 | 6;
+					const styles = doc.headings[`h${level}`];
+					if (styles.uppercase) node.text.forEach(r => r.text = r.text.toUpperCase());
 					return new Paragraph({
-						children: renderText(node.text),
+						children: renderText(node.text, styles.size * 2),
 						style: `${node.level}`,
 						...(node.center ? { alignment: "center", indent: { firstLine: 0 } } : {}),
+						...(!node.center && node.level != 0 && styles.indent_full ? { indent: { firstLine: 0, left: convertMillimetersToTwip(12.5) } } : {}),
+						spacing: {
+							before: styles.spacing.before * 20,
+							after: styles.spacing.after * 20,
+						}
 					});
 				case "pageBreak":
 					if (!(prevChild instanceof Paragraph))
@@ -108,7 +116,10 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					renderList(node);
 					function renderList(node: Runify<NodeList>, level: number = 0)
 					{
-						addListItemLevel(list.levels, level, node.startIndex, node.items.length, !!node.ordered, !!node.alternativeStyle);
+						let mark = node.mark;
+						if (node.ordered) mark = doc.list.ordered.style == "keep" ? mark : doc.list.ordered.style == "dot" ? "." : ")";
+						else mark = doc.list.unordered.style == "keep" ? mark : doc.list.unordered.style == "bullet" ? "*" : "-";
+						addListItemLevel(list.levels, level, node.startIndex, node.items.length, !!node.ordered, !!node.alternativeStyle, mark);
 						for (const item of node.items)
 						{
 							if (item.type == "list") renderList({ ...item, alternativeStyle: !!node.alternativeStyle }, level + 1);
@@ -128,6 +139,10 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					}
 					return items;
 				case "table":
+					if (node.title && doc.table.title.style == "italic") node.title.forEach(r => r.italic = true);
+					if (node.title && doc.table.title.style == "bold") node.title.forEach(r => r.bold = true);
+					if (node.rows[0] && doc.table.heading.style == "italic") node.rows[0].forEach(n => n.type == "text" ? n.text.forEach(r => r.italic = true) : 0);
+					if (node.rows[0] && doc.table.heading.style == "bold") node.rows[0].forEach(n => n.type == "text" ? n.text.forEach(r => r.bold = true) : 0);
 					return [
 						...(node.title ? [
 							new Paragraph({
@@ -147,9 +162,10 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 								children: row.map((item, colI) => new TableCell({
 									children: item.type != "text" ? renderNodeL(item) : [
 										new Paragraph({
-											children: renderText(item.text, !node.normalFontSize),
-											alignment: rowI == 0 || node.align[colI] == "c" ? "center"
-												: node.align[colI] == "r" ? "right" : "left",
+											children: renderText(item.text, node.normalFontSize ? -1 : doc.table.text.size * 2),
+											alignment: rowI == 0 ? doc.table.heading.align :
+												node.align[colI] == "c" ? "center"
+													: node.align[colI] == "r" ? "right" : "left",
 											indent: { firstLine: 0 },
 											spacing: { after: 0, line: 240 * 1.25 },
 										})
@@ -207,7 +223,9 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						] : []),
 					];
 				case "code":
-					const code = doc.codeHighlighting && renderCodeHighlighting(node.code, node.lang);
+					if (node.title && doc.code.title.style == "italic") node.title.forEach(r => r.italic = true);
+					if (node.title && doc.code.title.style == "bold") node.title.forEach(r => r.bold = true);
+					const code = doc.code.highlight && renderCodeHighlighting(node.code, node.lang);
 					return [
 						...(node.title ? [
 							new Paragraph({
@@ -258,7 +276,15 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 		externalStyles: fs.readFileSync(path.join(assets, "styles.xml"), { encoding: "utf8" }),
 		// features: { updateFields: true },
 		numbering: { config: numbering },
-		...(doc.rainbow ? { background: { color: "#000000" } } : {})
+		...(doc.rainbow ? { background: { color: "#000000" } } : {}),
+		...(doc.hyphenation ? {
+			hyphenation: {
+				autoHyphenation: true,
+				consecutiveHyphenLimit: 2,
+				doNotHyphenateCaps: true,
+				hyphenationZone: 360,
+			}
+		} : {}),
 		// title: doc.title,
 		// creator: doc.author,
 		// lastModifiedBy: doc.author,
@@ -277,7 +303,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 	]);
 	fs.writeFileSync(fout, buffer);
 
-	function renderText(text: string | Rune[], small: boolean = false): ParagraphChild[]
+	function renderText(text: string | Rune[], size: number = -1): ParagraphChild[]
 	{
 		function renderRune(rune: Rune, link: boolean = false): ParagraphChild
 		{
@@ -306,7 +332,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 				...(rune.italic ? { italics: true } : {}),
 				...(link ? { color: "0563c1", underline: { type: "single" } } : {}),
 				...(rune.color ? { color: rune.color } : {}),
-				...(small ? { size: 24 } : {}),
+				...(size > 0 ? { size } : {}),
 				...(rune.type && rune.type != "text" ? { highlight: "black", color: "ffffff" } : {}),
 				...(rune.mono ? (
 					doc.backtickMono == "outline" ? { font: "consolas", size: 24, border: { style: "single", space: 2 } }
@@ -385,7 +411,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 	}
 }
 
-function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: number, itemCount: number, ordered: boolean, alternativeStyle: boolean)
+function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: number, itemCount: number, ordered: boolean, alternativeStyle: boolean, mark: NodeListMark)
 {
 	if (levels.find(v => v.level == level)) return;
 	levels.sort((a, b) => a.level - b.level);
@@ -401,12 +427,22 @@ function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: n
 	const longList = startIndex + itemCount > 10;
 	const left = alternativeStyle ? 0 : longList ? 20.5 : 17.5;
 	const hanging = longList && !alternativeStyle ? convertMillimetersToTwip(8) : null;
+	const text = ordered ?
+		(alternativeStyle ? `%${level + 1}.` :
+			mark == "." ? `%${level + 1}.` : `%${level + 1})`) :
+		// mark == "*" ? "\u2022" : "\u2012";
+		mark == "*" ? "\u00B7" : "\u2012";
 	levels.push({
 		level,
 		format,
 		start: startIndex,
-		text: ordered ? (alternativeStyle ? `%${level + 1}.` : `%${level + 1})`) : "\u2012",
+		text,
 		style: {
+			...(text == "\u00B7" ? {
+				run: {
+					font: { name: "Symbol" }
+				}
+			} : {}),
 			paragraph: {
 				indent: {
 					left: convertMillimetersToTwip(left + 5 * indent),

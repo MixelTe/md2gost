@@ -1,7 +1,6 @@
 export class Doc
 {
 	public nodes: DocNode[] = [];
-	public codeHighlighting = false;
 	public rainbow = false;
 	public numberingLazy = false;
 	public numberingSections = false;
@@ -12,6 +11,32 @@ export class Doc
 	public etime: number | undefined;
 	public ctime: Date | undefined;
 	public mtime: Date | undefined;
+	public hyphenation = false;
+	public headings: DocHeadings = {
+		h1: { size: 14, spacing: { before: 18, after: 4 }, indent_full: false, uppercase: false },
+		h3: { size: 14, spacing: { before: 8, after: 4 }, indent_full: false, uppercase: false },
+		h2: { size: 14, spacing: { before: 8, after: 4 }, indent_full: false, uppercase: false },
+		h4: { size: 14, spacing: { before: 8, after: 4 }, indent_full: false, uppercase: false },
+		h5: { size: 14, spacing: { before: 8, after: 4 }, indent_full: false, uppercase: false },
+		h6: { size: 14, spacing: { before: 8, after: 4 }, indent_full: false, uppercase: false },
+	};
+	public table = {
+		title: { style: "normal" as "normal" | "bold" | "italic" },
+		heading: {
+			style: "normal" as "normal" | "bold" | "italic",
+			align: "center" as "left" | "center" | "right",
+		},
+		text: { size: 12 },
+	};
+	public code = {
+		title: { style: "normal" as "normal" | "bold" | "italic" },
+		highlight: false,
+	};
+	public list = {
+		ordered: { style: "bracket" as "bracket" | "dot" | "keep" },
+		unordered: { style: "dash" as "dash" | "bullet" | "keep" },
+		autopunctuation: true,
+	}
 
 	public appendText(text: string)
 	{
@@ -25,6 +50,26 @@ export class Doc
 	{
 		this.nodes.push(node);
 	}
+}
+
+export interface DocHeadingStyle
+{
+	size: number,
+	spacing: {
+		before: number,
+		after: number,
+	},
+	uppercase: boolean,
+	indent_full: boolean,
+}
+export interface DocHeadings
+{
+	h1: DocHeadingStyle,
+	h2: DocHeadingStyle,
+	h3: DocHeadingStyle,
+	h4: DocHeadingStyle,
+	h5: DocHeadingStyle,
+	h6: DocHeadingStyle,
 }
 
 export function tableRow(...items: string[]): DocNode[]
@@ -96,10 +141,12 @@ export interface NodeTable
 	normalFontSize?: boolean,
 }
 
+export type NodeListMark = "-" | "*" | "." | ")";
 export interface NodeList
 {
 	type: "list",
 	ordered?: boolean,
+	mark: NodeListMark,
 	startIndex: number,
 	items: (NodeListItem | NodeList)[],
 	alternativeStyle?: boolean,

@@ -10,98 +10,6 @@ export function markdownItPlugin(md: MarkdownIt)
 		const uri = state.env.currentDocument ?? vscode.window.activeTextEditor?.document.uri as vscode.Uri | undefined;
 		return !!(uri && uri?.fsPath?.endsWith(".g.md"));
 	}
-	md.core.ruler.after("inline", "md2gost_hide_rule_paragraphs", (state) =>
-	{
-		if (!isGostyMd(state))
-			return true;
-		state.tokens.forEach(blockToken =>
-		{
-			if (blockToken.type != "inline" || !blockToken.children) return;
-			let children = blockToken.children;
-			let newChildren = [];
-
-			for (let i = 0; i < children.length; i++)
-			{
-				const token = children[i];
-
-				if ((i == 0 || children[i - 1]?.type == "softbreak") && token.type == "text" && token.content.startsWith("!!rule "))
-				{
-					if (children[i + 1]?.type == "softbreak")
-						i++;
-					continue;
-				}
-				newChildren.push(token);
-			}
-
-			blockToken.children = newChildren;
-			blockToken.content = newChildren.map(t => t.content).join("");
-		});
-
-		return true;
-	});
-
-	md.core.ruler.after("inline", "md2gost_sections", function (state)
-	{
-		if (!isGostyMd(state))
-			return true;
-		const regex = /^!!section(|\s+from\s+(\d+))\s*$/m;
-		const tokens = state.tokens;
-
-		for (let i = tokens.length - 1; i >= 0; i--)
-		{
-			if (tokens[i].type != "inline" || tokens[i].level != 1) continue;
-			const inlineToken = tokens[i];
-			const match = inlineToken.content.match(regex);
-			if (!match) continue;
-			const sectionValue = match[2] || "";
-
-			const parts = inlineToken.content.split(match[0]);
-			const textBefore = parts[0].trim();
-			const textAfter = parts.slice(1).join(match[0]).trim();
-
-			const newTokens = [];
-
-			if (textBefore == "")
-			{
-				if (tokens[i - 1]?.type == "paragraph_open")
-				{
-					tokens.splice(i - 1, 1);
-					i--;
-				}
-			}
-			else
-			{
-				inlineToken.content = textBefore;
-				const child = new state.Token("text", "", 0);
-				child.content = textBefore;
-				inlineToken.children = [child];
-				newTokens.push(inlineToken);
-				newTokens.push(new state.Token("paragraph_close", "p", -1));
-			}
-
-			const customToken = new state.Token("html_block", "", 0);
-			const cls = sectionValue ? "" : "md2gost_section_nonumber";
-			customToken.content = `<div class="md2gost_section ${cls}">${md.utils.escapeHtml(sectionValue)}</div>\n`;
-			newTokens.push(customToken);
-
-			if (textAfter != "")
-			{
-				newTokens.push(new state.Token("paragraph_open", "p", 1));
-				const newInline = new state.Token("inline", "", 0);
-				newInline.content = textAfter;
-				const child = new state.Token("text", "", 0);
-				child.content = textAfter;
-				newInline.children = [child];
-				newTokens.push(newInline);
-			} else
-			{
-				if (tokens[i + 1]?.type == "paragraph_close")
-					tokens.splice(i + 1, 1);
-			}
-
-			tokens.splice(i, 1, ...newTokens);
-		}
-	});
 
 	md.core.ruler.after("inline", "md2gost_docs", function (state)
 	{
@@ -153,6 +61,100 @@ export function markdownItPlugin(md: MarkdownIt)
 			tokens[i + 1].type = "html_block";
 			tokens[i + 1].content = `</div>`;
 		}
+	});
+
+	md.core.ruler.after("inline", "md2gost_sections", function (state)
+	{
+		if (!isGostyMd(state))
+			return true;
+		const regex = /^!!section(|\s+from\s+(\d+))\s*$/m;
+		const tokens = state.tokens;
+
+		for (let i = tokens.length - 1; i >= 0; i--)
+		{
+			if (tokens[i].type != "inline" || tokens[i].level != 1) continue;
+			const inlineToken = tokens[i];
+			const content = inlineToken.children?.map(t => t.type == "softbreak" ? "\n" : t.content).join("") || "";
+			const match = regex.exec(content);
+			if (!match) continue;
+			const sectionValue = match[2] || "";
+
+			const parts = content.split(match[0]);
+			const textBefore = parts[0].replaceAll("\\n", " ").trim();
+			const textAfter = parts.slice(1).join(match[0]).replaceAll("\\n", " ").trim();
+
+			const newTokens = [];
+
+			if (textBefore == "")
+			{
+				if (tokens[i - 1]?.type == "paragraph_open")
+				{
+					tokens.splice(i - 1, 1);
+					i--;
+				}
+			}
+			else
+			{
+				inlineToken.content = textBefore;
+				const child = new state.Token("text", "", 0);
+				child.content = textBefore;
+				inlineToken.children = [child];
+				newTokens.push(inlineToken);
+				newTokens.push(new state.Token("paragraph_close", "p", -1));
+			}
+
+			const customToken = new state.Token("html_block", "", 0);
+			const cls = sectionValue ? "" : "md2gost_section_nonumber";
+			customToken.content = `<div class="md2gost_section ${cls}">${md.utils.escapeHtml(sectionValue)}</div>\n`;
+			newTokens.push(customToken);
+
+			if (textAfter != "")
+			{
+				newTokens.push(new state.Token("paragraph_open", "p", 1));
+				const newInline = new state.Token("inline", "", 0);
+				newInline.content = textAfter;
+				const child = new state.Token("text", "", 0);
+				child.content = textAfter;
+				newInline.children = [child];
+				newTokens.push(newInline);
+			} else
+			{
+				if (tokens[i + 1]?.type == "paragraph_close")
+					tokens.splice(i + 1, 1);
+			}
+
+			tokens.splice(i, 1, ...newTokens);
+		}
+	});
+
+	md.core.ruler.after("inline", "md2gost_hide_rule_paragraphs", (state) =>
+	{
+		if (!isGostyMd(state))
+			return true;
+		state.tokens.forEach(blockToken =>
+		{
+			if (blockToken.type != "inline" || !blockToken.children) return;
+			let children = blockToken.children;
+			let newChildren = [];
+
+			for (let i = 0; i < children.length; i++)
+			{
+				const token = children[i];
+
+				if ((i == 0 || children[i - 1]?.type == "softbreak") && token.type == "text" && token.content.startsWith("!!rule "))
+				{
+					if (children[i + 1]?.type == "softbreak")
+						i++;
+					continue;
+				}
+				newChildren.push(token);
+			}
+
+			blockToken.children = newChildren;
+			blockToken.content = newChildren.map(t => t.content).join("");
+		});
+
+		return true;
 	});
 
 	md.core.ruler.push("md2gost_generate_toc", (state) =>

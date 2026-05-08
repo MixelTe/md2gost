@@ -98,6 +98,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 			i++;
 			const list: NodeList = {
 				type: "list",
+				mark: ".",
 				startIndex: 1,
 				alternativeStyle: true,
 				ordered: true,
@@ -117,7 +118,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 		}
 		else if (node.type == "list")
 		{
-			enrichList(node, true);
+			if (doc.list.autopunctuation) enrichList(node, true);
 			function enrichList(list: NodeList, isLastItem: boolean, isSubList: boolean = false)
 			{
 				const isLongList = 3 < Math.max(...list.items.filter(v => v.type == "listItem").map(v => v.text.split(/\s+/).length));

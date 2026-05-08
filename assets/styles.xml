@@ -177,10 +177,11 @@
 <w:link w:val="10"/>
 <w:uiPriority w:val="9"/>
 <w:qFormat/>
-<w:rsid w:val="00012BD7"/>
+<w:rsid w:val="00DF4E48"/>
 <w:pPr>
 <w:keepNext/>
 <w:keepLines/>
+<w:suppressAutoHyphens/>
 <w:spacing w:before="360" w:after="80"/>
 <w:outlineLvl w:val="0"/>
 </w:pPr>
@@ -198,10 +199,11 @@
 <w:uiPriority w:val="9"/>
 <w:unhideWhenUsed/>
 <w:qFormat/>
-<w:rsid w:val="001C1AE1"/>
+<w:rsid w:val="00DF4E48"/>
 <w:pPr>
 <w:keepNext/>
 <w:keepLines/>
+<w:suppressAutoHyphens/>
 <w:spacing w:before="160" w:after="80"/>
 <w:outlineLvl w:val="1"/>
 </w:pPr>
@@ -219,10 +221,11 @@
 <w:uiPriority w:val="9"/>
 <w:unhideWhenUsed/>
 <w:qFormat/>
-<w:rsid w:val="00A5455C"/>
+<w:rsid w:val="00DF4E48"/>
 <w:pPr>
 <w:keepNext/>
 <w:keepLines/>
+<w:suppressAutoHyphens/>
 <w:spacing w:before="160" w:after="80"/>
 <w:outlineLvl w:val="2"/>
 </w:pPr>
@@ -240,10 +243,11 @@
 <w:uiPriority w:val="9"/>
 <w:unhideWhenUsed/>
 <w:qFormat/>
-<w:rsid w:val="00AD52B0"/>
+<w:rsid w:val="00DF4E48"/>
 <w:pPr>
 <w:keepNext/>
 <w:keepLines/>
+<w:suppressAutoHyphens/>
 <w:spacing w:before="80" w:after="40"/>
 <w:outlineLvl w:val="3"/>
 </w:pPr>
@@ -394,7 +398,7 @@
 <w:basedOn w:val="a3"/>
 <w:link w:val="1"/>
 <w:uiPriority w:val="9"/>
-<w:rsid w:val="00012BD7"/>
+<w:rsid w:val="00DF4E48"/>
 <w:rPr>
 <w:rFonts w:ascii="Times New Roman" w:eastAsiaTheme="majorEastAsia" w:hAnsi="Times New Roman" w:cstheme="majorBidi"/>
 <w:b/>
@@ -407,7 +411,7 @@
 <w:basedOn w:val="a3"/>
 <w:link w:val="2"/>
 <w:uiPriority w:val="9"/>
-<w:rsid w:val="001C1AE1"/>
+<w:rsid w:val="00DF4E48"/>
 <w:rPr>
 <w:rFonts w:ascii="Times New Roman" w:eastAsiaTheme="majorEastAsia" w:hAnsi="Times New Roman" w:cstheme="majorBidi"/>
 <w:b/>
@@ -420,7 +424,7 @@
 <w:basedOn w:val="a3"/>
 <w:link w:val="3"/>
 <w:uiPriority w:val="9"/>
-<w:rsid w:val="00A5455C"/>
+<w:rsid w:val="00DF4E48"/>
 <w:rPr>
 <w:rFonts w:ascii="Times New Roman" w:eastAsiaTheme="majorEastAsia" w:hAnsi="Times New Roman" w:cstheme="majorBidi"/>
 <w:b/>
@@ -433,7 +437,7 @@
 <w:basedOn w:val="a3"/>
 <w:link w:val="4"/>
 <w:uiPriority w:val="9"/>
-<w:rsid w:val="00AD52B0"/>
+<w:rsid w:val="00DF4E48"/>
 <w:rPr>
 <w:rFonts w:ascii="Times New Roman" w:eastAsiaTheme="majorEastAsia" w:hAnsi="Times New Roman" w:cstheme="majorBidi"/>
 <w:b/>
@@ -904,8 +908,8 @@
 <w:szCs w:val="18"/>
 </w:rPr>
 </w:style>
-<w:style w:type="character" w:customStyle="1" w:styleId="UnresolvedMention">
-<w:name w:val="Unresolved Mention"/>
+<w:style w:type="character" w:customStyle="1" w:styleId="12">
+<w:name w:val="Неразрешенное упоминание1"/>
 <w:basedOn w:val="a3"/>
 <w:uiPriority w:val="99"/>
 <w:semiHidden/>
@@ -1001,8 +1005,9 @@
 <w:next w:val="a2"/>
 <w:link w:val="00"/>
 <w:qFormat/>
-<w:rsid w:val="0071225F"/>
+<w:rsid w:val="00DF4E48"/>
 <w:pPr>
+<w:suppressAutoHyphens/>
 <w:ind w:firstLine="0"/>
 <w:jc w:val="center"/>
 </w:pPr>
@@ -1027,7 +1032,7 @@
 <w:name w:val="Заголовок 0 Знак"/>
 <w:basedOn w:val="a3"/>
 <w:link w:val="0"/>
-<w:rsid w:val="0071225F"/>
+<w:rsid w:val="00DF4E48"/>
 <w:rPr>
 <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
 <w:b/>
@@ -1061,6 +1066,8 @@
 <w:link w:val="aff0"/>
 <w:rsid w:val="00A26E0D"/>
 <w:rPr>
+<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+<w:sz w:val="28"/>
 <w:lang w:val="en-US" w:eastAsia="ru-RU"/>
 </w:rPr>
 </w:style>
@@ -1106,6 +1113,10 @@
 <w:basedOn w:val="aa"/>
 <w:link w:val="a"/>
 <w:rsid w:val="00D8402D"/>
+<w:rPr>
+<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+<w:sz w:val="28"/>
+</w:rPr>
 </w:style>
 <w:style w:type="paragraph" w:customStyle="1" w:styleId="aff5">
 <w:name w:val="Таблица_Подпись"/>
@@ -1113,10 +1124,10 @@
 <w:next w:val="a2"/>
 <w:link w:val="aff6"/>
 <w:qFormat/>
-<w:rsid w:val="00D25F98"/>
+<w:rsid w:val="008D4793"/>
 <w:pPr>
 <w:keepNext/>
-<w:spacing w:line="240" w:lineRule="auto"/>
+<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>
 <w:ind w:firstLine="0"/>
 </w:pPr>
 </w:style>
@@ -1124,6 +1135,6 @@
 <w:name w:val="Таблица_Подпись Знак"/>
 <w:basedOn w:val="aff"/>
 <w:link w:val="aff5"/>
-<w:rsid w:val="00D25F98"/>
+<w:rsid w:val="008D4793"/>
 </w:style>
 </w:styles>

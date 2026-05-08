@@ -1,12 +1,12 @@
 import { CodeLens, InlineCompletionItem, TextDocument, Position, CompletionItem, CompletionItemKind, Hover, InlayHint, SnippetString, MarkdownString, Range, InlayHintKind, type CodeLensProvider, workspace, EventEmitter } from "vscode";
-import { choice } from "./utils";
+import { choice, repeat } from "./utils";
 
 export function md_completion(document: TextDocument, position: Position): CompletionItem[] | undefined
 {
 	const line = document.lineAt(position);
 	const linePrefix = line.text.slice(0, position.character);
 	// if (!linePrefix.startsWith("!")) return;
-	const r = [] as CompletionItem[];
+	const res = [] as CompletionItem[];
 	if (linePrefix == "!" || linePrefix == "")
 	{
 		const item = new CompletionItem({
@@ -18,7 +18,7 @@ export function md_completion(document: TextDocument, position: Position): Compl
 		item.sortText = "!doc";
 		item.documentation = new MarkdownString("Вставляет блок для вставки docx");
 		item.documentation.appendCodeblock('!(путькфайлу){\n\t"поле": "значение",\n}');
-		r.push(item);
+		res.push(item);
 	}
 	if (linePrefix == "")
 	{
@@ -28,39 +28,51 @@ export function md_completion(document: TextDocument, position: Position): Compl
 		}, CompletionItemKind.Snippet);
 		item.insertText = new SnippetString('${1:h1} | ${2:h2}\n---|---\n${3:v1} | ${4:v2}\n');
 		item.sortText = "!table";
-		r.push(item);
+		res.push(item);
 	}
 	const range = new Range(position, line.range.end);
-	function addHint(text: string, word: string, detail: string, documentation?: string, deft?: string | (() => string), mod?: (item: CompletionItem) => void)
+	function addHint(text: string, words: string | string[], detail: string, documentation?: string, deft?: string | (() => string), options?: string[], mod?: (item: CompletionItem) => void)
 	{
 		const rem = { v: "" };
-		if (completeWord(text, word, rem))
+		words = typeof words == "string" ? [words] : words;
+		for (const word of words)
 		{
-			const i = text.lastIndexOf(" ");
-			const label = i > 0 ? word.slice(i + 1) : word;
-			const item = new CompletionItem({
-				label,
-				description: detail,
-			}, CompletionItemKind.Constant);
-			item.insertText = rem.v;
-			if (deft) item.insertText += " " + (typeof deft == "function" ? deft() : deft);
-			item.range = range;
-			item.documentation = new MarkdownString(documentation || detail);
-			mod?.(item);
-			r.push(item);
+			let f = false;
+			for (const option of ["", ...(options || [])])
+			{
+				const w = option ? word + " " + option : word;
+				if (!completeWord(text, w, rem)) continue;
+				f = true;
+
+				const i = text.lastIndexOf(" ");
+				const label = i > 0 ? w.slice(i + 1) : w;
+				const item = new CompletionItem({
+					label,
+					description: detail,
+				}, CompletionItemKind.Constant);
+				item.insertText = rem.v;
+				if (!option && deft) item.insertText += " " + (typeof deft == "function" ? deft() : deft);
+				item.sortText = item.insertText;
+				item.range = range;
+				item.documentation = new MarkdownString(documentation || detail);
+				mod?.(item);
+				res.push(item);
+				if (!option) return;
+			}
+			if (f) return;
 		}
 	}
-	addHint(linePrefix, "!!rule ", "Вставить правило", undefined, undefined, item =>
+	addHint(linePrefix, "!!rule ", "Вставить правило", undefined, undefined, undefined, item =>
 		item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" }
 	);
 	addHint(linePrefix, "!!section ", "Вставить разрыв секции");
-	addHint(linePrefix, "!!section from", "", undefined, "2", item => item.label = { label: "!!section from", description: "Начать нумерацию страниц" });
+	addHint(linePrefix, "!!section from", "", undefined, "2", undefined, item => item.label = { label: "!!section from", description: "Начать нумерацию страниц" });
 	if (linePrefix.startsWith("!!rule "))
 	{
 		const rule = linePrefix.slice("!!rule ".length);
 		Object.values(Rules).forEach(v =>
 		{
-			addHint(rule, v.keyword, v.short, v.doc, v.default, it =>
+			addHint(rule, v.keyword, v.short, v.doc, v.default, v.options, it =>
 			{
 				it.sortText = v.sortText;
 			});
@@ -70,14 +82,14 @@ export function md_completion(document: TextDocument, position: Position): Compl
 	{
 		Headings.forEach((v, i) =>
 		{
-			addHint(linePrefix, "# " + v.keyword, v.short, v.doc, undefined, it =>
+			addHint(linePrefix, "# " + v.keyword, v.short, v.doc, undefined, undefined, it =>
 			{
 				it.sortText = `${i}`;
 				if (v.text) it.insertText += v.text;
 			});
 		});
 	}
-	return r;
+	return res;
 }
 
 export function md_inlineCompletion(document: TextDocument, position: Position): InlineCompletionItem[] | undefined
@@ -125,13 +137,19 @@ export function md_hover(document: TextDocument, position: Position): Hover | un
 	{
 		const lineNorm = line.replaceAll(/\s+/g, " ").trim().toLowerCase();
 
-		for (const { keyword, doc } of Object.values(Rules))
+		for (const { keyword, doc, hint } of Object.values(Rules))
 		{
-			if (!lineNorm.startsWith("!!rule " + keyword)) continue;
-			const content = new MarkdownString();
-			content.appendCodeblock("!!rule " + keyword);
-			content.appendMarkdown(doc);
-			return new Hover(content);
+			const keywords = typeof keyword == "string" ? [keyword] : keyword;
+			for (const keyword of keywords)
+			{
+				if (!lineNorm.startsWith("!!rule " + keyword)) continue;
+				const h = hint?.(keyword);
+				const content = new MarkdownString();
+				content.appendCodeblock("!!rule " + keyword);
+				if (h) content.appendMarkdown(`\n\n${h}\n\n`);
+				content.appendMarkdown(doc);
+				return new Hover(content);
+			}
 		}
 	}
 	if (line.startsWith("!!section"))
@@ -302,13 +320,33 @@ function completeWord(text: string, word: string, rem: { v: string })
 	return true;
 }
 
+const headingSelectors = repeat(5, n => `h${n + 1}`).map(v => [v, v + "+"]).flat();
+function headingSelectorsHint(ln: string)
+{
+	const m = /headings h([1-6])(\+?)/.exec(ln);
+	if (!m) return "";
+	const level = m[1];
+	const plus = m[2] == "+";
+	return "*Стиль заголовка " + (
+		{
+			"1": "первого",
+			"2": "второго",
+			"3": "третьего",
+			"4": "четвёртого",
+			"5": "пятого",
+			"6": "шестого",
+		}[level]
+	) + (plus ? " и последующих уровней*" : " уровня*")
+}
 
 const Rules: Record<string, {
-	keyword: string,
+	keyword: string | string[],
 	short: string,
 	doc: string,
 	sortText?: string,
 	default?: string | (() => string),
+	options?: string[],
+	hint?: (line: string) => string,
 }> = {
 	numbering_lazy: {
 		keyword: "numbering lazy",
@@ -406,6 +444,110 @@ const Rules: Record<string, {
 			"### 🌈 Спецэффект «Вырвиглаз»\n\nВаш первый шейдер, написанный в три часа ночи по туториалу индуса с YouTube. Код состоит из костылей, магии и отчаяния, но зато ОНО ПЕРЕЛИВАЕТСЯ.\n\n**Почему это в серьезном софте:**\nЭто ваша личная «пасхалка». Если заказчик требует «сделать красиво» и добавить «сочности» в отчет по бурению скважин — просто жмите сюда.\n\n* **FPS комиссии:** Падает до 1 кадра в секунду.\n* **Bake Lighting:** Не поможет, тут всё горит само.\n* **Коллизии:** Текст проходит сквозь границы адекватности.\n\n**Важно:** Если ваш диплом не хоррор — он им станет.",
 			"### 🌈 Ошибка Трансмутации\n\nВы пытались создать идеальный отчет, но что-то пошло не так, и из котла вылезло ЭТО. Вместо свинцовой серьезности вы получили радужную ртуть.\n\n**Алхимические свойства:**\nЭта функция полностью следует закону эквивалентного обмена. Вы получаете «красоту», но теряете возможность защититься. Текст становится настолько ярким, что сквозь него видно, как плачет ваш научный руководитель.\n\n- **Стабильность:** Критически низкая.\n- **Класс заклинания:** Школа Иллюзий (уровень: Безнадёга).\n* **Урон по рассудку:** +100.\n\n**Предупреждение:** Не смешивать с `!!rule highlight code`, иначе возможен разрыв в пространстве-времени.",
 		) + "\n\n### **🧙‍♂️ Резонанс с Демиургом**\nЧувствуете, что инструменту не хватает важной детали? Если у вас есть идея полезной функции, которая упростит жизнь или просто добавит немного магии — пишите в [приемную верховного алхимика](https://github.com/MixelTe/md2gost/issues).\n\n*Примечание: Рациональные предложения сразу попадают в свиток планов, а для реализации безумных идей автору требуется приступ внезапного вдохновения.*",
+	},
+
+	headings_size: {
+		keyword: headingSelectors.map(h => `headings ${h} size`),
+		short: "Размер заголовков",
+		doc: "Установить размер заголовков\n\n- Синтаксис: `!!rule headings h<1-6>[+] size <int>`\n- Примеры:\n  - `!!rule headings h1 size 18` – установить размер 18 пт для заголовков первого уровня\n  - `!!rule headings h2+ size 14` – установить размер 14 пт для заголовков второго и последующих уровней\n- По умолчанию: 14 для всех заголовков",
+		default: "14",
+		hint: headingSelectorsHint,
+	},
+	headings_spacing_before: {
+		keyword: headingSelectors.map(h => `headings ${h} spacing before`),
+		short: "Интервалы до заголовков",
+		doc: "Установить интервал до заголовков\n\n- Синтаксис: `!!rule headings h<1-6>[+] spacing <before|after> <int>`\n- Пример: `!!rule headings h1 spacing before 10`\n- По умолчанию:\n  - h1 – before: 18; after: 4\n  - остальные – before: 8; after: 4",
+		default: "4",
+		hint: headingSelectorsHint,
+	},
+	headings_spacing_after: {
+		keyword: headingSelectors.map(h => `headings ${h} spacing after`),
+		short: "Интервалы после заголовков",
+		doc: "Установить интервал после заголовков\n\n- Синтаксис: `!!rule headings h<1-6>[+] spacing <before|after> <int>`\n- Пример: `!!rule headings h1 spacing after 10`\n- По умолчанию:\n  - h1 – before: 18; after: 4\n  - остальные – before: 8; after: 4",
+		default: "4",
+		hint: headingSelectorsHint,
+	},
+	headings_uppercase: {
+		keyword: headingSelectors.map(h => `headings ${h} uppercase`),
+		short: "Верхний регистр заголовков",
+		doc: "Приводить заголовки к верхнему регистру\n\n- Синтаксис: `!!rule headings h<1-6>[+] uppercase`\n- Пример: `!!rule headings h1 uppercase`\n- По умолчанию: выключено для всех",
+		hint: headingSelectorsHint,
+	},
+	headings_indent: {
+		keyword: headingSelectors.map(h => `headings ${h} indent`),
+		short: "Отступ заголовков",
+		doc: "Установить тип отступа заголовков\n\n- Синтаксис: `!!rule headings h<1-6>[+] indent <first_line|left>`\n- Пример: `!!rule headings h1 indent left`\n- По умолчанию: `first_line` для всех",
+		default: "left",
+		hint: headingSelectorsHint,
+	},
+	headings_alt_style_1: {
+		keyword: "headings alt_style_1",
+		short: "Альтернативный стиль заголовков",
+		doc: "Использовать готовый набор стилей заголовков\n\n- Синтаксис: `!!rule headings alt_style_1`\n- Может быть переопределён правилами ниже по документу\n- Эквивалентен набору стандартных `!!rule` для размеров, интервалов и выравнивания заголовков\n\n```\n!!rule headings h1+ indent left\n!!rule headings h1+ spacing after 10\n!!rule headings h1 size 18\n!!rule headings h1 uppercase\n!!rule headings h1 spacing before 0\n!!rule headings h2 size 16\n!!rule headings h2+ spacing before 15```",
+	},
+	hyphenation: {
+		keyword: "hyphenation",
+		short: "Автоматические переносы",
+		doc: "Включить автоматическую расстановку переносов\n\n- Синтаксис: `!!rule hyphenation`\n- По умолчанию: выключено",
+	},
+	table_title_style: {
+		keyword: "table title style",
+		short: "Стиль названия таблицы",
+		doc: "Установить начертание названия таблицы\n\n- Синтаксис: `!!rule table title style <normal|bold|italic>`\n- По умолчанию: `normal`",
+		default: "italic",
+		options: ["normal", "bold", "italic"],
+	},
+	table_heading_style: {
+		keyword: "table heading style",
+		short: "Стиль заголовка таблицы",
+		doc: "Установить начертание заголовков таблицы\n\n- Синтаксис: `!!rule table heading style <normal|bold|italic>`\n- Пример: `!!rule table heading style bold`\n- По умолчанию: `normal`",
+		default: "bold",
+		options: ["normal", "bold", "italic"],
+	},
+	table_heading_align: {
+		keyword: "table heading align",
+		short: "Выравнивание заголовка таблицы",
+		doc: "Установить выравнивание заголовков таблицы\n\n- Синтаксис: `!!rule table heading align <left|center|right>`\n- Пример: `!!rule table heading align left`\n- По умолчанию: `center`",
+		default: "left",
+		options: ["left", "center", "right"],
+	},
+	table_text_size: {
+		keyword: "table text size",
+		short: "Размер текста таблицы",
+		doc: "Установить размер шрифта текста таблицы\n\n- Синтаксис: `!!rule table text size <int>`\n- Пример: `!!rule table text size 10`\n- По умолчанию: `12`",
+		default: "12",
+	},
+	code_title_style: {
+		keyword: "code title style",
+		short: "Стиль названия листинга",
+		doc: "Установить начертание названия листинга\n\n- Синтаксис: `!!rule code title style <normal|bold|italic>`\n- По умолчанию: `normal`",
+		default: "italic",
+		options: ["normal", "bold", "italic"],
+	},
+	code_highlight: {
+		keyword: "code highlight",
+		short: "Подсветка кода",
+		doc: "Включить подсветку синтаксиса кода\n\n- Синтаксис: `!!rule code highlight`\n- По умолчанию: выключено",
+	},
+	list_unordered_style: {
+		keyword: "list unordered style",
+		short: "Стиль ненумерованного списка",
+		doc: "Установить стиль маркеров списка\n\n- Синтаксис: `!!rule list unordered style <dash|bullet|keep>`\n- `keep` – сохранять символ, использованный в исходном файле\n- Пример: `!!rule list unordered style keep`\n- По умолчанию: `bullet`",
+		default: "keep",
+		options: ["dash", "bullet", "keep"],
+	},
+	list_ordered_style: {
+		keyword: "list ordered style",
+		short: "Стиль нумерованного списка",
+		doc: "Установить стиль нумерации списка\n\n- Синтаксис: `!!rule list ordered style <bracket|dot|keep>`\n- `keep` – сохранять символ, использованный в исходном файле\n- Пример: `!!rule list ordered style keep`\n- По умолчанию: `bracket`",
+		default: "keep",
+		options: ["bracket", "dot", "keep"],
+	},
+	list_autopunctuation: {
+		keyword: "list autopunctuation",
+		short: "Автопунктуация списков",
+		doc: "Автоматически расставлять знаки препинания в элементах списка\n\n- Синтаксис: `!!rule list autopunctuation <on|off>`\n- Пример: `!!rule list autopunctuation off`\n- По умолчанию: `on`",
+		default: "off",
 	},
 };
 const Headings: {

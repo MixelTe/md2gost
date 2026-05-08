@@ -19,7 +19,8 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 	function parseList(text: string, parts: string[], ordered: boolean, level: number = 0)
 	{
 		const startIndex = isFinite(parseInt(parts[0])) ? parseInt(parts[0]) : 1;
-		const node: DocNode = { type: "list", ordered, startIndex, items: [{ type: "listItem", text }] };
+		const mark = ordered ? (parts[1] == "." ? "." : ")") : (parts[1] == "*" ? "*" : "-");
+		const node: DocNode = { type: "list", ordered, mark, startIndex, items: [{ type: "listItem", text }] };
 		const P: Prefix = ordered ? "1)" : "*";
 		function skipEmptyLines()
 		{
@@ -106,47 +107,114 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 		const num = match ? parseInt(match[1] || "") : NaN;
 		return { type: "sectionBreak", pageStart: isFinite(num) ? num : null };
 	}
+	class RuleError extends Error { };
 	function apllyRule(text: string)
 	{
 		text = text.trim().replaceAll(/\s+/g, " ");
 		const textl = text.toLowerCase();
 		const rules: Record<string, (v: string) => any> = {
-			"highlight code": v => doc.codeHighlighting = true,
+			"highlight code": v => doc.code.highlight = true,  // deprecated
 			"rainbow": v => doc.rainbow = true,
 			"title": v => doc.title = v,
 			"author": v => doc.author = v,
 			"etime": v => doc.etime = tryParseInt(v),
 			"ctime": v => doc.ctime = tryParseDate(v),
 			"mtime": v => doc.mtime = tryParseDate(v),
-			"numbering lazy": v => doc.numberingLazy = !v || v == "on",
-			"numbering sections": v => doc.numberingSections = !v || v == "on",
-			"numbering autoprefix": v => doc.numberingAutoprefix = v == "on",
+			"numbering lazy": v => { choices(v, "", "on", "off"); doc.numberingLazy = !v || v == "on" },
+			"numbering sections": v => { choices(v, "", "on", "off"); doc.numberingSections = !v || v == "on" },
+			"numbering autoprefix": v => { choices(v, "", "on", "off"); doc.numberingAutoprefix = v == "on" },
 			"backtick_mono": v => doc.backtickMono = choices(v, "italic", "off", "on", "outline"),
+			"hyphenation": v => doc.hyphenation = true,
+			"table title style": v => doc.table.title.style = choices(v, "normal", "bold", "italic"),
+			"table heading style": v => doc.table.heading.style = choices(v, "normal", "bold", "italic"),
+			"table heading align": v => doc.table.heading.align = choices(v, "left", "center", "right"),
+			"table text size": v => doc.table.text.size = tryParseInt(v),
+			"code title style": v => doc.code.title.style = choices(v, "normal", "bold", "italic"),
+			"code highlight": v => { choices(v, "", "on", "off"); doc.code.highlight = !v || v == "on" },
+			"list ordered style": v => doc.list.ordered.style = choices(v, "bracket", "dot", "keep"),
+			"list unordered style": v => doc.list.unordered.style = choices(v, "dash", "bullet", "keep"),
+			"list autopunctuation": v => { choices(v, "", "on", "off"); doc.list.autopunctuation = v == "on" },
+			"headings alt_style_1": v =>
+			{
+				for (let i = 1 as 1 | 2 | 3 | 4 | 5 | 6; i <= 6; i++)
+				{
+					doc.headings[`h${i}`].indent_full = true;
+					doc.headings[`h${i}`].spacing.after = 10;
+					doc.headings[`h${i}`].spacing.before = 15;
+				}
+				doc.headings.h1.size = 18;
+				doc.headings.h1.uppercase = true;
+				doc.headings.h1.spacing.before = 0;
+				doc.headings.h2.size = 16;
+			},
 		};
+		const reRules: { re: RegExp, n: (m: RegExpExecArray) => { rule: string, value: string }, f: (m: RegExpExecArray) => void }[] = [
+			{
+				re: /^(headings (h[1-6])(\+?) (size|spacing (before|after)|uppercase|indent))(.*)/,
+				n: (m) => ({ rule: m[1], value: (m.at(-1) || "").trim() }), f(m)
+				{
+					const level = parseInt(m[2][1]);
+					const plus = m[3] == "+";
+					const property = m[4];
+					const value = (m.at(-1) || "").trim();
+					for (let i = level as 1 | 2 | 3 | 4 | 5 | 6; i <= (plus ? 6 : level); i++)
+					{
+						const h = doc.headings[`h${i}`];
+						if (property == "size") h.size = tryParseInt(value);
+						else if (property == "spacing before") h.spacing.before = tryParseInt(value);
+						else if (property == "spacing after") h.spacing.after = tryParseInt(value);
+						else if (property == "uppercase") { choices(value, "", "on", "off"); h.uppercase = !value || value == "on"; }
+						else if (property == "indent") h.indent_full = choices(value, "first_line", "left") == "left";
+					}
+				},
+			},
+		]
 
 		const rulePrefix = Object.keys(rules).find(prefix =>
 			textl.startsWith(prefix) && !textl.slice(prefix.length)[0]?.trim()
 		);
-		if (rulePrefix) rules[rulePrefix](text.slice(rulePrefix.length).trim());
-		else logwarn(`Wrong rule: "${text}"`);
+		const reRule = rulePrefix ? undefined : reRules.map(({ re, f, n }) => ({ f, n, m: re.exec(textl) })).find(({ m }) => !!m);
+		let applyRule = rulePrefix ?
+			() => rules[rulePrefix](text.slice(rulePrefix.length).trim()) :
+			reRule ? () => reRule.f(reRule.m!) : undefined;
+		if (applyRule)
+		{
+			try { applyRule(); }
+			catch (e)
+			{
+				let rule = rulePrefix;
+				let value = rulePrefix && text.slice(rulePrefix.length);
+				if (reRule)
+				{
+					const n = reRule.n(reRule.m!);
+					rule = n.rule;
+					value = n.value;
+				}
+				if (e instanceof RuleError) logwarn(`Rule "${rule}" wrong value: "${value}". ${e.message}`);
+				else throw e;
+			}
+		}
+		else
+		{
+			logwarn(`Wrong rule: "${text}"`);
+		}
 
 		function tryParseInt(v: string)
 		{
 			const num = parseInt(v);
-			return isFinite(num) ? num : undefined;
+			if (!isFinite(num)) throw new RuleError("Only integers are allowed");
+			return num;
 		}
 		function tryParseDate(v: string)
 		{
 			const date = new Date(v);
-			return isFinite(date.valueOf()) ? date : undefined;
+			if (!isFinite(date.valueOf())) throw new RuleError("Only ISO 8601 date is allowed");
+			return date;
 		}
-		function choices<D extends string, V extends string>(
-			v: string,
-			def: D,
-			...vars: V[]
-		): D | V
+		function choices<V extends string>(v: string, ...vars: V[]): V
 		{
-			return vars.includes(v as any) ? (v as unknown as V) : def;
+			if (vars.includes(v as any)) return v as unknown as V;
+			throw new RuleError("Allowed: " + vars.join(", "));
 		}
 	}
 
@@ -223,14 +291,18 @@ export function parseLine(line: string): { prefix: Prefix, text: string, level: 
 			parts: [m_img[1]!, m_img[2]!, m_img[4]!],
 		};
 	}
-	if (prefix == "-") prefix = "*";
+	if (prefix == "-" || prefix == "*")
+	{
+		parts = ["", prefix];
+		prefix = "*";
+	}
 	if (prefix.endsWith(".") || prefix.endsWith(")"))
 	{
 		const index = parseInt(prefix.slice(0, -1));
 		if (isFinite(index))
 		{
+			parts = [`${index}`, prefix.at(-1) || ")"];
 			prefix = "1)";
-			parts = [`${index}`];
 		}
 	}
 	if (prefix.startsWith("```")) return { prefix: "Code", text: line.trim().slice(3), level, parts };
@@ -259,30 +331,30 @@ function findDocs(nodes: DocNode[], logwarn: (msg: string) => void = console.war
 			dict: stringifyDict(dict),
 		});
 	}
-	function stringifyDict(dict: Record<string, JSONValue>)
+}
+export function stringifyDict(dict: Record<string, JSONValue>)
+{
+	const r = {} as Record<string, string>;
+	for (const key in dict)
 	{
-		const r = {} as Record<string, string>;
-		for (const key in dict)
+		let v = dict[key];
+		if (typeof v == "string" || typeof v == "boolean" || typeof v == "number")
 		{
-			let v = dict[key];
-			if (typeof v == "string" || typeof v == "boolean" || typeof v == "number")
-			{
-				r[key] = `${v}`;
-				continue;
-			}
-			if (!v) continue;
-			if (v instanceof Array)
-			{
-				const d = {} as Record<string, JSONValue>;
-				v.forEach((v, i) => d[`${i}`] = v);
-				v = d;
-			}
-			const d = stringifyDict(v);
-			for (const k in d)
-				r[key + "." + k] = d[k];
+			r[key] = `${v}`;
+			continue;
 		}
-		return r;
+		if (!v) continue;
+		if (v instanceof Array)
+		{
+			const d = {} as Record<string, JSONValue>;
+			v.forEach((v, i) => d[`${i}`] = v);
+			v = d;
+		}
+		const d = stringifyDict(v);
+		for (const k in d)
+			r[key + "." + k] = d[k];
 	}
+	return r;
 }
 
 function findTables(nodes: DocNode[])
@@ -397,32 +469,32 @@ function runifyText(text: string, rainbow = false): Rune[]
 			linebreak: i > 0,
 			link: rune.link,
 		}) as Rune)).flat()
-		.map(rune => rune.text.split("***").map((p, i) => ({
+		.map(rune => rune.text.split("***").map((p, i, arr) => ({
 			text: p,
 			linebreak: i == 0 && rune.linebreak,
 			link: rune.link,
-			bold: i % 2 == 1,
-			italic: i % 2 == 1,
+			bold: i % 2 == 1 && i != arr.length - 1,
+			italic: i % 2 == 1 && i != arr.length - 1,
 		}) as Rune)).flat()
-		.map(rune => rune.text.split("**").map((p, i) => ({
+		.map(rune => rune.text.split("**").map((p, i, arr) => ({
 			text: p,
 			linebreak: i == 0 && rune.linebreak,
 			link: rune.link,
-			bold: i % 2 == 1 || rune.bold,
+			bold: (i % 2 == 1 && i != arr.length - 1) || rune.bold,
 			italic: rune.italic,
 		}) as Rune)).flat()
-		.map(rune => rune.text.split("*").map((p, i) => ({
+		.map(rune => rune.text.split("*").map((p, i, arr) => ({
 			text: p,
 			linebreak: i == 0 && rune.linebreak,
 			link: rune.link,
 			bold: rune.bold,
-			italic: i % 2 == 1 || rune.italic,
+			italic: (i % 2 == 1 && i != arr.length - 1) || rune.italic,
 		}) as Rune)).flat()
-		.map(rune => rune.text.split("`").map((p, i) => ({
+		.map(rune => rune.text.split("`").map((p, i, arr) => ({
 			...rune,
 			text: p,
 			linebreak: i == 0 && rune.linebreak,
-			mono: i % 2 == 1,
+			mono: (i % 2 == 1 && i != arr.length - 1),
 		}) as Rune)).flat()
 		.map(rune => rune.link ? [rune] : rune.text.split(/(\[!?[a-zA-Zа-яА-ЯёЁ_\d#]+\s*[+\-]?\s*\d*\])/g).map((p, i) =>
 		{
