@@ -49,7 +49,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 				rows.push(tableRow(item.text.slice(0, i).trim(), item.text.slice(i + 1).trim()));
 			}
 			doc.nodes.splice(i + 1, 1, { type: "text", text: "В настоящем отчете применяются следующие термины с соответствующими определениями." });
-			doc.nodes.splice(i + 2, 0, { type: "table", align, rows, normalFontSize: true });
+			doc.nodes.splice(i + 2, 0, { type: "table", align, rows, normalFontSize: true, tags: ["definitions_table"] });
 			doc.nodes.splice(i + 3, 0, { type: "pageBreak" });
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ")
@@ -152,6 +152,30 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 		{
 			if (node.title)
 				node.title = trimEnd(node.title, ".", ",", ';', ":", "!");
+		}
+		else if (node.type == "externalDoc")
+		{
+			const nextNode = doc.nodes[i + 1];
+			if (
+				nextNode &&
+				nextNode?.type != "externalDoc" &&
+				nextNode?.type != "pageBreak" &&
+				nextNode?.type != "sectionBreak"
+			)
+			{
+				doc.nodes.splice(i + 1, 0, { type: "pageBreak" });
+			}
+			const prevNode = doc.nodes[i - 1];
+			if (
+				prevNode &&
+				prevNode?.type != "externalDoc" &&
+				prevNode?.type != "pageBreak" &&
+				prevNode?.type != "sectionBreak"
+			)
+			{
+				doc.nodes.splice(i, 0, { type: "pageBreak" });
+				i++;
+			}
 		}
 	}
 }

@@ -63,7 +63,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 						if (i + 1 < document.lineCount)
 						{
 							const line = document.lineAt(i + 1).text.trim();
-							const { prefix } = parseLine(text);
+							const { prefix } = parseLine(line);
 							addNewline = prefix == "" && line != "";
 						}
 						const jsonS = startI == i ?

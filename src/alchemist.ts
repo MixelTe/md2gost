@@ -83,7 +83,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 		{
 			if (node.type == "code") { counter.codes++; counter.codesAll++; }
 			if (node.type == "image") { counter.imgs++; counter.imgsAll++; }
-			if (node.type == "table") { counter.tables++; counter.tablesAll++; }
+			if (node.type == "table" && !node.tags?.includes("definitions_table")) { counter.tables++; counter.tablesAll++; }
 			prevNum = nextNum;
 			prevPrefix = prefix;
 			nextNum = -1;

@@ -1,4 +1,4 @@
-import { CodeLens, InlineCompletionItem, TextDocument, Position, CompletionItem, CompletionItemKind, Hover, InlayHint, SnippetString, MarkdownString, Range, InlayHintKind, type CodeLensProvider, workspace, EventEmitter } from "vscode";
+import { CodeLens, InlineCompletionItem, TextDocument, Position, CompletionItem, CompletionItemKind, Hover, InlayHint, SnippetString, MarkdownString, Range, InlayHintKind, type CodeLensProvider, workspace, EventEmitter, type ExtensionContext, Diagnostic, languages, DiagnosticSeverity, window, type TextEditor } from "vscode";
 import { choice, repeat } from "./utils";
 
 export function md_completion(document: TextDocument, position: Position): CompletionItem[] | undefined
@@ -72,6 +72,7 @@ export function md_completion(document: TextDocument, position: Position): Compl
 		const rule = linePrefix.slice("!!rule ".length);
 		Object.values(Rules).forEach(v =>
 		{
+			if (v.deprecated) return;
 			addHint(rule, v.keyword, v.short, v.doc, v.default, v.options, it =>
 			{
 				it.sortText = v.sortText;
@@ -313,6 +314,99 @@ export class TableCodeLensProvider implements CodeLensProvider
 	}
 }
 
+export function addDiagnostic(context: ExtensionContext)
+{
+	const diagnosticCollection = languages.createDiagnosticCollection("md2gost");
+	context.subscriptions.push(diagnosticCollection);
+
+	function generateWarning(document: TextDocument)
+	{
+		const diagnostics: Diagnostic[] = [];
+
+		for (let i = 0; i < document.lineCount; i++)
+		{
+			const line = document.lineAt(i);
+			if (!line.text.startsWith("!!rule")) continue;
+
+			const text = line.text.replaceAll(/\s+/g, " ").trim().toLowerCase();
+
+			let rule = null as null | typeof Rules[string];
+			let value = "";
+			for (const r of Object.values(Rules))
+			{
+				const keywords = typeof r.keyword == "string" ? [r.keyword] : r.keyword;
+				for (const keyword of keywords)
+				{
+					if (!text.startsWith("!!rule " + keyword)) continue;
+					rule = r;
+					value = text.slice(("!!rule " + keyword).length).trim();
+					break;
+				}
+				if (rule) break;
+			}
+			if (!rule)
+			{
+				addWarn(`Неизвестное правило: ${text}`);
+				continue;
+			}
+			if (((rule.type == "int" || rule.type == "string") && rule.options) || rule.type == "bool")
+			{
+				const options = rule.type == "bool" ? ["", "on", "off"] : rule.options!;
+				if (options.findIndex(v => String(v) == value) < 0)
+					addWarn(`Wrong value: "${value}". Допустимые: ${options.join(', ')}`);
+				continue;
+			}
+			if (rule.checker)
+			{
+				const err = rule.checker(value);
+				if (err)
+					addWarn(`Wrong value: "${value}". Требуется: ${err}`,);
+				continue;
+			}
+			if (rule.type == "string") continue;
+			if (rule.type == "toggle")
+			{
+				if (value != "")
+					addWarn(`Правило не принимает входный значений`,);
+				continue;
+			}
+			if (rule.type == "int")
+			{
+				if (isNaN(parseInt(value)))
+					addWarn(`Wrong value: "${value}". Ожидается целое число`);
+				continue;
+			}
+
+			function addWarn(text: string)
+			{
+				diagnostics.push(new Diagnostic(line.range, text, DiagnosticSeverity.Warning));
+			}
+		}
+		diagnosticCollection.set(document.uri, diagnostics);
+	};
+
+	function run(editor: TextEditor | undefined)
+	{
+		if (editor && editor.document.fileName.endsWith(".g.md"))
+		{
+			generateWarning(editor.document);
+		}
+	}
+
+	context.subscriptions.push(
+		window.onDidChangeActiveTextEditor(editor => run(editor))
+	);
+	run(window.activeTextEditor);
+	context.subscriptions.push(
+		workspace.onDidChangeTextDocument(event =>
+		{
+			const editor = window.activeTextEditor;
+			if (editor && event.document == editor.document)
+				run(editor);
+		})
+	);
+}
+
 function completeWord(text: string, word: string, rem: { v: string })
 {
 	if (text.toLowerCase() != word.slice(0, text.length).toLowerCase()) return false;
@@ -341,21 +435,26 @@ function headingSelectorsHint(ln: string)
 
 const Rules: Record<string, {
 	keyword: string | string[],
+	type: "bool" | "int" | "string" | "toggle",
 	short: string,
 	doc: string,
 	sortText?: string,
 	default?: string | (() => string),
 	options?: string[],
 	hint?: (line: string) => string,
+	checker?: (line: string) => null | string,
+	deprecated?: boolean,
 }> = {
 	numbering_lazy: {
 		keyword: "numbering lazy",
+		type: "bool",
 		short: "Ленивая автонумерация",
 		doc: "Включить ленивую нумерацию\n\nКогда включено, более не нужно писать `[#]` в названиях картинок, таблиц и т.д. - добавляется автоматически",
 		sortText: "1",
 	},
 	title: {
 		keyword: "title",
+		type: "string",
 		short: "Заголовок документа",
 		doc: "Указать заголовок документа\n\n- Синтаксис: `!!rule title <text>`\n- Пример: `!!rule title Мой Отчет` \n- По умолчанию: `Document`",
 		default: "Document",
@@ -363,27 +462,32 @@ const Rules: Record<string, {
 	},
 	author: {
 		keyword: "author",
+		type: "string",
 		short: "Автор документа",
 		default: "Student",
 		doc: "Указать автора документа\n\n- Синтаксис: `!!rule author <name>`\n- Пример: `!!rule author Иван Иванов` \n- По умолчанию: `Student`",
 	},
 	backtick_mono_off: {
 		keyword: "backtick_mono off",
+		type: "toggle",
 		short: "Не рендерить моношрифт",
 		doc: "Рендерить ``` `монотекст` ``` как обычный текст\n\nПо умолчанию рендерится как курсив",
 	},
 	backtick_mono_on: {
 		keyword: "backtick_mono on",
+		type: "toggle",
 		short: "Рендерить моношрифт",
 		doc: "Рендерить ``` `монотекст` ``` как моношрифт\n\nПо умолчанию рендерится как курсив",
 	},
 	backtick_mono_outline: {
 		keyword: "backtick_mono outline",
+		type: "toggle",
 		short: "Моношрифт в рамке",
 		doc: "Рендерить ``` `монотекст` ``` как моношрифт в рамке\n\nПо умолчанию рендерится как курсив",
 	},
 	ctime: {
 		keyword: "ctime",
+		type: "string",
 		short: "Указать время создания",
 		doc: "Установить время создания\n- Синтаксис: `!!rule ctime <ISO 8601>`\n- Пример: `!!rule ctime 2026-02-18`\n- По умолчанию время создания `.g.md` файла.",
 		sortText: "timeC",
@@ -395,9 +499,11 @@ const Rules: Record<string, {
 			const day = String(date.getDate()).padStart(2, "0");
 			return `${year}-${month}-${day}`;
 		},
+		checker: v => isNaN(Date.parse(v)) ? "значение в формате ISO 8601" : null,
 	},
 	etime: {
 		keyword: "etime",
+		type: "int",
 		short: "Указать время редактирования в минутах",
 		doc: "Установить время редактирования\n- Синтаксис: `!!rule etime <int>`\n- Пример: `!!rule etime 123`\n- По умолчанию случайное число от 30 до 120.",
 		sortText: "timeE",
@@ -407,9 +513,12 @@ const Rules: Record<string, {
 		keyword: "highlight code",
 		short: "Подсветка синтаксиса",
 		doc: "Включить подсветку синтаксиса в блоках кода.",
+		type: "bool",
+		deprecated: true,
 	},
 	mtime: {
 		keyword: "mtime",
+		type: "string",
 		short: "Указать время изменения",
 		doc: "Установить время изменения\n- Синтаксис: `!!rule mtime <ISO 8601>`\n- Пример: `!!rule mtime 2026-02-18T12:30:00`\n- По умолчанию время рендера.",
 		sortText: "timeM",
@@ -424,19 +533,24 @@ const Rules: Record<string, {
 			const seconds = String(date.getSeconds()).padStart(2, "0");
 			return `${year}-${month}-${day}T${hour}:${minutes}:${seconds}`;
 		},
+		checker: v => isNaN(Date.parse(v)) ? "значение в формате ISO 8601" : null,
 	},
-	numbering_autoprefix_off: {
-		keyword: "numbering autoprefix off",
-		short: "Отключить авто-добавление префикса",
-		doc: "Отключить авто-добавление префикса в подписях автонумерации",
+	numbering_autoprefix: {
+		keyword: "numbering autoprefix",
+		type: "bool",
+		short: "Авто-добавление префикса",
+		doc: "Авто-добавление префикса в подписях автонумерации\n\n- Синтаксис: `!!rule numbering autoprefix <on|off>`\n- Пример: `!!rule numbering autoprefix off`\n- По умолчанию: on",
+		default: "off",
 	},
 	numbering_sections: {
 		keyword: "numbering sections",
+		type: "bool",
 		short: "Автонумерация в формате 1.1",
 		doc: "Автонумерация в формате 1.1",
 	},
 	rainbow: {
 		keyword: "rainbow",
+		type: "toggle",
 		short: choice("Радужный текст", "Градиентная радуга", "Радуга-дуга", "Шейдерная дискотека", "Заклятие Разноцветия"),
 		doc: choice(
 			"### 🌈 Режим «Прощай, диплом!»\n\nТекст окрашивается в цвета, которых не должно существовать в стенах технического вуза.\n\n**Зачем это нужно:**\nЕсли вы внезапно осознали, что *Times New Roman* и отступы по 1.25 см — это оковы системы, и решили превратить свой диплом в афишу рейв-вечеринки.\n\n> ⚠️ **Внимание:** После активации защита диплома автоматически превращается в стендап.\n\n* **Эффект:** Радуга, боль, слёзы проверяющего\n* **ГОСТ:** Ушёл в монастырь.\n* **Рекомендация:** Включать только после фразы «да и пофиг уже»",
@@ -448,6 +562,7 @@ const Rules: Record<string, {
 
 	headings_size: {
 		keyword: headingSelectors.map(h => `headings ${h} size`),
+		type: "int",
 		short: "Размер заголовков",
 		doc: "Установить размер заголовков\n\n- Синтаксис: `!!rule headings h<1-6>[+] size <int>`\n- Примеры:\n  - `!!rule headings h1 size 18` – установить размер 18 пт для заголовков первого уровня\n  - `!!rule headings h2+ size 14` – установить размер 14 пт для заголовков второго и последующих уровней\n- По умолчанию: 14 для всех заголовков",
 		default: "14",
@@ -455,6 +570,7 @@ const Rules: Record<string, {
 	},
 	headings_spacing_before: {
 		keyword: headingSelectors.map(h => `headings ${h} spacing before`),
+		type: "int",
 		short: "Интервалы до заголовков",
 		doc: "Установить интервал до заголовков\n\n- Синтаксис: `!!rule headings h<1-6>[+] spacing <before|after> <int>`\n- Пример: `!!rule headings h1 spacing before 10`\n- По умолчанию:\n  - h1 – before: 18; after: 4\n  - остальные – before: 8; after: 4",
 		default: "4",
@@ -462,6 +578,7 @@ const Rules: Record<string, {
 	},
 	headings_spacing_after: {
 		keyword: headingSelectors.map(h => `headings ${h} spacing after`),
+		type: "int",
 		short: "Интервалы после заголовков",
 		doc: "Установить интервал после заголовков\n\n- Синтаксис: `!!rule headings h<1-6>[+] spacing <before|after> <int>`\n- Пример: `!!rule headings h1 spacing after 10`\n- По умолчанию:\n  - h1 – before: 18; after: 4\n  - остальные – before: 8; after: 4",
 		default: "4",
@@ -469,29 +586,35 @@ const Rules: Record<string, {
 	},
 	headings_uppercase: {
 		keyword: headingSelectors.map(h => `headings ${h} uppercase`),
+		type: "bool",
 		short: "Верхний регистр заголовков",
 		doc: "Приводить заголовки к верхнему регистру\n\n- Синтаксис: `!!rule headings h<1-6>[+] uppercase`\n- Пример: `!!rule headings h1 uppercase`\n- По умолчанию: выключено для всех",
 		hint: headingSelectorsHint,
 	},
 	headings_indent: {
 		keyword: headingSelectors.map(h => `headings ${h} indent`),
+		type: "string",
 		short: "Отступ заголовков",
 		doc: "Установить тип отступа заголовков\n\n- Синтаксис: `!!rule headings h<1-6>[+] indent <first_line|left>`\n- Пример: `!!rule headings h1 indent left`\n- По умолчанию: `first_line` для всех",
 		default: "left",
+		options: ["first_line", "left"],
 		hint: headingSelectorsHint,
 	},
 	headings_alt_style_1: {
 		keyword: "headings alt_style_1",
+		type: "toggle",
 		short: "Альтернативный стиль заголовков",
 		doc: "Использовать готовый набор стилей заголовков\n\n- Синтаксис: `!!rule headings alt_style_1`\n- Может быть переопределён правилами ниже по документу\n- Эквивалентен набору стандартных `!!rule` для размеров, интервалов и выравнивания заголовков\n\n```\n!!rule headings h1+ indent left\n!!rule headings h1+ spacing after 10\n!!rule headings h1 size 18\n!!rule headings h1 uppercase\n!!rule headings h1 spacing before 0\n!!rule headings h2 size 16\n!!rule headings h2+ spacing before 15```",
 	},
 	hyphenation: {
 		keyword: "hyphenation",
+		type: "toggle",
 		short: "Автоматические переносы",
 		doc: "Включить автоматическую расстановку переносов\n\n- Синтаксис: `!!rule hyphenation`\n- По умолчанию: выключено",
 	},
 	table_title_style: {
 		keyword: "table title style",
+		type: "string",
 		short: "Стиль названия таблицы",
 		doc: "Установить начертание названия таблицы\n\n- Синтаксис: `!!rule table title style <normal|bold|italic>`\n- По умолчанию: `normal`",
 		default: "italic",
@@ -499,6 +622,7 @@ const Rules: Record<string, {
 	},
 	table_heading_style: {
 		keyword: "table heading style",
+		type: "string",
 		short: "Стиль заголовка таблицы",
 		doc: "Установить начертание заголовков таблицы\n\n- Синтаксис: `!!rule table heading style <normal|bold|italic>`\n- Пример: `!!rule table heading style bold`\n- По умолчанию: `normal`",
 		default: "bold",
@@ -506,6 +630,7 @@ const Rules: Record<string, {
 	},
 	table_heading_align: {
 		keyword: "table heading align",
+		type: "string",
 		short: "Выравнивание заголовка таблицы",
 		doc: "Установить выравнивание заголовков таблицы\n\n- Синтаксис: `!!rule table heading align <left|center|right>`\n- Пример: `!!rule table heading align left`\n- По умолчанию: `center`",
 		default: "left",
@@ -513,12 +638,14 @@ const Rules: Record<string, {
 	},
 	table_text_size: {
 		keyword: "table text size",
+		type: "int",
 		short: "Размер текста таблицы",
 		doc: "Установить размер шрифта текста таблицы\n\n- Синтаксис: `!!rule table text size <int>`\n- Пример: `!!rule table text size 10`\n- По умолчанию: `12`",
 		default: "12",
 	},
 	code_title_style: {
 		keyword: "code title style",
+		type: "string",
 		short: "Стиль названия листинга",
 		doc: "Установить начертание названия листинга\n\n- Синтаксис: `!!rule code title style <normal|bold|italic>`\n- По умолчанию: `normal`",
 		default: "italic",
@@ -526,11 +653,13 @@ const Rules: Record<string, {
 	},
 	code_highlight: {
 		keyword: "code highlight",
+		type: "bool",
 		short: "Подсветка кода",
 		doc: "Включить подсветку синтаксиса кода\n\n- Синтаксис: `!!rule code highlight`\n- По умолчанию: выключено",
 	},
 	list_unordered_style: {
 		keyword: "list unordered style",
+		type: "string",
 		short: "Стиль ненумерованного списка",
 		doc: "Установить стиль маркеров списка\n\n- Синтаксис: `!!rule list unordered style <dash|bullet|keep>`\n- `keep` – сохранять символ, использованный в исходном файле\n- Пример: `!!rule list unordered style keep`\n- По умолчанию: `bullet`",
 		default: "keep",
@@ -538,6 +667,7 @@ const Rules: Record<string, {
 	},
 	list_ordered_style: {
 		keyword: "list ordered style",
+		type: "string",
 		short: "Стиль нумерованного списка",
 		doc: "Установить стиль нумерации списка\n\n- Синтаксис: `!!rule list ordered style <bracket|dot|keep>`\n- `keep` – сохранять символ, использованный в исходном файле\n- Пример: `!!rule list ordered style keep`\n- По умолчанию: `bracket`",
 		default: "keep",
@@ -545,6 +675,7 @@ const Rules: Record<string, {
 	},
 	list_autopunctuation: {
 		keyword: "list autopunctuation",
+		type: "bool",
 		short: "Автопунктуация списков",
 		doc: "Автоматически расставлять знаки препинания в элементах списка\n\n- Синтаксис: `!!rule list autopunctuation <on|off>`\n- Пример: `!!rule list autopunctuation off`\n- По умолчанию: `on`",
 		default: "off",

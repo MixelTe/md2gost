@@ -5,7 +5,7 @@ import { openFile, trimStart } from "./utils";
 import fs from "fs";
 import path from "path";
 import { md_formatter } from "./formatter";
-import { md_completion, md_hover, md_inlineCompletion, md_inlineHints, TableCodeLensProvider } from "./intellisense";
+import { addDiagnostic, md_completion, md_hover, md_inlineCompletion, md_inlineHints, TableCodeLensProvider } from "./intellisense";
 import { onEditTableCommand } from "./tableEditor";
 import { markdownItPlugin } from "./markdownPlugin";
 
@@ -14,6 +14,7 @@ export function activate(context: vscode.ExtensionContext)
 	const assets = context.asAbsolutePath("assets");
 	showChangelogOnUpdate(context);
 	showFormatterSuggest();
+	addDiagnostic(context);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("md2gost.render_pdf",
