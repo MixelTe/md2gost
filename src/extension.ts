@@ -70,7 +70,7 @@ export function activate(context: vscode.ExtensionContext)
 	));
 	const tableCodeLensProvider = new TableCodeLensProvider();
 	context.subscriptions.push(vscode.languages.registerCodeLensProvider(
-		{ language: "markdown", pattern: "**/*.g.md" },
+		{ language: "markdown" },
 		tableCodeLensProvider,
 	));
 

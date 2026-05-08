@@ -11,6 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Deprecated
 ### Removed
 ### Fixed
+- fix render of section without page numbers
+- enable table editor for all md files
 ### Security
 
 

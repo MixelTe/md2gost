@@ -57,10 +57,12 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 			},
 			footers: {
 				default: new Footer({
-					children: !section.pageStart ? [] : [
+					children: [
 						new Paragraph({
 							alignment: AlignmentType.CENTER,
-							children: [new TextRun({ children: [PageNumber.CURRENT] })],
+							children: [new TextRun({
+								children: section.pageStart ? [PageNumber.CURRENT] : [],
+							})],
 							indent: { firstLine: 0 },
 							spacing: { line: 240 },
 						}),
