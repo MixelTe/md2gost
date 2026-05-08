@@ -77,6 +77,9 @@
         "injectionSelector": "L:text.html.markdown"
       }
     ],
+    "markdown.previewStyles": [
+      "./assets/markdown.css"
+    ],
     "configuration": {
       "title": "md2gost",
       "properties": {
