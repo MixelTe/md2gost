@@ -118,6 +118,11 @@
           "default": false,
           "description": "Отключить кастомную подсветку Markdown (требуется перезагрузка окна)."
         },
+        "md2gost.ui.enhancedMarkdownPreview": {
+          "type": "boolean",
+          "default": true,
+          "description": "Включить улучшенный предпросмотр Markdown с поддержкой синтаксиса md2gost"
+        },
         "md2gost.formatter.suppressDefaultPrompt": {
           "type": "boolean",
           "default": false,

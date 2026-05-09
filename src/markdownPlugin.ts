@@ -5,15 +5,18 @@ import { stringifyDict } from "./parser";
 
 export function markdownItPlugin(md: MarkdownIt)
 {
-	function isGostyMd(state: StateCore)
+	function isGostyMd(env: any)
 	{
-		const uri = state.env.currentDocument ?? vscode.window.activeTextEditor?.document.uri as vscode.Uri | undefined;
+		const config = vscode.workspace.getConfiguration("md2gost");
+		const enhancedMarkdownPreview = config.get<boolean>("ui.enhancedMarkdownPreview", true);
+		if (!enhancedMarkdownPreview) return false;
+		const uri = env.currentDocument ?? vscode.window.activeTextEditor?.document.uri as vscode.Uri | undefined;
 		return !!(uri && uri?.fsPath?.endsWith(".g.md"));
 	}
 
 	md.core.ruler.after("inline", "md2gost_docs", function (state)
 	{
-		if (!isGostyMd(state))
+		if (!isGostyMd(state.env))
 			return true;
 		const tokens = state.tokens;
 		const re_doc = /^!!\(([^{}]*)\)\s*({(.*)})\s*$/s;
@@ -65,7 +68,7 @@ export function markdownItPlugin(md: MarkdownIt)
 
 	md.core.ruler.after("inline", "md2gost_sections", function (state)
 	{
-		if (!isGostyMd(state))
+		if (!isGostyMd(state.env))
 			return true;
 		const regex = /^!!section(|\s+from\s+(\d+))\s*$/m;
 		const tokens = state.tokens;
@@ -129,7 +132,7 @@ export function markdownItPlugin(md: MarkdownIt)
 
 	md.core.ruler.after("inline", "md2gost_hide_rule_paragraphs", (state) =>
 	{
-		if (!isGostyMd(state))
+		if (!isGostyMd(state.env))
 			return true;
 		state.tokens.forEach(blockToken =>
 		{
@@ -159,7 +162,7 @@ export function markdownItPlugin(md: MarkdownIt)
 
 	md.core.ruler.push("md2gost_generate_toc", (state) =>
 	{
-		if (!isGostyMd(state))
+		if (!isGostyMd(state.env))
 			return true;
 		const tokens = state.tokens;
 		const toc: { level: number; title: string; slug: string }[] = [];
@@ -232,7 +235,7 @@ export function markdownItPlugin(md: MarkdownIt)
 
 	md.core.ruler.push("md2gost_enricher", (state) =>
 	{
-		if (!isGostyMd(state))
+		if (!isGostyMd(state.env))
 			return true;
 		const tokens = state.tokens;
 
@@ -360,7 +363,7 @@ export function markdownItPlugin(md: MarkdownIt)
 
 	md.core.ruler.after("inline", "md2gost_detect_rules", (state) =>
 	{
-		if (!isGostyMd(state))
+		if (!isGostyMd(state.env))
 			return true;
 		const autoprefix = /^!!rule\s+numbering\s+autoprefix(|\s+on|\s+off)\s*$/im.exec(state.src);
 		const lazy = /^!!rule\s+numbering\s+lazy(|\s+on|\s+off)\s*$/im.exec(state.src);
@@ -395,8 +398,7 @@ export function markdownItPlugin(md: MarkdownIt)
 	const defaultImageRender = md.renderer.rules.image || defaultRender;
 	md.renderer.rules.image = (tokens, idx, options, env, self) =>
 	{
-		const uri = env.currentDocument as vscode.Uri | undefined;
-		if (!(uri && uri?.fsPath?.endsWith(".g.md")))
+		if (!isGostyMd(env))
 			return defaultImageRender(tokens, idx, options, env, self);
 
 		const token = tokens[idx];
@@ -432,8 +434,7 @@ export function markdownItPlugin(md: MarkdownIt)
 	const defaultFenceRender = md.renderer.rules.fence || defaultRender;
 	md.renderer.rules.fence = (tokens, idx, options, env, self) =>
 	{
-		const uri = env.currentDocument as vscode.Uri | undefined;
-		if (!(uri && uri?.fsPath?.endsWith(".g.md")))
+		if (!isGostyMd(env))
 			return defaultFenceRender(tokens, idx, options, env, self);
 
 		const token = tokens[idx];
