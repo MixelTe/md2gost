@@ -34,6 +34,14 @@ export function activate(context: vscode.ExtensionContext)
 	const _onEditTableCommand = onEditTableCommand(context);
 	context.subscriptions.push(vscode.commands.registerCommand("md2gost.edit_table", _onEditTableCommand));
 
+	context.subscriptions.push(
+		vscode.commands.registerCommand("md2gost.readme", () =>
+		{
+			const readmeUri = vscode.Uri.joinPath(context.extensionUri, "README.md");
+			vscode.commands.executeCommand("markdown.showPreview", readmeUri);
+		})
+	);
+
 	context.subscriptions.push(vscode.languages.registerDocumentFormattingEditProvider("markdown", {
 		async provideDocumentFormattingEdits(document: vscode.TextDocument, options: vscode.FormattingOptions, token: vscode.CancellationToken): Promise<vscode.TextEdit[]>
 		{
@@ -170,7 +178,7 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean, di
 function showChangelogOnUpdate(context: vscode.ExtensionContext)
 {
 	const packageVersion = context.extension.packageJSON.version;
-	const pageVersion = "3";
+	const pageVersion = "4";
 	const lastVersion = context.globalState.get<string>("extension_version");
 
 	if (pageVersion !== lastVersion)
@@ -179,6 +187,16 @@ function showChangelogOnUpdate(context: vscode.ExtensionContext)
 		if (lastVersion)
 			vscode.commands.executeCommand("md2gost.whats_new");
 	}
+	const myProvider = new class
+	{
+		private _content: string = "";
+		set content(value: string) { this._content = value; }
+		provideTextDocumentContent() { return this._content; }
+	};
+
+	context.subscriptions.push(
+		vscode.workspace.registerTextDocumentContentProvider("md2gost-readme", myProvider)
+	);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("md2gost.whats_new", () =>
@@ -199,8 +217,54 @@ function showChangelogOnUpdate(context: vscode.ExtensionContext)
 			const filePath = context.asAbsolutePath(path.join("assets", "whats_new.html"));
 			const html = fs.readFileSync(filePath, "utf8");
 			panel.webview.html = html.replaceAll("{{root}}", rootUri.toString()).replaceAll("{{currentVersion}}", packageVersion);
+
+			panel.webview.onDidReceiveMessage(
+				async message =>
+				{
+					switch (message.command)
+					{
+						case "openReadme":
+							const readmePath = vscode.Uri.joinPath(context.extensionUri, "README.md").fsPath;
+							const content = fs.readFileSync(readmePath, "utf8");
+							const sectionContent = extractSection(content, message.section);
+							myProvider.content = sectionContent;
+							const uri = vscode.Uri.parse(`md2gost-readme:/${trimStart(message.section, "#").trim()}?${Date.now()}`);
+							await vscode.commands.executeCommand("markdown.showPreviewToSide", uri);
+							return;
+					}
+				},
+				undefined,
+				context.subscriptions
+			);
 		})
 	);
+	function extractSection(fullText: string, sectionTitle: string): string
+	{
+		const lines = fullText.split("\n");
+		let startLine = -1;
+		let endLine = -1;
+		const re = /^(#+)\s+(.*)$/;
+		const level = re.exec(sectionTitle)?.[1].length ?? 1;
+
+		for (let i = 0; i < lines.length; i++)
+		{
+			if (lines[i].trimEnd() == sectionTitle)
+			{
+				startLine = i;
+				continue;
+			}
+			if (startLine < 0) continue;
+			const m = re.exec(lines[i].trimEnd());
+			if (m && m[1].length <= level)
+			{
+				endLine = i;
+				break;
+			}
+		}
+
+		const result = lines.slice(startLine, endLine < 0 ? undefined : endLine).join("\n");
+		return result || "Раздел не найден";
+	}
 }
 
 function showFormatterSuggest()

@@ -305,6 +305,20 @@
 	<script>
 		const changelogData = [
 			{
+				date: "2026-05-09",
+				version: "v1.1.0",
+				changes: [
+					{ type: "Added", text: `Новые правила для <a href="#" onclick="openDocs('### Настройка стилей')">настройки стилей</a> под разные требования к оформлению.` },
+					{ type: "Added", text: "Поддержка кастомного синтаксиса в Markdown-превью." },
+					{ type: "Added", text: "Поддержка HTML-кодов <code>&amp;laquo; &amp;raquo; &amp;lsaquo; &amp;rsaquo;</code> для символов « » ‹ ›." },
+					{ type: "Fixed", text: "Улучшенние IntelliSense для кастомного синтаксиса." },
+					{ type: "Fixed", text: "Исправлен рендеринг разделов без номеров страниц." },
+					{ type: "Fixed", text: "Поддержка редактора таблиц для всех Markdown-файлов." },
+					{ type: "Fixed", text: "Исправлена замена кавычек для не-ASCII символов и знаков препинания после закрывающих кавычек." },
+					{ type: "Fixed", text: "Исправлена вставка \"Продолжение листинга #\"." },
+				]
+			},
+			{
 				date: "2026-04-26",
 				version: "v1.0.0 — Speed & Wisdom",
 				changes: [
@@ -439,6 +453,16 @@
 		}
 
 		document.addEventListener("DOMContentLoaded", renderChangelog);
+
+
+		const vscode = acquireVsCodeApi();
+		function openDocs(section)
+		{
+			vscode.postMessage({
+				command: "openReadme",
+				section: section
+			});
+		}
 	</script>
 </body>
 

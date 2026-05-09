@@ -7,17 +7,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
-- new rules to configure styles
-- echance Markdown preview to support custom syntax
-- show warnings for uncorrect rules
 ### Changed
 ### Deprecated
 ### Removed
 ### Fixed
-- fix render of section without page numbers
-- enable table editor for all md files
 ### Security
 
+## [1.1.0] - 2026-05-09
+### Added
+- new rules to configure styles
+- echance Markdown preview to support custom syntax
+- show warnings for uncorrect rules
+### Fixed
+- fix render of section without page numbers
+- enable table editor for all md files
 
 ## [1.0.3] - 2026-04-26
 ### Added
