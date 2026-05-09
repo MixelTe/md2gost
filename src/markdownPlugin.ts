@@ -477,11 +477,11 @@ export function markdownItPlugin(md: MarkdownIt)
 				{
 					num = `<i>[${tag[2]}]</i>`;
 					if (sections) num = "#." + num;
-					title = title.slice(tag[0].length)
+					title = title.slice(tag[0].length);
 				}
 				else if (!tag[1].trim())
 				{
-					title = title.slice(tag[0].length)
+					title = title.slice(tag[0].length);
 				}
 			}
 			title = title.trim();

@@ -120,9 +120,9 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			"etime": v => doc.etime = tryParseInt(v),
 			"ctime": v => doc.ctime = tryParseDate(v),
 			"mtime": v => doc.mtime = tryParseDate(v),
-			"numbering lazy": v => { choices(v, "", "on", "off"); doc.numberingLazy = !v || v == "on" },
-			"numbering sections": v => { choices(v, "", "on", "off"); doc.numberingSections = !v || v == "on" },
-			"numbering autoprefix": v => { choices(v, "", "on", "off"); doc.numberingAutoprefix = v == "on" },
+			"numbering lazy": v => { choices(v, "", "on", "off"); doc.numberingLazy = !v || v == "on"; },
+			"numbering sections": v => { choices(v, "", "on", "off"); doc.numberingSections = !v || v == "on"; },
+			"numbering autoprefix": v => { choices(v, "", "on", "off"); doc.numberingAutoprefix = v == "on"; },
 			"backtick_mono": v => doc.backtickMono = choices(v, "italic", "off", "on", "outline"),
 			"hyphenation": v => doc.hyphenation = true,
 			"table title style": v => doc.table.title.style = choices(v, "normal", "bold", "italic"),
@@ -130,10 +130,10 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			"table heading align": v => doc.table.heading.align = choices(v, "left", "center", "right"),
 			"table text size": v => doc.table.text.size = tryParseInt(v),
 			"code title style": v => doc.code.title.style = choices(v, "normal", "bold", "italic"),
-			"code highlight": v => { choices(v, "", "on", "off"); doc.code.highlight = !v || v == "on" },
+			"code highlight": v => { choices(v, "", "on", "off"); doc.code.highlight = !v || v == "on"; },
 			"list ordered style": v => doc.list.ordered.style = choices(v, "bracket", "dot", "keep"),
 			"list unordered style": v => doc.list.unordered.style = choices(v, "dash", "bullet", "keep"),
-			"list autopunctuation": v => { choices(v, "", "on", "off"); doc.list.autopunctuation = v == "on" },
+			"list autopunctuation": v => { choices(v, "", "on", "off"); doc.list.autopunctuation = v == "on"; },
 			"headings alt_style_1": v =>
 			{
 				for (let i = 1 as 1 | 2 | 3 | 4 | 5 | 6; i <= 6; i++)
@@ -168,7 +168,7 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 					}
 				},
 			},
-		]
+		];
 
 		const rulePrefix = Object.keys(rules).find(prefix =>
 			textl.startsWith(prefix) && !textl.slice(prefix.length)[0]?.trim()

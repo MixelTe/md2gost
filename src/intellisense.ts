@@ -430,7 +430,7 @@ function headingSelectorsHint(ln: string)
 			"5": "пятого",
 			"6": "шестого",
 		}[level]
-	) + (plus ? " и последующих уровней*" : " уровня*")
+	) + (plus ? " и последующих уровней*" : " уровня*");
 }
 
 const Rules: Record<string, {

@@ -36,7 +36,7 @@ export class Doc
 		ordered: { style: "bracket" as "bracket" | "dot" | "keep" },
 		unordered: { style: "dash" as "dash" | "bullet" | "keep" },
 		autopunctuation: true,
-	}
+	};
 
 	public appendText(text: string)
 	{
