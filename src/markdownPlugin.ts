@@ -375,7 +375,7 @@ export function markdownItPlugin(md: MarkdownIt)
 			md2gost_sections: sections && sections[1].trim().toLowerCase() != "off",
 		};
 
-		state.tokens.forEach(token =>
+		state.tokens.forEach((token, i) =>
 		{
 			if (token.type == "inline")
 				token.children?.forEach(child =>
@@ -385,6 +385,23 @@ export function markdownItPlugin(md: MarkdownIt)
 				});
 			if (token.type == "fence")
 				token.meta = { ...token.meta, ...settings };
+			if (token.type == "table_open")
+			{
+				if (state.tokens[i - 1]?.type == "paragraph_close" && state.tokens[i - 2]?.type == "inline")
+				{
+					const titleToken = state.tokens[i - 2];
+					let tag = /^(.*?)\[([a-zA-Zа-яА-ЯёЁ_\d]+|#)\]/.exec(titleToken.content);
+					if (!settings.md2gost_autoprefixDisable && (lazy || tag))
+					{
+						const text = titleToken.children?.find(t => t.type == "text");
+						const title = addNumberToTitle(settings, "table", text?.content, false);
+						if (title && text) text.content = title;
+						titleToken.content = titleToken.children?.map(t => t.content).join("") || "";
+						if (state.tokens[i - 3]?.type == "paragraph_open")
+							state.tokens[i - 3].attrPush(["style", `margin-bottom: 0;`]);
+					}
+				}
+			}
 		});
 
 		return true;
@@ -449,7 +466,7 @@ export function markdownItPlugin(md: MarkdownIt)
 		return `<div><div>${title}</div>${code}</div>`;
 	};
 
-	function addNumberToTitle(meta: any, type: "image" | "fence", title: string | false | undefined)
+	function addNumberToTitle(meta: any, type: "image" | "fence" | "table", title: string | false | undefined, html = true)
 	{
 		const {
 			md2gost_autoprefixDisable: autoprefixDisable,
@@ -460,7 +477,8 @@ export function markdownItPlugin(md: MarkdownIt)
 		if (!title && autoprefixDisable) return false;
 		title = title || "";
 
-		title = md.utils.escapeHtml(title.trim());
+		title = title.trimStart();
+		if (html) title = md.utils.escapeHtml(title);
 		title = title
 			.replaceAll("\\n", "<br>")
 			.replaceAll(" - ", " – ");
@@ -470,23 +488,26 @@ export function markdownItPlugin(md: MarkdownIt)
 		if (!autoprefixDisable && (lazy || tag))
 		{
 			let num = sections ? "#.#" : "#";
-			let prefix = type == "fence" ? "Листинг " : "Рисунок ";
+			let prefix = type == "fence" ? "Листинг " : type == "table" ? "Таблица " : "Рисунок ";
 			if (tag)
 			{
 				if (tag[1].trim().toLowerCase() == prefix.trim().toLowerCase())
 				{
-					num = `<i>[${tag[2]}]</i>`;
+					if (tag[2] != "#")
+						num = html ? `<i>[${tag[2]}]</i>` : `[${tag[2]}]`;
 					if (sections) num = "#." + num;
 					title = title.slice(tag[0].length);
 				}
 				else if (!tag[1].trim())
 				{
+					if (tag[2] != "#")
+						num = html ? `<i>[${tag[2]}]</i>` : `[${tag[2]}]`;
 					title = title.slice(tag[0].length);
 				}
 			}
-			title = title.trim();
+			title = title.trimStart();
 			if (title[0] == "-" || title[0] == "–")
-				title = title.slice(1).trim();
+				title = title.slice(1).trimStart();
 			title = toCapitalCase(title);
 			title = prefix + num + " – " + title;
 		}
