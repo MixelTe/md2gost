@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Deprecated
 ### Removed
 ### Fixed
+- support for triple-backtick (```) blocks in paragraph text
 ### Security
 
 ## [1.1.1] - 2026-05-10
@@ -22,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - new rules to configure styles
 - echance Markdown preview to support custom syntax
 - show warnings for uncorrect rules
+- add "open readme" button
 ### Fixed
 - fix render of section without page numbers
 - enable table editor for all md files

@@ -490,7 +490,13 @@ function runifyText(text: string, rainbow = false): Rune[]
 			bold: rune.bold,
 			italic: (i % 2 == 1 && i != arr.length - 1) || rune.italic,
 		}) as Rune)).flat()
-		.map(rune => rune.text.split("`").map((p, i, arr) => ({
+		.map(rune => rune.text.split("```").map((p, i, arr) => ({
+			...rune,
+			text: p,
+			linebreak: i == 0 && rune.linebreak,
+			mono: (i % 2 == 1 && i != arr.length - 1),
+		}) as Rune)).flat()
+		.map(rune => rune.mono ? rune : rune.text.split("`").map((p, i, arr) => ({
 			...rune,
 			text: p,
 			linebreak: i == 0 && rune.linebreak,
