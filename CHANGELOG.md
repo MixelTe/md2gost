@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Removed
 ### Fixed
 - support for triple-backtick (```) blocks in paragraph text
+- AutoTableContinuation: dont left single row at page
 ### Security
 
 ## [1.1.1] - 2026-05-10
