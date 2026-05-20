@@ -217,6 +217,11 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			throw new RuleError("Allowed: " + vars.join(", "));
 		}
 	}
+	function skipComment()
+	{
+		while (lineI - 1 < lines.length && !lines[lineI - 1]!.includes("-->"))
+			lineI++;
+	}
 
 	let lineI = 0;
 	while (lineI < lines.length)
@@ -235,7 +240,7 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			case "1)": doc.appendNode(parseList(text, parts, true)); break;
 			case "Img": doc.appendNode(parseImg(parts)); break;
 			case "Code": doc.appendNode(parseCode(text)); break;
-			case "Comment": break;
+			case "Comment": skipComment(); break;
 			case "!!section": doc.appendNode(parseSection(text)); break;
 			case "!!rule": apllyRule(text); break;
 			case "---": doc.appendNode({ type: "pageBreak" }); break;

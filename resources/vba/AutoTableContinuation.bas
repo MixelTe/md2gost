@@ -1,3 +1,7 @@
+Option Explicit
+Private Const STYLE_CAPTION As String = "Table_Caption"
+Private Const STYLE_CONT As String = "Table_Cont"
+
 Sub AutoTableContinuation()
     On Error GoTo ErrorHandler
 
@@ -16,7 +20,7 @@ Sub AutoTableContinuation()
 
         ' Find the caption (paragraph immediately before the table)
         Set prevPara = tbl.Range.Paragraphs(1).Previous
-        If Not prevPara Is Nothing And (prevPara.Style = "Таблица_Подпись" Or prevPara.Style = "Таблица_Продолжение") Then
+        If Not prevPara Is Nothing And (prevPara.Style = STYLE_CAPTION Or prevPara.Style = STYLE_CONT) Then
             tableNumber = ExtractTableNumber(prevPara.Range.Text)
         Else
             tableNumber = "?"
@@ -37,6 +41,7 @@ Sub AutoTableContinuation()
                         End If
                     Else
                         ' PAGE BREAK DETECTED: Split the table
+                        tbl.AllowAutoFit = False
                         tbl.Split r
 
                         ' The second half is now a completely new table
@@ -51,9 +56,9 @@ Sub AutoTableContinuation()
 
                         ' Apply style safely
                         On Error Resume Next
-                        sepPara.Style = "Таблица_Продолжение"
+                        sepPara.Style = STYLE_CONT
                         If Err.Number <> 0 Then
-                            sepPara.Style = "Таблица_Подпись"
+                            sepPara.Style = STYLE_CAPTION
                             Err.Clear
                         End If
                         On Error GoTo 0

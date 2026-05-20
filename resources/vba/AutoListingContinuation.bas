@@ -1,3 +1,8 @@
+Option Explicit
+Private Const STYLE_CODE As String = "Listing_Code"
+Private Const STYLE_CAPTION As String = "Listing_Caption"
+Private Const STYLE_CONT As String = "Listing_Cont"
+
 Sub AutoListingContinuation()
     On Error GoTo ErrorHandler
 
@@ -12,7 +17,7 @@ Sub AutoListingContinuation()
     Set rng = ActiveDocument.Content
     With rng.Find
         .ClearFormatting
-        .Style = "Листинг_Подпись"
+        .Style = STYLE_CAPTION
         .Text = ""
         .Forward = True
         .Wrap = wdFindStop
@@ -23,7 +28,7 @@ Sub AutoListingContinuation()
             Set nextPara = rng.Paragraphs(1).Next
             lastPage = -1
             Do While Not nextPara Is Nothing
-                If nextPara.Style <> "Листинг_Код" Then Exit Do
+                If nextPara.Style <> STYLE_CODE Then Exit Do
 
                 ' currentPage = nextPara.Range.Information(wdActiveEndPageNumber)
                 Dim r As Range
@@ -94,7 +99,7 @@ Sub InsertContinuation(p As Paragraph, listingNumber As String)
     ' --- СЛУЧАЙ 1 ---
     ' Предыдущий абзац — первый код после подписи
     If Not prevPrev Is Nothing Then
-        If prevPrev.Style = "Листинг_Подпись" Then
+        If prevPrev.Style = STYLE_CAPTION Then
 
             ' Разрыв страницы перед подписью
             Set r = prevPrev.Range
@@ -117,9 +122,9 @@ Sub InsertContinuation(p As Paragraph, listingNumber As String)
 
     ' 3. Назначаем стиль (теперь он применится только к этому абзацу)
     On Error Resume Next
-    contPara.Style = "Листинг_Продолжение"
+    contPara.Style = STYLE_CONT
     If Err.Number <> 0 Then
-        contPara.Style = "Листинг_Подпись"
+        contPara.Style = STYLE_CAPTION
         Err.Clear
     End If
     On Error GoTo 0
@@ -130,19 +135,5 @@ Sub InsertContinuation(p As Paragraph, listingNumber As String)
     Set r = contPara.Range
     r.Collapse wdCollapseStart
     contPara.PageBreakBefore = True
-
-End Sub
-Sub CleanListingContinuations()
-
-    Dim p As Paragraph
-    Dim txt As String
-
-    For Each p In ActiveDocument.Paragraphs
-        txt = Trim(p.Range.Text)
-
-        If txt Like "Продолжение листинга*" Then
-            p.Range.Delete
-        End If
-    Next p
 
 End Sub

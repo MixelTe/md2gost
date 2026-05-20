@@ -7,12 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- support multiline markdown comments
 ### Changed
 ### Deprecated
 ### Removed
 ### Fixed
 - support for triple-backtick (```) blocks in paragraph text
 - AutoTableContinuation: dont left single row at page
+- fix formatter: skip text inside triple-backtick (```) blocks
+- fix json parsing in rendering to PDF
+- fix macros on non-Russian system locales
 ### Security
 
 ## [1.1.1] - 2026-05-10

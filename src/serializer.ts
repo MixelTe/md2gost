@@ -5,10 +5,10 @@ import { randomInt, type DeepWriteable } from "./utils";
 import { imageSize } from "image-size";
 import path from "path";
 
-const STYLE_list = "aff0";
-const STYLE_table_title = "aff5";
-const STYLE_code_title = "afe";
-const STYLE_code = "af6";
+const STYLE_list = "afc";
+const STYLE_table_title = "TableCaption";
+const STYLE_code_title = "ListingCaption";
+const STYLE_code = "ListingCode";
 
 type IListItem = DeepWriteable<INumberingOptions>["config"][number];
 type IListItemLevel = IListItem["levels"][number]

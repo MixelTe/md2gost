@@ -15,9 +15,10 @@ export async function md_formatter(document: TextDocument, range: Range, options
 		document.lineAt(range.end.line).range.end
 	);
 
-
 	const re_sep = /^\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/;
 	const re_sep_oneCol = /^\|\s*:?-+:?\s*\|$/;
+
+	let insideCodeBlock = false;
 
 	const edits = [] as TextEdit[];
 	for (let i = range.start.line; i <= range.end.line; i++)
@@ -25,6 +26,8 @@ export async function md_formatter(document: TextDocument, range: Range, options
 		if (token.isCancellationRequested) return [];
 		const line = document.lineAt(i);
 		const text = line.text;
+		if (text.startsWith("```")) insideCodeBlock = !insideCodeBlock;
+		if (insideCodeBlock) continue;
 		const textTrim = line.text.trim().replaceAll(/\s+/g, " ");
 
 		if (gmd)

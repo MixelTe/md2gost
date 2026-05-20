@@ -3,7 +3,6 @@ param (
     [string]$OutputDoc,
     [string]$MacroTemplate,
     [string]$Template,
-    [switch]$Clean,
     [switch]$RenderPDF
 )
 
@@ -40,12 +39,6 @@ try {
     $word.AddIns.Add($MacroTemplate, $true)
 
     $doc = $word.Documents.Open($InputDoc)
-
-    # --- CLEAN MODE -------------------------------------------
-    if ($Clean) {
-        Write-Host "CLEAN: deleting existing continuations..."
-        $word.Run("CleanListingContinuations")
-    }
 
     # --- Generating -------------------------------------------
     Write-Host "[*1] Generating continued listings..."

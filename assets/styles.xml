@@ -820,10 +820,10 @@
 <w:ind w:left="993" w:hanging="709"/>
 </w:pPr>
 </w:style>
-<w:style w:type="paragraph" w:customStyle="1" w:styleId="af6">
-<w:name w:val="Листинг_Код"/>
+<w:style w:type="paragraph" w:customStyle="1" w:styleId="ListingCode">
+<w:name w:val="Listing_Code"/>
 <w:basedOn w:val="a2"/>
-<w:link w:val="af7"/>
+<w:link w:val="ListingCode0"/>
 <w:qFormat/>
 <w:rsid w:val="0066258F"/>
 <w:pPr>
@@ -845,10 +845,10 @@
 <w:lang w:val="en-US"/>
 </w:rPr>
 </w:style>
-<w:style w:type="character" w:customStyle="1" w:styleId="af7">
-<w:name w:val="Листинг_Код Знак"/>
+<w:style w:type="character" w:customStyle="1" w:styleId="ListingCode0">
+<w:name w:val="Listing_Code Знак"/>
 <w:basedOn w:val="a3"/>
-<w:link w:val="af6"/>
+<w:link w:val="ListingCode"/>
 <w:rsid w:val="0066258F"/>
 <w:rPr>
 <w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New"/>
@@ -874,7 +874,7 @@
 <w:ind w:left="560" w:firstLine="291"/>
 </w:pPr>
 </w:style>
-<w:style w:type="paragraph" w:styleId="af8">
+<w:style w:type="paragraph" w:styleId="af6">
 <w:name w:val="No Spacing"/>
 <w:uiPriority w:val="1"/>
 <w:rsid w:val="00C50CF5"/>
@@ -888,7 +888,7 @@
 <w:sz w:val="28"/>
 </w:rPr>
 </w:style>
-<w:style w:type="paragraph" w:styleId="af9">
+<w:style w:type="paragraph" w:styleId="af7">
 <w:name w:val="caption"/>
 <w:basedOn w:val="a2"/>
 <w:next w:val="a2"/>
@@ -920,7 +920,7 @@
 <w:shd w:val="clear" w:color="auto" w:fill="E1DFDD"/>
 </w:rPr>
 </w:style>
-<w:style w:type="character" w:styleId="afa">
+<w:style w:type="character" w:styleId="af8">
 <w:name w:val="FollowedHyperlink"/>
 <w:basedOn w:val="a3"/>
 <w:uiPriority w:val="99"/>
@@ -935,7 +935,7 @@
 <w:style w:type="paragraph" w:customStyle="1" w:styleId="a0">
 <w:name w:val="Абзац списка с цифрой"/>
 <w:basedOn w:val="a1"/>
-<w:link w:val="afb"/>
+<w:link w:val="af9"/>
 <w:rsid w:val="005243B2"/>
 <w:pPr>
 <w:numPr>
@@ -958,7 +958,7 @@
 <w:sz w:val="28"/>
 </w:rPr>
 </w:style>
-<w:style w:type="character" w:customStyle="1" w:styleId="afb">
+<w:style w:type="character" w:customStyle="1" w:styleId="af9">
 <w:name w:val="Абзац списка с цифрой Знак"/>
 <w:basedOn w:val="aa"/>
 <w:link w:val="a0"/>
@@ -969,10 +969,10 @@
 <w:lang w:val="en-US"/>
 </w:rPr>
 </w:style>
-<w:style w:type="paragraph" w:styleId="afc">
+<w:style w:type="paragraph" w:styleId="afa">
 <w:name w:val="Balloon Text"/>
 <w:basedOn w:val="a2"/>
-<w:link w:val="afd"/>
+<w:link w:val="afb"/>
 <w:uiPriority w:val="99"/>
 <w:semiHidden/>
 <w:unhideWhenUsed/>
@@ -986,10 +986,10 @@
 <w:szCs w:val="16"/>
 </w:rPr>
 </w:style>
-<w:style w:type="character" w:customStyle="1" w:styleId="afd">
+<w:style w:type="character" w:customStyle="1" w:styleId="afb">
 <w:name w:val="Текст выноски Знак"/>
 <w:basedOn w:val="a3"/>
-<w:link w:val="afc"/>
+<w:link w:val="afa"/>
 <w:uiPriority w:val="99"/>
 <w:semiHidden/>
 <w:rsid w:val="00F33CE4"/>
@@ -1016,10 +1016,10 @@
 <w:bCs/>
 </w:rPr>
 </w:style>
-<w:style w:type="paragraph" w:customStyle="1" w:styleId="afe">
-<w:name w:val="Листинг_Подпись"/>
+<w:style w:type="paragraph" w:customStyle="1" w:styleId="ListingCaption">
+<w:name w:val="Listing_Caption"/>
 <w:basedOn w:val="a2"/>
-<w:link w:val="aff"/>
+<w:link w:val="ListingCaption0"/>
 <w:qFormat/>
 <w:rsid w:val="00B70A2E"/>
 <w:pPr>
@@ -1040,30 +1040,30 @@
 <w:sz w:val="28"/>
 </w:rPr>
 </w:style>
-<w:style w:type="character" w:customStyle="1" w:styleId="aff">
-<w:name w:val="Листинг_Подпись Знак"/>
+<w:style w:type="character" w:customStyle="1" w:styleId="ListingCaption0">
+<w:name w:val="Listing_Caption Знак"/>
 <w:basedOn w:val="a3"/>
-<w:link w:val="afe"/>
+<w:link w:val="ListingCaption"/>
 <w:rsid w:val="00B70A2E"/>
 <w:rPr>
 <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
 <w:sz w:val="28"/>
 </w:rPr>
 </w:style>
-<w:style w:type="paragraph" w:customStyle="1" w:styleId="aff0">
+<w:style w:type="paragraph" w:customStyle="1" w:styleId="afc">
 <w:name w:val="Список черта"/>
 <w:basedOn w:val="a1"/>
-<w:link w:val="aff1"/>
+<w:link w:val="afd"/>
 <w:qFormat/>
 <w:rsid w:val="00A26E0D"/>
 <w:rPr>
 <w:lang w:val="en-US" w:eastAsia="ru-RU"/>
 </w:rPr>
 </w:style>
-<w:style w:type="character" w:customStyle="1" w:styleId="aff1">
+<w:style w:type="character" w:customStyle="1" w:styleId="afd">
 <w:name w:val="Список черта Знак"/>
 <w:basedOn w:val="aa"/>
-<w:link w:val="aff0"/>
+<w:link w:val="afc"/>
 <w:rsid w:val="00A26E0D"/>
 <w:rPr>
 <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
@@ -1071,10 +1071,10 @@
 <w:lang w:val="en-US" w:eastAsia="ru-RU"/>
 </w:rPr>
 </w:style>
-<w:style w:type="paragraph" w:customStyle="1" w:styleId="aff2">
+<w:style w:type="paragraph" w:customStyle="1" w:styleId="afe">
 <w:name w:val="Таблица"/>
 <w:basedOn w:val="a2"/>
-<w:link w:val="aff3"/>
+<w:link w:val="aff"/>
 <w:rsid w:val="00B17F5E"/>
 <w:pPr>
 <w:spacing w:after="0" w:line="259" w:lineRule="auto"/>
@@ -1082,10 +1082,10 @@
 <w:jc w:val="left"/>
 </w:pPr>
 </w:style>
-<w:style w:type="character" w:customStyle="1" w:styleId="aff3">
+<w:style w:type="character" w:customStyle="1" w:styleId="aff">
 <w:name w:val="Таблица Знак"/>
 <w:basedOn w:val="a3"/>
-<w:link w:val="aff2"/>
+<w:link w:val="afe"/>
 <w:rsid w:val="00B17F5E"/>
 <w:rPr>
 <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
@@ -1095,7 +1095,7 @@
 <w:style w:type="paragraph" w:customStyle="1" w:styleId="a">
 <w:name w:val="Источники"/>
 <w:basedOn w:val="a1"/>
-<w:link w:val="aff4"/>
+<w:link w:val="aff0"/>
 <w:rsid w:val="00D8402D"/>
 <w:pPr>
 <w:numPr>
@@ -1108,7 +1108,7 @@
 <w:ind w:left="0" w:firstLine="709"/>
 </w:pPr>
 </w:style>
-<w:style w:type="character" w:customStyle="1" w:styleId="aff4">
+<w:style w:type="character" w:customStyle="1" w:styleId="aff0">
 <w:name w:val="Источники Знак"/>
 <w:basedOn w:val="aa"/>
 <w:link w:val="a"/>
@@ -1118,11 +1118,11 @@
 <w:sz w:val="28"/>
 </w:rPr>
 </w:style>
-<w:style w:type="paragraph" w:customStyle="1" w:styleId="aff5">
-<w:name w:val="Таблица_Подпись"/>
+<w:style w:type="paragraph" w:customStyle="1" w:styleId="TableCaption">
+<w:name w:val="Table_Caption"/>
 <w:basedOn w:val="a2"/>
 <w:next w:val="a2"/>
-<w:link w:val="aff6"/>
+<w:link w:val="TableCaption0"/>
 <w:qFormat/>
 <w:rsid w:val="008D4793"/>
 <w:pPr>
@@ -1131,10 +1131,10 @@
 <w:ind w:firstLine="0"/>
 </w:pPr>
 </w:style>
-<w:style w:type="character" w:customStyle="1" w:styleId="aff6">
-<w:name w:val="Таблица_Подпись Знак"/>
-<w:basedOn w:val="aff"/>
-<w:link w:val="aff5"/>
+<w:style w:type="character" w:customStyle="1" w:styleId="TableCaption0">
+<w:name w:val="Table_Caption Знак"/>
+<w:basedOn w:val="ListingCaption0"/>
+<w:link w:val="TableCaption"/>
 <w:rsid w:val="008D4793"/>
 </w:style>
 </w:styles>

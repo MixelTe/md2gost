@@ -1,10 +1,19 @@
-Sub UpdateAllFields()
-    Dim aStory As Range
-    Dim aField As Field
+Option Explicit
 
-    For Each aStory In ActiveDocument.StoryRanges
-        aStory.Fields.Update
-    Next aStory
+Sub UpdateAllFields()
+    ActiveDocument.Repaginate
+    DoEvents
+
+    Dim rngStory As Range
+    Dim rng As Range
+
+    For Each rngStory In ActiveDocument.StoryRanges
+        Set rng = rngStory
+        Do
+            rng.Fields.Update
+            Set rng = rng.NextStoryRange
+        Loop Until rng Is Nothing
+    Next rngStory
 
     ' Update the Table of Contents specifically (Fields.Update handles most, but this is a failsafe)
     Dim toc As TableOfContents
@@ -48,7 +57,8 @@ Sub AppendLogUTF8(logPath As String, msg As String)
         .WriteText msg & vbCrLf
 
         ' Сохраняем обратно в файл
-        .SaveToFile logPath, 2 ' adSaveCreateOverWrite
+        Const adSaveCreateOverWrite = 2
+        .SaveToFile logPath, adSaveCreateOverWrite
         .Close
     End With
 End Sub
