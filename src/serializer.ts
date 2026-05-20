@@ -704,6 +704,12 @@ function genXml_style(assets: string, doc: RunicDoc): string
 		return xml;
 	});
 
+	xml = editStyle(`<w:style w:type="paragraph" w:customStyle="1" w:styleId="ListingCode">`, xml =>
+	{
+		xml = replaceTag(xml, `<w:sz w:val="${doc.code.text.size * 2}"/>`);
+		return xml;
+	});
+
 	return xml;
 
 	function replaceTag(xml: string, tag: string): string

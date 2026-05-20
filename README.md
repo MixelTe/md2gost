@@ -768,6 +768,10 @@
 	* Начертание названия
 		- `!!rule code title style <normal|bold|italic>`
 		- По умолчанию: `normal`
+	* Размер шрифта
+		- `!!rule code text size <int>`
+		- Пример: `!!rule code text size 10`
+		- По умолчанию: `12` пт
 	* [Подсветка синтаксиса кода](#подсветка-синтаксиса-кода)
 		- `!!rule code highlight`
 		- По умолчанию: выключено

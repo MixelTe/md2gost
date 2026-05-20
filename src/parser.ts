@@ -131,6 +131,7 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			"table text size": v => doc.table.text.size = tryParseInt(v),
 			"code title style": v => doc.code.title.style = choices(v, "normal", "bold", "italic"),
 			"code highlight": v => { choices(v, "", "on", "off"); doc.code.highlight = !v || v == "on"; },
+			"code text size": v => doc.code.text.size = tryParseInt(v),
 			"list ordered style": v => doc.list.ordered.style = choices(v, "bracket", "dot", "keep"),
 			"list unordered style": v => doc.list.unordered.style = choices(v, "dash", "bullet", "keep"),
 			"list autopunctuation": v => { choices(v, "", "on", "off"); doc.list.autopunctuation = v == "on"; },

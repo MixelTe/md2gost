@@ -711,6 +711,13 @@ const Rules: Record<string, {
 		short: "Подсветка кода",
 		doc: "Включить подсветку синтаксиса кода\n\n- Синтаксис: `!!rule code highlight`\n- По умолчанию: выключено",
 	},
+	code_text_size: {
+		keyword: "code text size",
+		type: "int",
+		short: "Размер текста листинга",
+		doc: "Установить размер шрифта текста листинга\n\n- Синтаксис: `!!rule code text size <int>`\n- Пример: `!!rule code text size 10`\n- По умолчанию: `12` пт",
+		default: "12",
+	},
 	list_unordered_style: {
 		keyword: "list unordered style",
 		type: "string",

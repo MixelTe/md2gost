@@ -37,6 +37,7 @@ export class Doc
 	public code = {
 		title: { style: "normal" as "normal" | "bold" | "italic" },
 		highlight: false,
+		text: { size: 12 },
 	};
 	public list = {
 		ordered: { style: "bracket" as "bracket" | "dot" | "keep" },
