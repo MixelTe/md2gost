@@ -13,7 +13,26 @@ import PizZip from "pizzip";
 
 const DISABLE_MACRO = false;
 
-export async function render(progress: SetProgressFn, assets: string, file: string, renderPDF: boolean, disableMacros: boolean, logwarn: (msg: string) => void = console.warn)
+export interface RenderOptions
+{
+	progress?: SetProgressFn;
+	assets: string;
+	file: string;
+	renderPDF?: boolean;
+	removeIntermediateDocx?: boolean;
+	disableMacros?: boolean;
+	logwarn?: (msg: string) => void;
+}
+
+export async function render({
+	progress = (increment: number, message: string) => { },
+	assets,
+	file,
+	renderPDF = false,
+	removeIntermediateDocx = false,
+	disableMacros = false,
+	logwarn = console.warn
+}: RenderOptions)
 {
 	// progress(10, "Trying to understand your scribbles");
 	progress(10, "Пытаемся понять, что вы тут написали...");
@@ -81,7 +100,7 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 			const err = await fs.readFile(errorTxt);
 			await fs.rm(tmpfolder, { recursive: true, force: true });
 			console.error(err);
-			throw new Error(`Всё сломалось. VBA error: ${err}`);
+			return { fout, err: "vba", errS: `${err}` };
 		}
 		await updateMetadata(fout, doc);
 		if (renderPDF)
@@ -89,12 +108,13 @@ export async function render(progress: SetProgressFn, assets: string, file: stri
 			// progress(40, "Combine all together")
 			progress(40, phrase_combine());
 			if (!existsSync(tmpfolder))
-				throw new Error(`Всё сломалось. PDF render error`);
+				return { fout, err: "pdf" };
 			const files = (await fs.readdir(tmpfolder)).sort().map(f => path.join(tmpfolder, f));
-			const fout = path.join(fdir, fname + ".pdf");
-			await mergePDFs(files, fout, doc);
+			const pdf = path.join(fdir, fname + ".pdf");
+			await mergePDFs(files, pdf, doc);
 			await fs.rm(tmpfolder, { recursive: true, force: true });
-			return { fout };
+			if (removeIntermediateDocx && existsSync(fout)) await fs.unlink(fout);
+			return { fout: pdf };
 		}
 	}
 	else

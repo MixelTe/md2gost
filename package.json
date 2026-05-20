@@ -126,12 +126,12 @@
           "default": true,
           "description": "Отображать встроенные подсказки в тексте (например, «Рисунок # –»)."
         },
-        "md2gost.ui.disableHighlighting": {
+        "md2gost.ui.enhancedHighlighting": {
           "type": "boolean",
           "default": false,
-          "description": "Отключить кастомную подсветку Markdown (требуется перезагрузка окна)."
+          "description": "Использовать дополненную подсветку Markdown (требуется перезагрузка окна)."
         },
-        "md2gost.ui.enhancedMarkdownPreview": {
+        "md2gost.ui.enhancedPreview": {
           "type": "boolean",
           "default": true,
           "description": "Включить улучшенный предпросмотр Markdown с поддержкой синтаксиса md2gost"
@@ -145,6 +145,21 @@
           "type": "boolean",
           "default": true,
           "description": "Заменять Em dash (—) на En dash (–)"
+        },
+        "md2gost.completion.tableSeparator": {
+          "type": "boolean",
+          "default": true,
+          "description": "Автоматически предлагать строку-разделитель (например, '|---|') для новой таблицы, если предыдущая строка содержит символы «|»."
+        },
+        "md2gost.completion.listItem": {
+          "type": "boolean",
+          "default": true,
+          "description": "Автоматически продолжать нумерованные и маркированные списки на новой строке."
+        },
+        "md2gost.render.removeIntermediateDocx": {
+          "type": "boolean",
+          "default": false,
+          "description": "Удалять промежуточный файл DOCX после успешной конвертации в PDF."
         }
       }
     }

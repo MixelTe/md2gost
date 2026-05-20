@@ -201,6 +201,7 @@ Sub RenderIncludeToPDF(info As Object, outDir As String, index As Long)
             CreateBookmarks:=wdExportCreateHeadingBookmarks
         doc.Close False
     End If
+    Exit Sub
 Cleanup:
     If Not doc Is Nothing Then
         doc.Close False

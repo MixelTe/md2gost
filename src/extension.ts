@@ -90,8 +90,8 @@ export function activate(context: vscode.ExtensionContext)
 				onDidChangeInlayHints.fire();
 			if (e.affectsConfiguration("md2gost.tables.editor.enabled"))
 				tableCodeLensProvider.refresh();
-			if (e.affectsConfiguration("md2gost.ui.disableHighlighting"))
-				onDisableHighlighting(assets);
+			if (e.affectsConfiguration("md2gost.ui.enhancedHighlighting"))
+				onEnhancedHighlighting(assets);
 		})
 	);
 
@@ -120,6 +120,9 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean, di
 		return;
 	}
 
+	const config = vscode.workspace.getConfiguration("md2gost");
+	const removeIntermediateDocx = config.get<boolean>("render.removeIntermediateDocx", false);
+
 	vscode.window.withProgress({
 		location: vscode.ProgressLocation.Notification,
 		title: "Rendering...",
@@ -131,16 +134,19 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean, di
 			{
 				rendering = true;
 				await vscode.window.activeTextEditor?.document.save();
-				const { fout: fname, err, warn } = await render(
-					(increment, message) => progress.report({ increment, message }),
+				const { fout: fname, err, errS, warn } = await render({
+					progress: (increment, message) => progress.report({ increment, message }),
 					assets,
 					file,
 					renderPDF,
+					removeIntermediateDocx,
 					disableMacros,
-					msg => vscode.window.showWarningMessage(msg),
-				);
+					logwarn: msg => vscode.window.showWarningMessage(msg),
+				});
 				if (err == "inPS") vscode.window.showErrorMessage(`Unknown error! Возможно у вас не установлен Word или установлен неправильно`);
 				if (err == "noPS") vscode.window.showErrorMessage(`Cant start PowerShell! Возможно он не прописан у вас в PATH`);
+				if (err == "vba") vscode.window.showErrorMessage(`VBA error: ${errS}`);
+				if (err == "pdf") vscode.window.showErrorMessage(`Всё сломалось. PDF render error`);
 				if (warn) vscode.window.showWarningMessage(warn);
 				progress.report({ increment: 100, message: "Done!" });
 				vscode.window.showInformationMessage(`File rendered to ${fname}`, "Open").then(v =>
@@ -290,10 +296,10 @@ function showFormatterSuggest()
 	});
 }
 
-function onDisableHighlighting(assets: string)
+function onEnhancedHighlighting(assets: string)
 {
 	const config = vscode.workspace.getConfiguration("md2gost");
-	const isDisabled = config.get<boolean>("ui.disableHighlighting", false);
+	const isDisabled = config.get<boolean>("ui.enhancedHighlighting", false);
 
 	const grammarPath = path.join(assets, "grammars.json");
 	const grammarCopyPath = path.join(assets, "grammars.copy.json");

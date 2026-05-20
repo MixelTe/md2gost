@@ -8,13 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - support multiline markdown comments
+- `md2gost.completion.tableSeparator` and `md2gost.completion.listItem` options to toggle text suggestions
+- `md2gost.render.removeIntermediateDocx` option to clean up temporary DOCX file after PDF generation
 ### Changed
+- rename option `md2gost.ui.enhancedMarkdownPreview` to `md2gost.ui.enhancedPreview`
+- rename option `md2gost.ui.disableHighlighting` to `md2gost.ui.enhancedHighlighting`
 ### Deprecated
 ### Removed
 ### Fixed
 - support for triple-backtick (```) blocks in paragraph text
 - AutoTableContinuation: dont left single row at page
 - fix formatter: skip text inside triple-backtick (```) blocks
+- fix list formatting
 - fix json parsing in rendering to PDF
 - fix macros on non-Russian system locales
 ### Security

@@ -882,7 +882,7 @@
 | `md2gost.tables.alwaysAddLeftColon`       | Добавлять ли двоеточие для левого выравнивания в таблицах (`:---` или `---`).      |
 | `md2gost.tables.compact`                  | Выравниванивать ли столбцы таблицы пробелами.                                      |
 | `md2gost.ui.inlayHints`                   | Отображать встроенные подсказки в тексте (например, «Рисунок # –»).                |
-| `md2gost.ui.disableHighlighting`          | Отключить кастомную подсветку Markdown.                                            |
-| `md2gost.ui.enhancedMarkdownPreview`      | Улучшенный предпросмотр Markdown с поддержкой синтаксиса md2gost.                  |
+| `md2gost.ui.enhancedHighlighting`         | Подсветка синтаксиса Markdown с поддержкой md2gost.                                |
+| `md2gost.ui.enhancedPreview`              | Улучшенный предпросмотр Markdown с поддержкой синтаксиса md2gost.                  |
 | `md2gost.formatter.suppressDefaultPrompt` | Отключает предложение использовать md2gost в качестве форматировщика по умолчанию. |
 | `md2gost.formatter.replaceEmDash`         | Заменять ли Em dash (–) на En dash (–)                                             |

@@ -150,6 +150,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 			continue;
 		}
 
+		let indentSize = 4;
 		if (processList()) continue;
 
 		applyNewText(clearText(text));
@@ -192,12 +193,15 @@ export async function md_formatter(document: TextDocument, range: Range, options
 				if (!m) { i--; break; }
 				if (m[6])
 				{
-					if (document.lineAt(i - 1).text.trim() == "") { i--; break; }
+					const indent = indentLevel(m[1]);
+					if (indent <= level) { i--; break; }
+					// if (document.lineAt(i - 1).text.trim() == "") { i--; break; }
 					const indentS = repeat(level + 1, indentChar).join("");
 					const newText = indentS + clearText(m[6]);
 					if (text != newText) edits.push(TextEdit.replace(line.range, newText));
 					continue;
 				}
+				if (level == 0) indentSize = -1;
 				const indent = indentLevel(m[1]);
 				if (indent < level) { i--; break; }
 				if (indent == level + 1) { processList(level + 1); continue; }
@@ -222,9 +226,12 @@ export async function md_formatter(document: TextDocument, range: Range, options
 		function indentLevel(line: string)
 		{
 			let level = 0;
-			while (line.startsWith("    ") || line.startsWith("\t"))
+			if (line[0] != " " && line[0] != "\t") return 0;
+			if (indentSize <= 0) indentSize = /^(\s+)/.exec(line)?.[1].length || 4;
+			const indent = repeat(indentSize, " ").join("");
+			while (line.startsWith(indent) || line.startsWith("\t"))
 			{
-				if (line.startsWith("    ")) line = line = line.slice(4);
+				if (line.startsWith(indent)) line = line = line.slice(indentSize);
 				else if (line.startsWith("\t")) line = line.slice(1);
 				level++;
 			}

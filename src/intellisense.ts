@@ -17,7 +17,20 @@ export function md_completion(document: TextDocument, position: Position): Compl
 		item.insertText = new SnippetString(p + '!(${1:путькфайлу}){\n\t"${2:поле}": "${3:значение}",\n}\n!!section from 2');
 		item.sortText = "!doc";
 		item.documentation = new MarkdownString("Вставляет блок для вставки docx");
-		item.documentation.appendCodeblock('!(путькфайлу){\n\t"поле": "значение",\n}');
+		item.documentation.appendCodeblock('!(путькфайлу){\n\t"поле": "значение",\n}\n!!section from 2');
+		res.push(item);
+	}
+	if (linePrefix == "!" || linePrefix == "")
+	{
+		const item = new CompletionItem({
+			label: "Вставить pdf",
+			description: "!(файл.pdf){}"
+		}, CompletionItemKind.Snippet);
+		const p = linePrefix ? "" : "!";
+		item.insertText = new SnippetString(p + '!(${1:путькфайлу}){}\n!!section from 2');
+		item.sortText = "!doc";
+		item.documentation = new MarkdownString("Вставляет блок для вставки pdf");
+		item.documentation.appendCodeblock('!(путькфайлу){}\n!!section from 2');
 		res.push(item);
 	}
 	if (linePrefix == "")
@@ -101,8 +114,13 @@ export function md_inlineCompletion(document: TextDocument, position: Position):
 	const lineText = line.text.trim();
 	// const linePrefix = line.slice(0, position.character);
 	if (lineText != "") return;
+
+	const config = workspace.getConfiguration("md2gost");
+    const isTableSepEnabled = config.get<boolean>("completion.tableSeparator", true);
+    const isListItemEnabled = config.get<boolean>("completion.listItem", true);
+
 	const prevLine = document.lineAt(position.line - 1).text;
-	if (prevLine.includes("|") && (position.line - 2 < 0 || !document.lineAt(position.line - 2).text.trim().includes("|")))
+	if (isTableSepEnabled && prevLine.includes("|") && (position.line - 2 < 0 || !document.lineAt(position.line - 2).text.trim().includes("|")))
 	{
 		return [
 			new InlineCompletionItem(
@@ -111,6 +129,7 @@ export function md_inlineCompletion(document: TextDocument, position: Position):
 			)
 		];
 	}
+	if (!isListItemEnabled) return;
 	const m_olist = /^(\s*)(\d+)(\.|\))\s/.exec(prevLine);
 	if (m_olist)
 		return [

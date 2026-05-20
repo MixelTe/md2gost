@@ -8,8 +8,8 @@ export function markdownItPlugin(md: MarkdownIt)
 	function isGostyMd(env: any)
 	{
 		const config = vscode.workspace.getConfiguration("md2gost");
-		const enhancedMarkdownPreview = config.get<boolean>("ui.enhancedMarkdownPreview", true);
-		if (!enhancedMarkdownPreview) return false;
+		const enhancedPreview = config.get<boolean>("ui.enhancedPreview", true);
+		if (!enhancedPreview) return false;
 		const uri = env.currentDocument ?? vscode.window.activeTextEditor?.document.uri as vscode.Uri | undefined;
 		return !!(uri && uri?.fsPath?.endsWith(".g.md"));
 	}

@@ -128,7 +128,10 @@ export function hslToHex(h: number, s: number, l: number): string
 }
 
 
+export function repeat(n: number): number[]
 export function repeat<T>(n: number, v: T | ((i: number) => T)): T[]
+export function repeat<T>(n: number, v?: T | ((i: number) => T)): T[]
 {
+	if (v === undefined) v = i => i as T;
 	return new Array(n).fill(null).map((_, i) => v instanceof Function ? v(i) : v);
 }
