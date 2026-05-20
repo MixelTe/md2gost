@@ -2,7 +2,6 @@ param (
     [string]$InputDoc,
     [string]$OutputDoc,
     [string]$MacroTemplate,
-    [string]$Template,
     [switch]$RenderPDF
 )
 
@@ -10,7 +9,6 @@ param (
 if (-not $InputDoc) { throw "The input file is not defined" }
 if (-not $OutputDoc) { throw "The output file is not defined" }
 if (-not $MacroTemplate) { throw "The macro template file is not defined" }
-if (-not $Template) { throw "The template file is not defined" }
 
 # --- Проверки --------------------------------------------------
 
@@ -24,7 +22,6 @@ if (-not (Test-Path $MacroTemplate)) {
 $InputDoc = [System.IO.Path]::GetFullPath($InputDoc)
 $OutputDoc = [System.IO.Path]::GetFullPath($OutputDoc)
 $MacroTemplate = [System.IO.Path]::GetFullPath($MacroTemplate)
-$Template = [System.IO.Path]::GetFullPath($Template)
 
 # --- Word ------------------------------------------------------
 
@@ -52,10 +49,7 @@ try {
 
     if ($RenderPDF) {
         Write-Host "[*3] Render to PDF..."
-        # Template is used to render segments cause they are new files
-        $doc.AttachedTemplate = $Template
         $word.Run("RenderSegmentsToPDF")
-        $doc.AttachedTemplate = "Normal"
     }
 
     $doc.Close($false)

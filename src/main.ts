@@ -134,7 +134,6 @@ function runDocxMacro(progress: SetProgressFn, assets: string, cwd: string, fin:
 {
 	const script = path.join(assets, "run.ps1");
 	const templateMacro = path.join(assets, "template.dotm");
-	const template = path.join(assets, "template.dotx");
 	// console.log(template);
 	return new Promise<boolean>((res, rej) =>
 	{
@@ -144,7 +143,6 @@ function runDocxMacro(progress: SetProgressFn, assets: string, cwd: string, fin:
 			"-InputDoc", fin,
 			"-OutputDoc", fout,
 			"-MacroTemplate", templateMacro,
-			"-Template", template,
 			...(renderPDF ? ["-RenderPDF"] : []),
 		], { cwd });
 		// ], { cwd, detached: true, shell: true });
