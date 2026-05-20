@@ -147,6 +147,10 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 				doc.headings.h1.spacing.before = 0;
 				doc.headings.h2.size = 16;
 			},
+			"text size": v => doc.text.size = tryParseInt(v),
+			"text line_spacing": v => doc.text.line_spacing = tryParseFloat(v),
+			"text indent": v => doc.text.indent = tryParseFloat(v),
+			"text spacing after": v => doc.text.spacing.after = tryParseInt(v),
 		};
 		const reRules: { re: RegExp, n: (m: RegExpExecArray) => { rule: string, value: string }, f: (m: RegExpExecArray) => void }[] = [
 			{
@@ -203,6 +207,12 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 		{
 			const num = parseInt(v);
 			if (!isFinite(num)) throw new RuleError("Only integers are allowed");
+			return num;
+		}
+		function tryParseFloat(v: string)
+		{
+			const num = parseFloat(v);
+			if (!isFinite(num)) throw new RuleError("Only integers and floats are allowed");
 			return num;
 		}
 		function tryParseDate(v: string)

@@ -273,7 +273,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 
 	const docx = new Document({
 		sections,
-		externalStyles: fs.readFileSync(path.join(assets, "styles.xml"), { encoding: "utf8" }),
+		externalStyles: genXml_style(assets, doc),
 		// features: { updateFields: true },
 		numbering: { config: numbering },
 		...(doc.rainbow ? { background: { color: "#000000" } } : {}),
@@ -691,4 +691,40 @@ function genXml_core({ title, creator, createdAt, modifiedAt }: { title?: string
 <dcterms:created xsi:type="dcterms:W3CDTF">${createdAt.toISOString()}</dcterms:created>
 <dcterms:modified xsi:type="dcterms:W3CDTF">${modifiedAt.toISOString()}</dcterms:modified>
 </cp:coreProperties>`;
+}
+function genXml_style(assets: string, doc: RunicDoc): string
+{
+	let xml = fs.readFileSync(path.join(assets, "styles.xml"), { encoding: "utf8" });
+
+	xml = editStyle(`<w:style w:type="paragraph" w:default="1" w:styleId="a2">`, xml =>
+	{
+		xml = replaceTag(xml, `<w:spacing w:line="${doc.text.line_spacing * 240}" w:lineRule="auto" w:after="${doc.text.spacing.after * 20}"/>`);
+		xml = replaceTag(xml, `<w:ind w:firstLine="${convertMillimetersToTwip(doc.text.indent * 10)}"/>`);
+		xml = replaceTag(xml, `<w:sz w:val="${doc.text.size * 2}"/>`);
+		return xml;
+	});
+
+	return xml;
+
+	function replaceTag(xml: string, tag: string): string
+	{
+		const tagName = /<([^\s]+)\b/.exec(tag)?.[1];
+		if (!tagName) throw err();
+		const regex = new RegExp(`(<${tagName}\\b[^>]*/>)`, "s");
+		return xml.replace(regex, tag);
+	}
+	function editStyle(tag: string, f: (xml: string) => string)
+	{
+		const startI = xml.indexOf(tag);
+		if (startI < 0) throw err();
+		let endI = xml.indexOf(`</w:style>`, startI);
+		if (endI < 0) throw err();
+		endI += `</w:style>`.length;
+
+		return xml.slice(0, startI) + f(xml.slice(startI, endI)) + xml.slice(endI);
+	}
+	function err()
+	{
+		return new Error(`styles.xml is corrupted (broken extension version - upgrade or downgrade)`);
+	}
 }

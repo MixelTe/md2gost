@@ -20,6 +20,12 @@ export class Doc
 		h5: { size: 14, spacing: { before: 8, after: 4 }, indent_full: false, uppercase: false },
 		h6: { size: 14, spacing: { before: 8, after: 4 }, indent_full: false, uppercase: false },
 	};
+	public text = {
+		size: 14,
+		line_spacing: 1.5,
+		indent: 1.25,
+		spacing: { after: 8 },
+	};
 	public table = {
 		title: { style: "normal" as "normal" | "bold" | "italic" },
 		heading: {

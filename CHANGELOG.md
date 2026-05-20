@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- rules to configure common text styles
 - support multiline markdown comments
 - `md2gost.completion.tableSeparator` and `md2gost.completion.listItem` options to toggle text suggestions
 - `md2gost.render.removeIntermediateDocx` option to clean up temporary DOCX file after PDF generation

@@ -695,19 +695,36 @@
 Размеры (size, spacing) задаются в пунктах (pt).
 
 **Правила:**
+* Обычный текст (Абзацы)
+	* Размер шрифта
+		- `!!rule text size <int>`
+		- Пример: `!!rule text size 12`
+		- По умолчанию: `14` пт
+	* Межстрочный интервал
+		- `!!rule text line_spacing <float>`
+		- Пример: `!!rule text line_spacing 1`
+		- По умолчанию: `1.5`
+	* Абзацный отступ (Красная строка)
+		- `!!rule text indent <float>`
+		- Пример: `!!rule text indent 0.75`
+		- По умолчанию: `1.25` см
+	* Интервал после абзаца
+		- `!!rule text spacing after <int>`
+		- Пример: `!!rule text spacing after 0`
+		- По умолчанию: `8` пт
 * Заголовки
 	* Размер заголовка
 		- `!!rule headings h<1-6>[+] size <int>`
 		- Примеры:
 			* `!!rule headings h1 size 18` – установить размер 18&nbsp;пт для заголовков первого уровня
 			* `!!rule headings h2+ size 14` – установить размер 14&nbsp;пт для заголовков второго и последующих уровней
-		- По умолчанию: 14 для всех заголовков
+		- По умолчанию: `14` пт для всех заголовков
 	* Интервал до и после
 		- `!!rule headings h<1-6>[+] spacing <before|after> <int>`
 		- Пример: `!!rule headings h1 spacing after 10`
 		- По умолчанию:
-			- h1 – before: 18; after: 4
-			- остальные – before: 8; after: 4
+			- h1 – before: `18` пт; after: `4` пт
+			- остальные – before: `8` пт; after: `4` пт
 	* Приведение к верхнему регистру
 		- `!!rule headings h<1-6>[+] uppercase`
 		- Пример: `!!rule headings h1 uppercase`
@@ -715,7 +732,7 @@
 	* Отступ слева вместо абзацного отступа
 		- `!!rule headings h<1-6>[+] indent <first_line|left>`
 		- Пример: `!!rule headings h1 indent left`
-		- По умолчанию: first_line (абзацный отступ) для всех
+		- По умолчанию: `first_line` (абзацный отступ) для всех
 	* Использовать готовый набор стилей
 		- `!!rule headings alt_style_1`
 		- Эквивалентен последовательности обычных `!!rule`. Может быть переопределён правилами, указанными после.
@@ -734,23 +751,23 @@
 * Таблицы
 	* Начертание названия
 		- `!!rule table title style <normal|bold|italic>`
-		- По умолчанию: normal
+		- По умолчанию: `normal`
 	* Начертание заголовка
 		- `!!rule table heading style <normal|bold|italic>`
 		- Пример: `!!rule table heading style bold`
-		- По умолчанию: normal
+		- По умолчанию: `normal`
 	* Выравнивание заголовка
 		- `!!rule table heading align <left|center|right>`
 		- Пример: `!!rule table heading align left`
-		- По умолчанию: center
+		- По умолчанию: `center`
 	* Размер шрифта
 		- `!!rule table text size <int>`
 		- Пример: `!!rule table text size 10`
-		- По умолчанию: 12
+		- По умолчанию: `12` пт
 * Листинги
 	* Начертание названия
 		- `!!rule code title style <normal|bold|italic>`
-		- По умолчанию: normal
+		- По умолчанию: `normal`
 	* [Подсветка синтаксиса кода](#подсветка-синтаксиса-кода)
 		- `!!rule code highlight`
 		- По умолчанию: выключено
@@ -759,16 +776,18 @@
 		- `!!rule list unordered style <dash|bullet|keep>`
 		- `keep` – Сохранять символ, использованный в исходном файле
 		- Пример: `!!rule list unordered style keep`
-		- По умолчанию: bullet
+		- По умолчанию: `bullet`
 	* Символ для нумерованных списков
 		- `!!rule list ordered style <bracket|dot|keep>`
 		- `keep` – Сохранять символ, использованный в исходном файле
 		- Пример: `!!rule list ordered style keep`
-		- По умолчанию: bracket
+		- По умолчанию: `bracket`
 	* Автоматическая замена знаков препинания в конце элементов списка. Элементы списка оканчиваются запятой или точкой с запятой, последний элемент точкой.
 		- `!!rule list autopunctuation <on|off>`
 		- Пример: `!!rule list autopunctuation off`
-		- По умолчанию: on
+		- По умолчанию: `on`
+
+
 #### Примеры
 
 1. Крупный заголовок первого уровня:
@@ -885,4 +904,7 @@
 | `md2gost.ui.enhancedHighlighting`         | Подсветка синтаксиса Markdown с поддержкой md2gost.                                |
 | `md2gost.ui.enhancedPreview`              | Улучшенный предпросмотр Markdown с поддержкой синтаксиса md2gost.                  |
 | `md2gost.formatter.suppressDefaultPrompt` | Отключает предложение использовать md2gost в качестве форматировщика по умолчанию. |
-| `md2gost.formatter.replaceEmDash`         | Заменять ли Em dash (–) на En dash (–)                                             |
+| `md2gost.formatter.replaceEmDash`         | Заменять ли Em dash (—) на En dash (–).                                            |
+| `md2gost.completion.tableSeparator`       | Автоматически предлагать строку-разделитель (`\|---\|`) для новой таблицы.         |
+| `md2gost.completion.listItem`             | Автоматически продолжать нумерованные и маркированные списки на новой строке.      |
+| `md2gost.render.removeIntermediateDocx`   | Удалять промежуточный файл DOCX после успешной конвертации в PDF.                  |

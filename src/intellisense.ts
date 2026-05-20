@@ -395,6 +395,13 @@ export function addDiagnostic(context: ExtensionContext)
 					addWarn(`Wrong value: "${value}". Ожидается целое число`);
 				continue;
 			}
+			if (rule.type == "float")
+			{
+				if (isNaN(parseFloat(value)))
+					addWarn(`Wrong value: "${value}". Ожидается целое или дробное число`);
+				continue;
+			}
+			rule.type satisfies never;
 
 			function addWarn(text: string)
 			{
@@ -454,7 +461,7 @@ function headingSelectorsHint(ln: string)
 
 const Rules: Record<string, {
 	keyword: string | string[],
-	type: "bool" | "int" | "string" | "toggle",
+	type: "bool" | "int" | "float" | "string" | "toggle",
 	short: string,
 	doc: string,
 	sortText?: string,
@@ -579,11 +586,39 @@ const Rules: Record<string, {
 		) + "\n\n### **🧙‍♂️ Резонанс с Демиургом**\nЧувствуете, что инструменту не хватает важной детали? Если у вас есть идея полезной функции, которая упростит жизнь или просто добавит немного магии — пишите в [приемную верховного алхимика](https://github.com/MixelTe/md2gost/issues).\n\n*Примечание: Рациональные предложения сразу попадают в свиток планов, а для реализации безумных идей автору требуется приступ внезапного вдохновения.*",
 	},
 
+	text_size: {
+        keyword: "text size",
+        type: "int",
+        short: "Размер обычного текста",
+        doc: "Установить размер шрифта для основного текста\n\n- Синтаксис: `!!rule text size <int>`\n- Пример: `!!rule text size 12`\n- По умолчанию: `14` пт",
+        default: "14",
+    },
+    text_line_spacing: {
+        keyword: "text line_spacing",
+        type: "float",
+        short: "Межстрочный интервал текста",
+        doc: "Установить межстрочный интервал для основного текста\n\n- Синтаксис: `!!rule text line_spacing <float>`\n- Пример: `!!rule text line_spacing 1`\n- По умолчанию: `1.5`",
+        default: "1.5",
+    },
+    text_indent: {
+        keyword: "text indent",
+        type: "float",
+        short: "Абзацный отступ текста",
+        doc: "Установить величину отступа первой строки (красная строка)\n\n- Синтаксис: `!!rule text indent <float>`\n- Пример: `!!rule text indent 0.75`\n- По умолчанию: `1.25` см",
+        default: "1.25",
+    },
+    text_spacing_after: {
+        keyword: "text spacing after",
+        type: "int",
+        short: "Интервал после абзаца",
+        doc: "Установить отступ после обычных абзацев\n\n- Синтаксис: `!!rule text spacing after <int>`\n- Пример: `!!rule text spacing after 0`\n- По умолчанию: `8` пт",
+        default: "8",
+    },
 	headings_size: {
 		keyword: headingSelectors.map(h => `headings ${h} size`),
 		type: "int",
 		short: "Размер заголовков",
-		doc: "Установить размер заголовков\n\n- Синтаксис: `!!rule headings h<1-6>[+] size <int>`\n- Примеры:\n  - `!!rule headings h1 size 18` – установить размер 18 пт для заголовков первого уровня\n  - `!!rule headings h2+ size 14` – установить размер 14 пт для заголовков второго и последующих уровней\n- По умолчанию: 14 для всех заголовков",
+		doc: "Установить размер заголовков\n\n- Синтаксис: `!!rule headings h<1-6>[+] size <int>`\n- Примеры:\n  - `!!rule headings h1 size 18` – установить размер 18 пт для заголовков первого уровня\n  - `!!rule headings h2+ size 14` – установить размер 14 пт для заголовков второго и последующих уровней\n- По умолчанию: `14` пт для всех заголовков",
 		default: "14",
 		hint: headingSelectorsHint,
 	},
@@ -591,7 +626,7 @@ const Rules: Record<string, {
 		keyword: headingSelectors.map(h => `headings ${h} spacing before`),
 		type: "int",
 		short: "Интервалы до заголовков",
-		doc: "Установить интервал до заголовков\n\n- Синтаксис: `!!rule headings h<1-6>[+] spacing <before|after> <int>`\n- Пример: `!!rule headings h1 spacing before 10`\n- По умолчанию:\n  - h1 – before: 18; after: 4\n  - остальные – before: 8; after: 4",
+		doc: "Установить интервал до заголовков\n\n- Синтаксис: `!!rule headings h<1-6>[+] spacing <before|after> <int>`\n- Пример: `!!rule headings h1 spacing before 10`\n- По умолчанию:\n  - h1 – before: `18` пт; after: `4` пт\n  - остальные – before: `8` пт; after: `4` пт",
 		default: "4",
 		hint: headingSelectorsHint,
 	},
@@ -599,7 +634,7 @@ const Rules: Record<string, {
 		keyword: headingSelectors.map(h => `headings ${h} spacing after`),
 		type: "int",
 		short: "Интервалы после заголовков",
-		doc: "Установить интервал после заголовков\n\n- Синтаксис: `!!rule headings h<1-6>[+] spacing <before|after> <int>`\n- Пример: `!!rule headings h1 spacing after 10`\n- По умолчанию:\n  - h1 – before: 18; after: 4\n  - остальные – before: 8; after: 4",
+		doc: "Установить интервал после заголовков\n\n- Синтаксис: `!!rule headings h<1-6>[+] spacing <before|after> <int>`\n- Пример: `!!rule headings h1 spacing after 10`\n- По умолчанию:\n  - h1 – before: `18` пт; after: `4` пт\n  - остальные – before: `8` пт; after: `4` пт",
 		default: "4",
 		hint: headingSelectorsHint,
 	},
@@ -659,7 +694,7 @@ const Rules: Record<string, {
 		keyword: "table text size",
 		type: "int",
 		short: "Размер текста таблицы",
-		doc: "Установить размер шрифта текста таблицы\n\n- Синтаксис: `!!rule table text size <int>`\n- Пример: `!!rule table text size 10`\n- По умолчанию: `12`",
+		doc: "Установить размер шрифта текста таблицы\n\n- Синтаксис: `!!rule table text size <int>`\n- Пример: `!!rule table text size 10`\n- По умолчанию: `12` пт",
 		default: "12",
 	},
 	code_title_style: {
