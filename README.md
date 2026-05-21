@@ -702,7 +702,7 @@
 		- По умолчанию: `14` пт
 	* Межстрочный интервал
 		- `!!rule text line_spacing <float>`
-		- Пример: `!!rule text line_spacing 1`
+		- Пример: `!!rule text line_spacing 1.25`
 		- По умолчанию: `1.5`
 	* Абзацный отступ (Красная строка)
 		- `!!rule text indent <float>`
@@ -752,6 +752,18 @@
 	* Начертание названия
 		- `!!rule table title style <normal|bold|italic>`
 		- По умолчанию: `normal`
+	* Размер шрифта названия
+		- `!!rule table title size <int>`
+		- Пример: `!!rule table title size 12`
+		- По умолчанию: наследуется от текста
+	* Интервал перед названием
+		- `!!rule table spacing before <int>`
+		- Пример: `!!rule table spacing before 6`
+		- По умолчанию: `0` пт
+	* Интервал после таблицы
+		- `!!rule table spacing after <int>`
+		- Пример: `!!rule table spacing after 6`
+		- По умолчанию: наследуется от текста
 	* Начертание заголовка
 		- `!!rule table heading style <normal|bold|italic>`
 		- Пример: `!!rule table heading style bold`
@@ -760,14 +772,30 @@
 		- `!!rule table heading align <left|center|right>`
 		- Пример: `!!rule table heading align left`
 		- По умолчанию: `center`
-	* Размер шрифта
+	* Размер шрифта текста таблицы
 		- `!!rule table text size <int>`
 		- Пример: `!!rule table text size 10`
 		- По умолчанию: `12` пт
+	* Межстрочный интервал текста таблицы
+		- `!!rule table text line_spacing <float>`
+		- Пример: `!!rule table text line_spacing 1`
+		- По умолчанию: `1.25`
 * Листинги
 	* Начертание названия
 		- `!!rule code title style <normal|bold|italic>`
 		- По умолчанию: `normal`
+	* Размер шрифта названия
+		- `!!rule code title size <int>`
+		- Пример: `!!rule code title size 12`
+		- По умолчанию: наследуется от текста
+	* Интервал перед названием
+		- `!!rule code spacing before <int>`
+		- Пример: `!!rule code spacing before 8`
+		- По умолчанию: `0` пт
+	* Интервал после листинга
+		- `!!rule code spacing after <int>`
+		- Пример: `!!rule code spacing after 6`
+		- По умолчанию: наследуется от текста
 	* Размер шрифта
 		- `!!rule code text size <int>`
 		- Пример: `!!rule code text size 10`
@@ -775,6 +803,19 @@
 	* [Подсветка синтаксиса кода](#подсветка-синтаксиса-кода)
 		- `!!rule code highlight`
 		- По умолчанию: выключено
+* Картинки
+	* Размер шрифта подписи
+		- `!!rule img text size <int>`
+		- Пример: `!!rule img text size 12`
+		- По умолчанию: наследуется от текста
+	* Интервал перед картинкой
+		- `!!rule img spacing before <int>`
+		- Пример: `!!rule img spacing before 8`
+		- По умолчанию: `0` пт
+	* Интервал после абзаца подписи
+		- `!!rule img spacing after <int>`
+		- Пример: `!!rule img spacing after 6`
+		- По умолчанию: наследуется от текста
 * Списки
 	* Символ для ненумерованных списков
 		- `!!rule list unordered style <dash|bullet|keep>`

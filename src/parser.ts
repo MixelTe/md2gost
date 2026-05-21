@@ -126,10 +126,17 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			"backtick_mono": v => doc.backtickMono = choices(v, "italic", "off", "on", "outline"),
 			"hyphenation": v => doc.hyphenation = true,
 			"table title style": v => doc.table.title.style = choices(v, "normal", "bold", "italic"),
+			"table title size": v => doc.table.title.size = tryParseInt(v),
+			"table spacing before": v => doc.table.spacing.before = tryParseInt(v),
+			"table spacing after": v => doc.table.spacing.after = tryParseInt(v),
 			"table heading style": v => doc.table.heading.style = choices(v, "normal", "bold", "italic"),
 			"table heading align": v => doc.table.heading.align = choices(v, "left", "center", "right"),
 			"table text size": v => doc.table.text.size = tryParseInt(v),
+			"table text line_spacing": v => doc.table.text.line_spacing = tryParseFloat(v),
 			"code title style": v => doc.code.title.style = choices(v, "normal", "bold", "italic"),
+			"code title size": v => doc.code.title.size = tryParseInt(v),
+			"code spacing before": v => doc.code.spacing.before = tryParseInt(v),
+			"code spacing after": v => doc.code.spacing.after = tryParseInt(v),
 			"code highlight": v => { choices(v, "", "on", "off"); doc.code.highlight = !v || v == "on"; },
 			"code text size": v => doc.code.text.size = tryParseInt(v),
 			"list ordered style": v => doc.list.ordered.style = choices(v, "bracket", "dot", "keep"),
@@ -152,6 +159,9 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			"text line_spacing": v => doc.text.line_spacing = tryParseFloat(v),
 			"text indent": v => doc.text.indent = tryParseFloat(v),
 			"text spacing after": v => doc.text.spacing.after = tryParseInt(v),
+			"img text size": v => doc.img.text.size = tryParseInt(v),
+			"img spacing before": v => doc.img.spacing.before = tryParseInt(v),
+			"img spacing after": v => doc.img.spacing.after = tryParseInt(v),
 		};
 		const reRules: { re: RegExp, n: (m: RegExpExecArray) => { rule: string, value: string }, f: (m: RegExpExecArray) => void }[] = [
 			{

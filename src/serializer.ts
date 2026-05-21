@@ -71,7 +71,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 			},
 		});
 
-		function renderNode(node: RunicNode, prevChild?: FileChild): FileChild | FileChild[]
+		function renderNode(node: RunicNode, prevChild?: FileChild, prevNode?: RunicNode): FileChild | FileChild[]
 		{
 			switch (node.type)
 			{
@@ -81,7 +81,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						indent: node.noIndent ? { firstLine: 0 } : {},
 						spacing: {
 							...(node.noMargin ? { after: 0 } : {}),
-							...(prevChild instanceof Table ? { before: 8 * 20 } : {}),
+							...(prevChild instanceof Table ? { before: (doc.table.spacing.after ?? doc.text.spacing.after) * 20 } : {}),
 						}
 					});
 				case "title":
@@ -90,7 +90,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					const styles = doc.headings[`h${level}`];
 					if (styles.uppercase) node.text.forEach(r => r.text = r.text.toUpperCase());
 					return new Paragraph({
-						children: renderText(node.text, styles.size * 2),
+						children: renderText(node.text, styles.size),
 						style: `${node.level}`,
 						...(node.center ? { alignment: "center", indent: { firstLine: 0 } } : {}),
 						...(!node.center && node.level != 0 && styles.indent_full ? { indent: { firstLine: 0, left: convertMillimetersToTwip(12.5) } } : {}),
@@ -130,7 +130,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 									style: STYLE_list,
 									numbering: { reference: id, level },
 									spacing: {
-										...(addMargin ? { before: 8 * 20 } : {}),
+										...(addMargin ? { before: (doc.table.spacing.after ?? doc.text.spacing.after) * 20 } : {}),
 									}
 								}));
 								addMargin = false;
@@ -143,15 +143,20 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					if (node.title && doc.table.title.style == "bold") node.title.forEach(r => r.bold = true);
 					if (node.rows[0] && doc.table.heading.style == "italic") node.rows[0].forEach(n => n.type == "text" ? n.text.forEach(r => r.italic = true) : 0);
 					if (node.rows[0] && doc.table.heading.style == "bold") node.rows[0].forEach(n => n.type == "text" ? n.text.forEach(r => r.bold = true) : 0);
+					const spacingInner = Math.max(doc.table.spacing.after ?? doc.text.spacing.after, doc.table.spacing.before ?? 0);
 					return [
 						...(node.title ? [
 							new Paragraph({
-								children: renderText(node.title),
+								children: renderText(node.title, doc.table.title.size),
 								style: STYLE_table_title,
-								...(prevChild instanceof Table ? { spacing: { before: 8 * 20 } } : {}),
+								...(prevChild instanceof Table ? { spacing: { before: spacingInner * 20 } } :
+									doc.table.spacing.before ? { spacing: { before: doc.table.spacing.before * 20 } } : {}
+								),
 							}),
 						] : prevChild instanceof Table ? [
-							new Paragraph({ spacing: { line: 40, }, }),
+							new Paragraph({ spacing: { line: 20, before: spacingInner * 20, after: 0 }, }),
+						] : doc.table.spacing.before ? [
+							new Paragraph({ spacing: { line: 20, before: doc.table.spacing.before * 20, after: 0 }, }),
 						] : []),
 						new Table({
 							// width: { type: "pct", size: 100 },
@@ -162,12 +167,12 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 								children: row.map((item, colI) => new TableCell({
 									children: item.type != "text" ? renderNodeL(item) : [
 										new Paragraph({
-											children: renderText(item.text, node.normalFontSize ? -1 : doc.table.text.size * 2),
+											children: renderText(item.text, node.normalFontSize ? undefined : doc.table.text.size),
 											alignment: rowI == 0 ? doc.table.heading.align :
 												node.align[colI] == "c" ? "center"
 													: node.align[colI] == "r" ? "right" : "left",
 											indent: { firstLine: 0 },
-											spacing: { after: 0, line: 240 * 1.25 },
+											spacing: { after: 0, line: 240 * doc.table.text.line_spacing },
 										})
 									],
 								})),
@@ -202,7 +207,11 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						new Paragraph({
 							alignment: "center",
 							indent: { firstLine: 0 },
-							spacing: { line: 240 },
+							spacing: {
+								line: 240,
+								...(!node.text && doc.img.spacing.after !== undefined ? { after: doc.img.spacing.after * 20 } : {}),
+								...(doc.img.spacing.before !== undefined ? { before: doc.img.spacing.before * 20 } : {}),
+							},
 							keepNext: !!node.text,
 							children: [
 								new ImageRun({
@@ -215,10 +224,13 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						}),
 						...(node.text ? [
 							new Paragraph({
-								children: renderText(node.text),
+								children: renderText(node.text, doc.img.text.size),
 								alignment: "center",
 								indent: { firstLine: 0 },
-								spacing: { line: 240 },
+								spacing: {
+									line: 240,
+									...(doc.img.spacing.after !== undefined ? { after: doc.img.spacing.after * 20 } : {}),
+								},
 							}),
 						] : []),
 					];
@@ -229,15 +241,18 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					return [
 						...(node.title ? [
 							new Paragraph({
-								children: renderText(node.title),
+								children: renderText(node.title, doc.code.title.size),
 								style: STYLE_code_title,
 							})
+						] : prevNode?.type == "code" ? [
+							new Paragraph({ spacing: { line: 20 }, }),
 						] : []),
 						...(code ? code :
-							node.code.split("\n").map(p =>
+							node.code.split("\n").map((p, i) =>
 								new Paragraph({
 									children: [new TextRun(p)],
 									style: STYLE_code,
+									...(i == 0 && !node.title && doc.code.spacing.before && prevNode?.type != "code" ? { spacing: { before: doc.code.spacing.before * 20 } } : {}),
 								}))
 						),
 					];
@@ -260,15 +275,15 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					throw new Error("switch default");
 			}
 		}
-		function renderNodeL(node: RunicNode, prevChild?: FileChild)
+		function renderNodeL(node: RunicNode, prevChild?: FileChild, prevNode?: RunicNode)
 		{
-			const r = renderNode(node, prevChild);
+			const r = renderNode(node, prevChild, prevNode);
 			if (r instanceof Array) return r;
 			return [r];
 		}
 
-		for (const node of section.nodes)
-			children.push(...renderNodeL(node, children.at(-1)));
+		for (let i = 0; i < section.nodes.length; i++)
+			children.push(...renderNodeL(section.nodes[i], children.at(-1), section.nodes[i - 1]));
 	}
 
 	const docx = new Document({
@@ -303,7 +318,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 	]);
 	fs.writeFileSync(fout, buffer);
 
-	function renderText(text: string | Rune[], size: number = -1): ParagraphChild[]
+	function renderText(text: string | Rune[], size?: number): ParagraphChild[]
 	{
 		function renderRune(rune: Rune, link: boolean = false): ParagraphChild
 		{
@@ -332,11 +347,11 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 				...(rune.italic ? { italics: true } : {}),
 				...(link ? { color: "0563c1", underline: { type: "single" } } : {}),
 				...(rune.color ? { color: rune.color } : {}),
-				...(size > 0 ? { size } : {}),
+				...(size && size > 0 ? { size: size * 2 } : {}),
 				...(rune.type && rune.type != "text" ? { highlight: "black", color: "ffffff" } : {}),
 				...(rune.mono ? (
-					doc.backtickMono == "outline" ? { font: "consolas", size: 24, border: { style: "single", space: 2 } }
-						: doc.backtickMono == "on" ? { font: "consolas", size: 24 }
+					doc.backtickMono == "outline" ? { font: "consolas", size: (doc.text.size - 1) * 2, border: { style: "single", space: 2 } }
+						: doc.backtickMono == "on" ? { font: "consolas", size: (doc.text.size - 1) * 2 }
 							: doc.backtickMono == "italic" ? { italics: true } : {}
 				) : {}),
 			});
@@ -704,9 +719,18 @@ function genXml_style(assets: string, doc: RunicDoc): string
 		return xml;
 	});
 
+	xml = editStyle(`<w:style w:type="paragraph" w:customStyle="1" w:styleId="ListingCaption">`, xml =>
+	{
+		if (doc.code.spacing.before !== undefined)
+			xml = replaceTag(xml, `<w:spacing w:after="0" w:line="240" w:lineRule="auto" w:before="${doc.code.spacing.before * 20}"/>`);
+		return xml;
+	});
+
 	xml = editStyle(`<w:style w:type="paragraph" w:customStyle="1" w:styleId="ListingCode">`, xml =>
 	{
 		xml = replaceTag(xml, `<w:sz w:val="${doc.code.text.size * 2}"/>`);
+		if (doc.code.spacing.after !== undefined)
+			xml = replaceTag(xml, `<w:spacing w:line="240" w:lineRule="auto" w:after="${doc.code.spacing.after * 20}"/>`);
 		return xml;
 	});
 

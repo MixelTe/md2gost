@@ -116,8 +116,8 @@ export function md_inlineCompletion(document: TextDocument, position: Position):
 	if (lineText != "") return;
 
 	const config = workspace.getConfiguration("md2gost");
-    const isTableSepEnabled = config.get<boolean>("completion.tableSeparator", true);
-    const isListItemEnabled = config.get<boolean>("completion.listItem", true);
+	const isTableSepEnabled = config.get<boolean>("completion.tableSeparator", true);
+	const isListItemEnabled = config.get<boolean>("completion.listItem", true);
 
 	const prevLine = document.lineAt(position.line - 1).text;
 	if (isTableSepEnabled && prevLine.includes("|") && (position.line - 2 < 0 || !document.lineAt(position.line - 2).text.trim().includes("|")))
@@ -587,33 +587,33 @@ const Rules: Record<string, {
 	},
 
 	text_size: {
-        keyword: "text size",
-        type: "int",
-        short: "Размер обычного текста",
-        doc: "Установить размер шрифта для основного текста\n\n- Синтаксис: `!!rule text size <int>`\n- Пример: `!!rule text size 12`\n- По умолчанию: `14` пт",
-        default: "14",
-    },
-    text_line_spacing: {
-        keyword: "text line_spacing",
-        type: "float",
-        short: "Межстрочный интервал текста",
-        doc: "Установить межстрочный интервал для основного текста\n\n- Синтаксис: `!!rule text line_spacing <float>`\n- Пример: `!!rule text line_spacing 1`\n- По умолчанию: `1.5`",
-        default: "1.5",
-    },
-    text_indent: {
-        keyword: "text indent",
-        type: "float",
-        short: "Абзацный отступ текста",
-        doc: "Установить величину отступа первой строки (красная строка)\n\n- Синтаксис: `!!rule text indent <float>`\n- Пример: `!!rule text indent 0.75`\n- По умолчанию: `1.25` см",
-        default: "1.25",
-    },
-    text_spacing_after: {
-        keyword: "text spacing after",
-        type: "int",
-        short: "Интервал после абзаца",
-        doc: "Установить отступ после обычных абзацев\n\n- Синтаксис: `!!rule text spacing after <int>`\n- Пример: `!!rule text spacing after 0`\n- По умолчанию: `8` пт",
-        default: "8",
-    },
+		keyword: "text size",
+		type: "int",
+		short: "Размер обычного текста",
+		doc: "Установить размер шрифта для основного текста\n\n- Синтаксис: `!!rule text size <int>`\n- Пример: `!!rule text size 12`\n- По умолчанию: `14` пт",
+		default: "14",
+	},
+	text_line_spacing: {
+		keyword: "text line_spacing",
+		type: "float",
+		short: "Межстрочный интервал текста",
+		doc: "Установить межстрочный интервал для основного текста\n\n- Синтаксис: `!!rule text line_spacing <float>`\n- Пример: `!!rule text line_spacing 1`\n- По умолчанию: `1.5`",
+		default: "1.25",
+	},
+	text_indent: {
+		keyword: "text indent",
+		type: "float",
+		short: "Абзацный отступ текста",
+		doc: "Установить величину отступа первой строки (красная строка)\n\n- Синтаксис: `!!rule text indent <float>`\n- Пример: `!!rule text indent 0.75`\n- По умолчанию: `1.25` см",
+		default: "1.25",
+	},
+	text_spacing_after: {
+		keyword: "text spacing after",
+		type: "int",
+		short: "Интервал после абзаца",
+		doc: "Установить отступ после обычных абзацев\n\n- Синтаксис: `!!rule text spacing after <int>`\n- Пример: `!!rule text spacing after 0`\n- По умолчанию: `8` пт",
+		default: "8",
+	},
 	headings_size: {
 		keyword: headingSelectors.map(h => `headings ${h} size`),
 		type: "int",
@@ -674,6 +674,27 @@ const Rules: Record<string, {
 		default: "italic",
 		options: ["normal", "bold", "italic"],
 	},
+	table_title_size: {
+		keyword: "table title size",
+		type: "int",
+		short: "Размер шрифта названия таблицы",
+		doc: "Установить размер шрифта для названий таблиц\n\n- Синтаксис: `!!rule table title size <int>`\n- Пример: `!!rule table title size 12`\n- По умолчанию: наследуется от текста",
+		default: "12",
+	},
+	table_spacing_before: {
+		keyword: "table spacing before",
+		type: "int",
+		short: "Интервал перед названием таблицы",
+		doc: "Установить отступ перед названием таблицы\n\n- Синтаксис: `!!rule table spacing before <int>`\n- Пример: `!!rule table spacing before 6`\n- По умолчанию: `0` пт",
+		default: "6",
+	},
+	table_spacing_after: {
+		keyword: "table spacing after",
+		type: "int",
+		short: "Интервал после таблицы",
+		doc: "Установить отступ после таблицы\n\n- Синтаксис: `!!rule table spacing after <int>`\n- Пример: `!!rule table spacing after 6`\n- По умолчанию: наследуется от текста",
+		default: "6",
+	},
 	table_heading_style: {
 		keyword: "table heading style",
 		type: "string",
@@ -697,6 +718,13 @@ const Rules: Record<string, {
 		doc: "Установить размер шрифта текста таблицы\n\n- Синтаксис: `!!rule table text size <int>`\n- Пример: `!!rule table text size 10`\n- По умолчанию: `12` пт",
 		default: "12",
 	},
+	table_text_line_spacing: {
+        keyword: "table text line_spacing",
+        type: "float",
+        short: "Межстрочный интервал текста таблицы",
+        doc: "Установить межстрочный интервал для текста внутри таблиц\n\n- Синтаксис: `!!rule table text line_spacing <float>`\n- Пример: `!!rule table text line_spacing 1`\n- По умолчанию: `1.25`",
+        default: "1",
+    },
 	code_title_style: {
 		keyword: "code title style",
 		type: "string",
@@ -704,6 +732,27 @@ const Rules: Record<string, {
 		doc: "Установить начертание названия листинга\n\n- Синтаксис: `!!rule code title style <normal|bold|italic>`\n- По умолчанию: `normal`",
 		default: "italic",
 		options: ["normal", "bold", "italic"],
+	},
+	code_title_size: {
+		keyword: "code title size",
+		type: "int",
+		short: "Размер шрифта названия листинга",
+		doc: "Установить размер шрифта для названия листингов (кода)\n\n- Синтаксис: `!!rule code title size <int>`\n- Пример: `!!rule code title size 12`\n- По умолчанию: наследуется от текста",
+		default: "12",
+	},
+	code_spacing_before: {
+		keyword: "code spacing before",
+		type: "int",
+		short: "Интервал перед названием листинга",
+		doc: "Установить отступ перед названием листинга\n\n- Синтаксис: `!!rule code spacing before <int>`\n- Пример: `!!rule code spacing before 8`\n- По умолчанию: `0` пт",
+		default: "8",
+	},
+	code_spacing_after: {
+		keyword: "code spacing after",
+		type: "int",
+		short: "Интервал после листинга",
+		doc: "Установить отступ после блока листинга\n\n- Синтаксис: `!!rule code spacing after <int>`\n- Пример: `!!rule code spacing after 6`\n- По умолчанию: наследуется от текста",
+		default: "6",
 	},
 	code_highlight: {
 		keyword: "code highlight",
@@ -717,6 +766,27 @@ const Rules: Record<string, {
 		short: "Размер текста листинга",
 		doc: "Установить размер шрифта текста листинга\n\n- Синтаксис: `!!rule code text size <int>`\n- Пример: `!!rule code text size 10`\n- По умолчанию: `12` пт",
 		default: "12",
+	},
+	img_text_size: {
+		keyword: "img text size",
+		type: "int",
+		short: "Размер шрифта подписи картинки",
+		doc: "Установить размер шрифта для подписей к рисункам\n\n- Синтаксис: `!!rule img text size <int>`\n- Пример: `!!rule img text size 12`\n- По умолчанию: наследуется от текста",
+		default: "12",
+	},
+	img_spacing_before: {
+		keyword: "img spacing before",
+		type: "int",
+		short: "Интервал перед картинкой",
+		doc: "Установить отступ перед изображением\n\n- Синтаксис: `!!rule img spacing before <int>`\n- Пример: `!!rule img spacing before 8`\n- По умолчанию: `0` пт",
+		default: "8",
+	},
+	img_spacing_after: {
+		keyword: "img spacing after",
+		type: "int",
+		short: "Интервал после подписи картинки",
+		doc: "Установить отступ после абзаца подписи к рисунку\n\n- Синтаксис: `!!rule img spacing after <int>`\n- Пример: `!!rule img spacing after 6`\n- По умолчанию: наследуется от текста",
+		default: "6",
 	},
 	list_unordered_style: {
 		keyword: "list unordered style",

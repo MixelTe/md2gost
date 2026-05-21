@@ -439,12 +439,12 @@ export function markdownItPlugin(md: MarkdownIt)
 
 		const title = addNumberToTitle(token.meta, "image", token.content);
 		const imageHtml = defaultImageRender(tokens, idx, options, env, self);
-		if (!title) return imageHtml;
 
 		return (
 			`<figure style="margin-inline: 0; text-align: center;">` +
 			imageHtml +
-			`<figcaption>${title}</figcaption></figure>`
+			(title ? `<figcaption>${title}</figcaption>` : "")
+			+ `</figure>`
 		);
 	};
 
@@ -474,8 +474,9 @@ export function markdownItPlugin(md: MarkdownIt)
 			md2gost_sections: sections,
 		} = meta || {};
 
-		if (!title && autoprefixDisable) return false;
+		if (!title || autoprefixDisable) return false;
 		title = title || "";
+		if (!title.trim()) return false;
 
 		title = title.trimStart();
 		if (html) title = md.utils.escapeHtml(title);

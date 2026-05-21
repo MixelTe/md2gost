@@ -27,15 +27,26 @@ export class Doc
 		spacing: { after: 8 },
 	};
 	public table = {
-		title: { style: "normal" as "normal" | "bold" | "italic" },
+		title: {
+			style: "normal" as "normal" | "bold" | "italic",
+			size: undefined as undefined | number,
+		},
 		heading: {
 			style: "normal" as "normal" | "bold" | "italic",
 			align: "center" as "left" | "center" | "right",
 		},
-		text: { size: 12 },
+		spacing: { before: undefined as undefined | number, after: undefined as undefined | number },
+		text: {
+			size: 12,
+			line_spacing: 1.25,
+		},
 	};
 	public code = {
-		title: { style: "normal" as "normal" | "bold" | "italic" },
+		title: {
+			style: "normal" as "normal" | "bold" | "italic",
+			size: undefined as undefined | number,
+		},
+		spacing: { before: undefined as undefined | number, after: undefined as undefined | number },
 		highlight: false,
 		text: { size: 12 },
 	};
@@ -43,6 +54,10 @@ export class Doc
 		ordered: { style: "bracket" as "bracket" | "dot" | "keep" },
 		unordered: { style: "dash" as "dash" | "bullet" | "keep" },
 		autopunctuation: true,
+	};
+	public img = {
+		spacing: { before: undefined as undefined | number, after: undefined as undefined | number },
+		text: { size: undefined as undefined | number },
 	};
 
 	public appendText(text: string)
