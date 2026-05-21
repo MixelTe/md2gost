@@ -61,7 +61,7 @@ Function ExtractListingNumber(text As String) As String
     Dim re As Object
     Set re = CreateObject("VBScript.RegExp")
 
-    re.Pattern = "Листинг\s+([\d\.]+)"
+    re.Pattern = "Листинг\s+(.?[\d\.]+)"
     re.IgnoreCase = True
 
     If re.Test(text) Then

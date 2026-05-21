@@ -99,7 +99,7 @@ Function ExtractTableNumber(text As String) As String
     Dim re As Object
     Set re = CreateObject("VBScript.RegExp")
 
-    re.Pattern = "Таблиц[аы]\s+([\d\.]+)"
+    re.Pattern = "Таблиц[аы]\s+(.?[\d\.]+)"
     re.IgnoreCase = True
 
     If re.Test(text) Then

@@ -118,18 +118,26 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "ПРИЛОЖЕНИЯ")
 		{
+			node.level = 0;
 			node.center = true;
 			node.text = node.text.toUpperCase();
-			doc.nodes.splice(i, 0, { type: "pageBreak" });
-			i++;
+			doc.nodes.splice(i++, 0, { type: "pageBreak" });
 			for (let j = i + 1; j < doc.nodes.length; j++)
 			{
 				const node = doc.nodes[j];
 				if (node.type == "title")
 				{
-					node.level = 1;
 					doc.nodes.splice(i++ + 1, 0, { type: "text", text: "Приложение " + node.text.replace("]", "].") });
 					j++;
+					node.level = 1;
+					const splitI = node.text.indexOf("]");
+					doc.nodes.splice(j++, 0, { type: "pageBreak" });
+					if (splitI >= 0)
+					{
+						doc.nodes.splice(j++ + 1, 0, { type: "text", text: node.text.slice(splitI + 1), center: true });
+						node.text = "ПРИЛОЖЕНИЕ " + node.text.slice(0, splitI + 1);
+						node.center = true;
+					}
 				}
 			}
 		}

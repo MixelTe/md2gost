@@ -66,13 +66,13 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 				if (i == node.level) counter.titles[`l${i}` as TtKeys]++;
 				if (i > node.level) counter.titles[`l${i}` as TtKeys] = 0;
 			}
+			if (node.level == 0 && node.text.map(r => r.text).join("").trim().toUpperCase() == "ПРИЛОЖЕНИЯ")
+			{
+				appendix = true;
+				counter.titles.l1 = 0;
+			}
 			if (node.level == 1)
 			{
-				if (node.text.map(r => r.text).join("").trim().toUpperCase() == "ПРИЛОЖЕНИЯ")
-				{
-					appendix = true;
-					counter.titles.l1 = 0;
-				}
 				const num = getTitleNum(node);
 				if (num) counter.titles.l1 = num;
 				if ((doc.numberingSections || appendix))
@@ -82,7 +82,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 					counter.tables = 0;
 				}
 				prefix = doc.numberingSections ? `${counter.titles.l1}.` : "";
-				if (appendix) prefix = APPENDIX_NAME[counter.titles.l1] + ".";
+				if (appendix) prefix = APPENDIX_NAME[counter.titles.l1 - 1] + ".";
 			}
 		}
 

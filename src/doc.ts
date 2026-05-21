@@ -133,6 +133,7 @@ export interface NodeText
 	text: string,
 	noIndent?: boolean,
 	noMargin?: boolean,
+	center?: boolean,
 }
 
 export interface NodeTitle

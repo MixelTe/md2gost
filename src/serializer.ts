@@ -79,6 +79,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					return new Paragraph({
 						children: renderText(node.text),
 						indent: node.noIndent ? { firstLine: 0 } : {},
+						...(node.center ? { alignment: "center", indent: { firstLine: 0 } } : {}),
 						spacing: {
 							...(node.noMargin ? { after: 0 } : {}),
 							...(prevChild instanceof Table ? { before: (doc.table.spacing.after ?? doc.text.spacing.after) * 20 } : {}),
