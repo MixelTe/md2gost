@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.2.0] - 2026-05-21
+### Added
 - support Appendix section
 - new rules to configure styles
 - support multiline markdown comments
@@ -15,8 +23,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 - rename option `md2gost.ui.enhancedMarkdownPreview` to `md2gost.ui.enhancedPreview`
 - rename option `md2gost.ui.disableHighlighting` to `md2gost.ui.enhancedHighlighting`
-### Deprecated
-### Removed
 ### Fixed
 - support for triple-backtick (```) blocks in paragraph text
 - AutoTableContinuation: dont left single row at page
@@ -26,7 +32,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - fix json parsing in rendering to PDF
 - fix macros on non-Russian system locales
 - fix custom md syntax highlighting
-### Security
 
 ## [1.1.1] - 2026-05-10
 ### Fixed

@@ -305,6 +305,24 @@
 	<script>
 		const changelogData = [
 			{
+				date: "2026-05-21",
+				version: "v1.2.0",
+				changes: [
+					{ type: "Added", text: `Поддержка раздела <a href="#" onclick="openDocs('## Написание курсовой работы')">«Приложения»</a> в документе.` },
+					{ type: "Added", text: `Новые правила для <a href="#" onclick="openDocs('### Настройка стилей')">настройки стилей</a>.` },
+					{ type: "Added", text: "Поддержка многострочных комментариев в Markdown." },
+					{ type: "Added", text: "Опции <code>md2gost.completion.tableSeparator</code> и <code>md2gost.completion.listItem</code> для переключения подсказок текста." },
+					{ type: "Added", text: "Опция <code>md2gost.render.removeIntermediateDocx</code> для удаления временного файла DOCX после генерации PDF." },
+					{ type: "Changed", text: "Опция <code>md2gost.ui.enhancedMarkdownPreview</code> переименована в <code>md2gost.ui.enhancedPreview</code>." },
+					{ type: "Changed", text: "Опция <code>md2gost.ui.disableHighlighting</code> переименована в <code>md2gost.ui.enhancedHighlighting</code>." },
+					{ type: "Fixed", text: "Поддержка блоков с тройными обратными кавычками (```) внутри текста абзаца." },
+					{ type: "Fixed", text: "Форматирование: пропуск текста внутри блоков с тройными обратными кавычками (```)." },
+					{ type: "Fixed", text: "Форматирование: сохранение длинного тире (—) внутри блока «СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ»." },
+					{ type: "Fixed", text: "Исправлено форматирование списков." },
+					{ type: "Fixed", text: "Исправлена работа макросов на нерусских системных локалях." },
+				]
+			},
+			{
 				date: "2026-05-09",
 				version: "v1.1.0",
 				changes: [

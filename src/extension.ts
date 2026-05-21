@@ -184,7 +184,7 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean, di
 function showChangelogOnUpdate(context: vscode.ExtensionContext)
 {
 	const packageVersion = context.extension.packageJSON.version;
-	const pageVersion = "4";
+	const pageVersion = "5";
 	const lastVersion = context.globalState.get<string>("extension_version");
 
 	if (pageVersion !== lastVersion)
@@ -251,9 +251,17 @@ function showChangelogOnUpdate(context: vscode.ExtensionContext)
 		let endLine = -1;
 		const re = /^(#+)\s+(.*)$/;
 		const level = re.exec(sectionTitle)?.[1].length ?? 1;
+		let codeBlock = "";
 
 		for (let i = 0; i < lines.length; i++)
 		{
+			const codeBlockM = /^(`+)/.exec(lines[i]);
+			if (codeBlockM)
+			{
+				if (!codeBlock) codeBlock = codeBlockM[1];
+				else if (codeBlock == codeBlockM[1]) codeBlock = "";
+			}
+			if (codeBlock) continue;
 			if (lines[i].trimEnd() == sectionTitle)
 			{
 				startLine = i;
