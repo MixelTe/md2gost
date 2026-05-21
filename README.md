@@ -751,6 +751,7 @@
 * Таблицы
 	* Начертание названия
 		- `!!rule table title style <normal|bold|italic>`
+		- Пример: `!!rule table title style italic`
 		- По умолчанию: `normal`
 	* Размер шрифта названия
 		- `!!rule table title size <int>`
@@ -783,6 +784,7 @@
 * Листинги
 	* Начертание названия
 		- `!!rule code title style <normal|bold|italic>`
+		- Пример: `!!rule code title style italic`
 		- По умолчанию: `normal`
 	* Размер шрифта названия
 		- `!!rule code title size <int>`

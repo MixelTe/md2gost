@@ -1,6 +1,6 @@
 {
 	"scopeName": "markdown.custom.injection",
-	"injectionSelector": "L:text.html.markdown",
+	"injectionSelector": "L:text.html.markdown -comment -markup.raw.block -source",
 	"patterns": [
 		{
 			"name": "constant.numeric.integer.markdown",
