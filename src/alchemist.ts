@@ -1,6 +1,8 @@
 import type { DocNode, NodeList, NodeTable, NodeText, NodeTitle, Rune, RunicDoc, Runify } from "./doc";
 import { repeat, toCapitalCase } from "./utils";
 
+const APPENDIX_NAME = "АБВГДЕЖИКЛМНПРСТУФХЦШЩЭЮЯ";
+
 export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = console.warn)
 {
 	const counter = {
@@ -23,6 +25,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 	let prefix = "";
 
 	let synopsis = null as Runify<NodeText> | null;
+	let appendix = false;
 
 	if (doc.numberingLazy) addLazyNumbering(doc);
 
@@ -65,15 +68,21 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 			}
 			if (node.level == 1)
 			{
+				if (node.text.map(r => r.text).join("").trim().toUpperCase() == "ПРИЛОЖЕНИЯ")
+				{
+					appendix = true;
+					counter.titles.l1 = 0;
+				}
 				const num = getTitleNum(node);
 				if (num) counter.titles.l1 = num;
-				if (doc.numberingSections)
+				if ((doc.numberingSections || appendix))
 				{
 					counter.codes = 0;
 					counter.imgs = 0;
 					counter.tables = 0;
 				}
 				prefix = doc.numberingSections ? `${counter.titles.l1}.` : "";
+				if (appendix) prefix = APPENDIX_NAME[counter.titles.l1] + ".";
 			}
 		}
 
@@ -183,6 +192,15 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 			if (type == "title")
 			{
 				const num = counter.titles[`l${node.level}` as TtKeys];
+				if (appendix)
+				{
+					const char = APPENDIX_NAME[counter.titles.l1 - 1];
+					if (v instanceof Array) v.forEach(fn => fn.f(-1, char));
+					named[tag] = { n: -1, prefix: char };
+					rune.type = "text";
+					rune.text = char;
+					return;
+				}
 				const prefix = node.level <= 1 ? "" : repeat(node.level - 1, i => counter.titles[`l${i + 1}` as TtKeys]).join(".") + ".";
 				if (v instanceof Array) v.forEach(fn => fn.f(num, prefix));
 				named[tag] = { n: num, prefix };
@@ -236,7 +254,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 				const f = (n: number, prefix: string) =>
 				{
 					rune.type = "text";
-					rune.text = `${prefix}${applyMath(n)}`;
+					rune.text = n < 0 ? prefix : `${prefix}${applyMath(n)}`;
 				};
 				if (v) v.push({ f, i: lastRefI++ });
 				else named[tag] = [{ f, i: lastRefI++ }];
@@ -282,7 +300,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 			if (refs instanceof Array)
 			{
 				if (refs.length <= 1)
-					logwarn(`Отсутствуют ссылки на источник: ${item.ref || item.text.map(v => v.text).join("")}`);
+					logwarn(`В тексте отсутствуют ссылки на источник: ${item.ref || item.text.map(v => v.text).join("")}`);
 				refs.forEach(r => r.f(i + 1, ""));
 			}
 			return { type: "listItem", text: item.text };

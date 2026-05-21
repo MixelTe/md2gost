@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- support Appendix section
 - new rules to configure styles
 - support multiline markdown comments
 - `md2gost.completion.tableSeparator` and `md2gost.completion.listItem` options to toggle text suggestions
@@ -20,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - support for triple-backtick (```) blocks in paragraph text
 - AutoTableContinuation: dont left single row at page
 - fix formatter: skip text inside triple-backtick (```) blocks
+- fix formatter: keep em dashes inside "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"
 - fix list formatting
 - fix json parsing in rendering to PDF
 - fix macros on non-Russian system locales

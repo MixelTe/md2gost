@@ -105,6 +105,17 @@ export async function md_formatter(document: TextDocument, range: Range, options
 				}
 				continue;
 			}
+			if (textTrim.toUpperCase() == "# СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ")
+			{
+				while (i < range.end.line)
+				{
+					i++;
+					const line = document.lineAt(i);
+					const text = line.text.trim();
+					const { prefix } = parseLine(text);
+					if (prefix != "") { i--; break; }
+				}
+			}
 			const header = [
 				"# РЕФЕРАТ",
 				"# ОГЛАВЛЕНИЕ",
@@ -113,6 +124,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 				"# ВВЕДЕНИЕ",
 				"# ЗАКЛЮЧЕНИЕ",
 				"# СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ",
+				"# ПРИЛОЖЕНИЯ",
 			].find(v => v == textTrim.toUpperCase());
 			if (header)
 			{

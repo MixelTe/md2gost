@@ -327,6 +327,7 @@ export function markdownItPlugin(md: MarkdownIt)
 						listTokens.push(new state.Token("list_item_close", "li", -1));
 					}
 				}
+				while (i > startI && tokens[i]?.type != "paragraph_close") i--;
 				listTokens.push(new state.Token("bullet_list_close", "ul", -1));
 				if (listTokens.length > 2)
 					tokens.splice(startI, i - startI + 1, ...listTokens);

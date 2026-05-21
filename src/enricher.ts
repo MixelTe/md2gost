@@ -116,6 +116,23 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 			}
 			doc.nodes.splice(startI, i - startI + 1, list);
 		}
+		else if (node.type == "title" && node.text.toUpperCase() == "ПРИЛОЖЕНИЯ")
+		{
+			node.center = true;
+			node.text = node.text.toUpperCase();
+			doc.nodes.splice(i, 0, { type: "pageBreak" });
+			i++;
+			for (let j = i + 1; j < doc.nodes.length; j++)
+			{
+				const node = doc.nodes[j];
+				if (node.type == "title")
+				{
+					node.level = 1;
+					doc.nodes.splice(i++ + 1, 0, { type: "text", text: "Приложение " + node.text.replace("]", "].") });
+					j++;
+				}
+			}
+		}
 		else if (node.type == "list")
 		{
 			if (doc.list.autopunctuation) enrichList(node, true);
