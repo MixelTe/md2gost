@@ -23,70 +23,72 @@ Sub AutoTableContinuation()
         If Not prevPara Is Nothing And (prevPara.Style = STYLE_CAPTION Or prevPara.Style = STYLE_CONT) Then
             tableNumber = ExtractTableNumber(prevPara.Range.Text)
         Else
-            tableNumber = "?"
+            GoTo SkipIteration
         End If
 
-        If tableNumber <> "?" Then
+        previousPage = tbl.Rows(1).Range.Information(wdActiveEndPageNumber)
+        currentPage = tbl.Rows(tbl.Rows.Count).Range.Information(wdActiveEndPageNumber)
 
-            previousPage = tbl.Rows(1).Range.Information(wdActiveEndPageNumber)
+        If previousPage = currentPage Then GoTo SkipIteration
 
-            For r = 2 To tbl.Rows.Count
-                currentPage = tbl.Rows(r).Range.Information(wdActiveEndPageNumber)
+        For r = 2 To tbl.Rows.Count
+            currentPage = tbl.Rows(r).Range.Information(wdActiveEndPageNumber)
 
-                If currentPage > previousPage Then
+            If currentPage > previousPage Then
 
-                    If r < 4 Then
-                        If Not prevPara Is Nothing Then
-                            prevPara.Range.ParagraphFormat.PageBreakBefore = True
-                        End If
-                    Else
-                        ' PAGE BREAK DETECTED: Split the table
-                        tbl.AllowAutoFit = False
-                        tbl.Split r
-
-                        ' The second half is now a completely new table
-                        Set secondTbl = ActiveDocument.Tables(i + 1)
-
-                        ' --- FIX 1: STOP TEXT FROM GOING INSIDE THE CELL ---
-                        ' Target the exact paragraph mark Word inserts between the split tables
-                        Set sepPara = secondTbl.Range.Characters.First.Previous.Paragraphs(1)
-
-                        ' Insert the continuation text into that safe paragraph
-                        sepPara.Range.InsertBefore "Продолжение таблицы " & tableNumber
-
-                        ' Apply style safely
-                        On Error Resume Next
-                        sepPara.Style = STYLE_CONT
-                        If Err.Number <> 0 Then
-                            sepPara.Style = STYLE_CAPTION
-                            Err.Clear
-                        End If
-                        On Error GoTo 0
-
-                        sepPara.PageBreakBefore = True
-                        sepPara.KeepWithNext = True
-
-                        ' --- FIX 2: COPY THE HEADER ROW ---
-                        ' Copy the first row of the top table
-                        tbl.Rows(1).Range.Copy
-
-                        ' Paste it at the very beginning of the bottom table
-                        Set headerRng = secondTbl.Range
-                        headerRng.Collapse wdCollapseStart
-                        headerRng.Paste
+                If r < 4 Then
+                    If Not prevPara Is Nothing Then
+                        prevPara.Range.ParagraphFormat.PageBreakBefore = True
                     End If
-                    ' Exit the row loop. The second half will be checked on the next DO iteration.
-                    Exit For
+                Else
+                    ' PAGE BREAK DETECTED: Split the table
+                    tbl.AllowAutoFit = False
+                    tbl.Split r
+
+                    ' The second half is now a completely new table
+                    Set secondTbl = ActiveDocument.Tables(i + 1)
+
+                    ' --- FIX 1: STOP TEXT FROM GOING INSIDE THE CELL ---
+                    ' Target the exact paragraph mark Word inserts between the split tables
+                    Set sepPara = secondTbl.Range.Characters.First.Previous.Paragraphs(1)
+
+                    ' Insert the continuation text into that safe paragraph
+                    sepPara.Range.InsertBefore "Продолжение таблицы " & tableNumber
+
+                    ' Apply style safely
+                    On Error Resume Next
+                    sepPara.Style = STYLE_CONT
+                    If Err.Number <> 0 Then
+                        sepPara.Style = STYLE_CAPTION
+                        Err.Clear
+                    End If
+                    On Error GoTo 0
+
+                    sepPara.PageBreakBefore = True
+                    sepPara.KeepWithNext = True
+
+                    ' --- FIX 2: COPY THE HEADER ROW ---
+                    ' Copy the first row of the top table
+                    tbl.Rows(1).Range.Copy
+                    DoEvents
+
+                    ' Paste it at the very beginning of the bottom table
+                    Set headerRng = secondTbl.Range
+                    headerRng.Collapse wdCollapseStart
+                    headerRng.Paste
                 End If
+                ' Exit the row loop. The second half will be checked on the next DO iteration.
+                Exit For
+            End If
 
-                previousPage = currentPage
-            Next r
-        End If
+            previousPage = currentPage
+        Next r
 
+SkipIteration:
         i = i + 1
     Loop
 
-	UpdateAllFields
+	' UpdateAllFields
 
     ' MsgBox "Готово!", vbInformation
     Exit Sub

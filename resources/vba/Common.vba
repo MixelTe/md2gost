@@ -1,8 +1,11 @@
 Option Explicit
+Private TimerStartTime As Double
 
 Sub UpdateAllFields()
-    ActiveDocument.Repaginate
-    DoEvents
+    ' ActiveDocument.Repaginate
+    ' DoEvents
+    Options.Pagination = True
+    ActiveDocument.ComputeStatistics(wdStatisticPages)
 
     Dim rngStory As Range
     Dim rng As Range
@@ -61,4 +64,10 @@ Sub AppendLogUTF8(logPath As String, msg As String)
         .SaveToFile logPath, adSaveCreateOverWrite
         .Close
     End With
+End Sub
+Sub StartTimer()
+    TimerStartTime = Timer
+End Sub
+Sub EndTimer()
+    MsgBox "Code took " & Format(Timer - TimerStartTime, "0.00") & " seconds to run.", vbInformation
 End Sub

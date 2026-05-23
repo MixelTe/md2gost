@@ -31,6 +31,7 @@ Sub AutoListingContinuation()
                 If nextPara.Style <> STYLE_CODE Then Exit Do
 
                 ' currentPage = nextPara.Range.Information(wdActiveEndPageNumber)
+                DoEvents
                 Dim r As Range
                 Set r = nextPara.Range.Duplicate
                 r.Collapse wdCollapseStart
