@@ -483,10 +483,10 @@ function runifyText(text: string, rainbow = false): Rune[]
 		.replaceAll(/(^|[^\p{L}\d_])"([\p{L}\d_])/gu, "$1«$2")
 		.replaceAll(/([\p{L}\d_])"([^\p{L}\d_]|$)/gu, "$1»$2")
 		.replaceAll(/(^|\s)(\*+)($|\s)/g, sub => sub.replaceAll("*", "&Star;"))
-		.split(/(\[.*\]\(.*\))/g)
+		.split(/(\[[^\]]*\]\([^\)]*\))/g)
 		.map(p =>
 		{
-			const m = /\[(.*)\]\((.*)\)/.exec(p);
+			const m = /\[([^\]]*)\]\(([^\)]*)\)/.exec(p);
 			if (!m) return { text: p } as Rune;
 			return { text: m[1], link: m[2] } as Rune;
 		})

@@ -280,7 +280,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 				const ref = item[refI];
 				if (ref?.type != "ref")
 				{
-					logwarn(`Отсутствует id у источника: ${item.map(v => v.text).join("")}`);
+					// logwarn(`Отсутствует id у источника: ${item.map(v => v.text).join("")}`);
 					return { text: item, ref: "", i: 99999 + i };
 				}
 				const refs = named[ref.text];

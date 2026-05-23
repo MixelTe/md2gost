@@ -106,6 +106,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					prevChild.addChildElement(new PageBreak());
 					return [];
 				case "list":
+					if (node.items.length == 0) return [];
 					const id = `l${numbering.length + 1}`;
 					const list: IListItem = {
 						reference: id,

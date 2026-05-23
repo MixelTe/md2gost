@@ -11,6 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Deprecated
 ### Removed
 ### Fixed
+- fix links parsing
+- fix sources list parsing
 ### Security
 
 ## [1.2.0] - 2026-05-21

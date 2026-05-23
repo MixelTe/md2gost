@@ -94,8 +94,16 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
-			doc.nodes.splice(i, 0, { type: "pageBreak" });
-			i++;
+			doc.nodes.splice(i++, 0, { type: "pageBreak" });
+
+			const nextNode = doc.nodes[i + 1];
+			if (nextNode?.type == "list")
+			{
+				nextNode.alternativeStyle = true;
+				i++;
+				continue;
+			}
+
 			const list: NodeList = {
 				type: "list",
 				mark: ".",
@@ -114,7 +122,8 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 					list.items.push({ type: "listItem", text: item });
 				i++;
 			}
-			doc.nodes.splice(startI, i - startI + 1, list);
+			if (list.items.length > 0)
+				doc.nodes.splice(startI, i - startI + 1, list);
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "ПРИЛОЖЕНИЯ")
 		{
