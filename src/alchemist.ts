@@ -117,9 +117,9 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 			"Отчет ",
 			"pages",
 			" с.",
-			counter.imgs > 0 && `, ${counter.imgs} рис.`,
-			counter.tables > 0 && `, ${counter.tables} табл.`,
-			counter.codes > 0 && `, ${counter.codes} лист.`,
+			counter.imgsAll > 0 && `, ${counter.imgsAll} рис.`,
+			counter.tablesAll > 0 && `, ${counter.tablesAll} табл.`,
+			counter.codesAll > 0 && `, ${counter.codesAll} лист.`,
 			sourcesCount > 0 && `, ${sourcesCount} источн.`,
 		].filter(v => !!v).map((text, i) => ({ text: text as string, type: i == 1 ? "val" : "text" }));
 	}

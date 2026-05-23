@@ -141,8 +141,6 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					}
 					return items;
 				case "table":
-					if (node.title && doc.table.title.style == "italic") node.title.forEach(r => r.italic = true);
-					if (node.title && doc.table.title.style == "bold") node.title.forEach(r => r.bold = true);
 					if (node.rows[0] && doc.table.heading.style == "italic") node.rows[0].forEach(n => n.type == "text" ? n.text.forEach(r => r.italic = true) : 0);
 					if (node.rows[0] && doc.table.heading.style == "bold") node.rows[0].forEach(n => n.type == "text" ? n.text.forEach(r => r.bold = true) : 0);
 					const spacingInner = Math.max(doc.table.spacing.after ?? doc.text.spacing.after, doc.table.spacing.before ?? 0);
@@ -237,8 +235,6 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						] : []),
 					];
 				case "code":
-					if (node.title && doc.code.title.style == "italic") node.title.forEach(r => r.italic = true);
-					if (node.title && doc.code.title.style == "bold") node.title.forEach(r => r.bold = true);
 					const code = doc.code.highlight && renderCodeHighlighting(node.code, node.lang);
 					return [
 						...(node.title ? [
@@ -725,6 +721,8 @@ function genXml_style(assets: string, doc: RunicDoc): string
 	{
 		if (doc.code.spacing.before !== undefined)
 			xml = replaceTag(xml, `<w:spacing w:after="0" w:line="240" w:lineRule="auto" w:before="${doc.code.spacing.before * 20}"/>`);
+		if (doc.code.title.style != "normal")
+			xml = addrPrStyle(xml, doc.code.title.style == "bold" ? "<w:b/>" : "<w:i/>");
 		return xml;
 	});
 
@@ -733,6 +731,13 @@ function genXml_style(assets: string, doc: RunicDoc): string
 		xml = replaceTag(xml, `<w:sz w:val="${doc.code.text.size * 2}"/>`);
 		if (doc.code.spacing.after !== undefined)
 			xml = replaceTag(xml, `<w:spacing w:line="240" w:lineRule="auto" w:after="${doc.code.spacing.after * 20}"/>`);
+		return xml;
+	});
+
+	xml = editStyle(`<w:style w:type="paragraph" w:customStyle="1" w:styleId="TableCaption">`, xml =>
+	{
+		if (doc.table.title.style != "normal")
+			xml = addrPrStyle(xml, doc.table.title.style == "bold" ? "<w:b/>" : "<w:i/>");
 		return xml;
 	});
 
@@ -754,6 +759,27 @@ function genXml_style(assets: string, doc: RunicDoc): string
 		endI += `</w:style>`.length;
 
 		return xml.slice(0, startI) + f(xml.slice(startI, endI)) + xml.slice(endI);
+	}
+	function insertAfter(xml: string, search: string, value: string)
+	{
+		const sI = xml.indexOf(search);
+		if (sI < 0) return { ok: false, xml };
+		const i = sI + search.length;
+		return { ok: true, xml: xml.slice(0, i) + value + xml.slice(i) };
+	}
+	function insertBefore(xml: string, search: string, value: string)
+	{
+		const i = xml.indexOf(search);
+		if (i < 0) return { ok: false, xml };
+		return { ok: true, xml: xml.slice(0, i) + value + xml.slice(i) };
+	}
+	function addrPrStyle(xml: string, value: string)
+	{
+		let r = insertAfter(xml, "<w:rPr>", value);
+		if (r.ok) return r.xml;
+		r = insertBefore(xml, "</w:style>", `<w:rPr>${value}</w:rPr>`);
+		if (r.ok) return r.xml;
+		throw err();
 	}
 	function err()
 	{

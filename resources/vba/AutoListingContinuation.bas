@@ -41,6 +41,12 @@ Sub AutoListingContinuation()
                 If currentPage <> lastPage And lastPage <> -1 Then
                     If Not IsContinuationAlreadyInserted(nextPara) Then
                         InsertContinuation nextPara, listingNumber
+                        ActiveDocument.Repaginate
+                        DoEvents
+                        Set r = nextPara.Range.Duplicate
+                        r.Collapse wdCollapseStart
+                        r.Select
+                        currentPage = Selection.Information(wdActiveEndPageNumber)
                     End If
                 End If
 
