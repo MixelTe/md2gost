@@ -2,9 +2,15 @@ Option Explicit
 Private Const STYLE_CODE As String = "Listing_Code"
 Private Const STYLE_CAPTION As String = "Listing_Caption"
 Private Const STYLE_CONT As String = "Listing_Cont"
+Private CAPTION As String
 
 Sub AutoListingContinuation()
     On Error GoTo ErrorHandler
+    ' "Продолжение листинга"
+    CAPTION = ChrW(1055) & ChrW(1088) & ChrW(1086) & ChrW(1076) & ChrW(1086) & ChrW(1083) & _
+              ChrW(1078) & ChrW(1077) & ChrW(1085) & ChrW(1080) & ChrW(1077) & ChrW(32) & _
+              ChrW(1083) & ChrW(1080) & ChrW(1089) & ChrW(1090) & ChrW(1080) & ChrW(1085) & _
+              ChrW(1075) & ChrW(1072)
 
     Dim nextPara As Paragraph
     Dim listingNumber As String
@@ -86,8 +92,8 @@ Function IsContinuationAlreadyInserted(p As Paragraph) As Boolean
     If prevPara Is Nothing Then
         IsContinuationAlreadyInserted = False
     Else
-        IsContinuationAlreadyInserted = _
-            InStr(prevPara.Range.text, "Продолжение листинга") > 0
+        IsContinuationAlreadyInserted = InStr(prevPara.Range.text, CAPTION) > 0
+        ' IsContinuationAlreadyInserted = InStr(prevPara.Range.text, "Продолжение листинга") > 0
     End If
 End Function
 Sub InsertContinuation(p As Paragraph, listingNumber As String)
@@ -122,7 +128,8 @@ Sub InsertContinuation(p As Paragraph, listingNumber As String)
 
     ' 1. Вставляем текст продолжения с переносом строки ПЕРЕД листингом.
     ' Это создает новый независимый абзац.
-    r.InsertBefore "Продолжение листинга " & listingNumber & vbCr
+    ' r.InsertBefore "Продолжение листинга " & listingNumber & vbCr
+    r.InsertBefore CAPTION & " " & listingNumber & vbCr
 
     ' 2. Теперь находим этот новый абзац (он стал предыдущим для prev)
     Set contPara = prev.Previous

@@ -121,6 +121,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 			counter.tablesAll > 0 && `, ${counter.tablesAll} табл.`,
 			counter.codesAll > 0 && `, ${counter.codesAll} лист.`,
 			sourcesCount > 0 && `, ${sourcesCount} источн.`,
+			appendix && counter.titles.l1 > 0 && `, ${counter.titles.l1} прил.`,
 		].filter(v => !!v).map((text, i) => ({ text: text as string, type: i == 1 ? "val" : "text" }));
 	}
 
@@ -293,15 +294,17 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 				return { text: item.slice(refI + 1), ref: ref.text, i: firstOccurrenceI };
 			});
 		items.sort((a, b) => a.i - b.i);
+		const hasIdAny = items.some(it => !!it.ref);
 		sourcesList.items = items.map((item, i) =>
 		{
-			const refs = named[item.ref];
-			named[item.ref] = { prefix: "", n: i + 1 };
+			const key = hasIdAny ? item.ref : (i + 1);
+			const refs = named[key];
+			named[key] = { prefix: "", n: i + 1 };
 			if (refs instanceof Array)
 			{
-				if (refs.length <= 1)
-					logwarn(`В тексте отсутствуют ссылки на источник: ${item.ref || item.text.map(v => v.text).join("")}`);
-				refs.forEach(r => r.f(i + 1, ""));
+				if (hasIdAny && refs.length <= 1)
+					logwarn(`В тексте отсутствуют ссылки на источник: ${item.ref}`);
+				refs.forEach(r => hasIdAny ? r.f(i + 1, "") : r.f(-1, `[${i + 1}]`));
 			}
 			return { type: "listItem", text: item.text };
 		});

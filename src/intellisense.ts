@@ -658,7 +658,7 @@ const Rules: Record<string, {
 		keyword: "headings alt_style_1",
 		type: "toggle",
 		short: "Альтернативный стиль заголовков",
-		doc: "Использовать готовый набор стилей заголовков\n\n- Синтаксис: `!!rule headings alt_style_1`\n- Может быть переопределён правилами ниже по документу\n- Эквивалентен набору стандартных `!!rule` для размеров, интервалов и выравнивания заголовков\n\n```\n!!rule headings h1+ indent left\n!!rule headings h1+ spacing after 10\n!!rule headings h1 size 18\n!!rule headings h1 uppercase\n!!rule headings h1 spacing before 0\n!!rule headings h2 size 16\n!!rule headings h2+ spacing before 15```",
+		doc: "Использовать готовый набор стилей заголовков\n\n- Синтаксис: `!!rule headings alt_style_1`\n- Может быть переопределён правилами ниже по документу\n- Эквивалентен набору стандартных `!!rule` для размеров, интервалов и выравнивания заголовков\n\n```\n!!rule headings h1+ indent left\n!!rule headings h1+ spacing after 10\n!!rule headings h1 size 18\n!!rule headings h1 uppercase\n!!rule headings h1 spacing before 0\n!!rule headings h2 size 16\n!!rule headings h2+ spacing before 15\n```",
 	},
 	hyphenation: {
 		keyword: "hyphenation",

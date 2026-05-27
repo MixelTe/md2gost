@@ -1,9 +1,15 @@
 Option Explicit
 Private Const STYLE_CAPTION As String = "Table_Caption"
 Private Const STYLE_CONT As String = "Table_Cont"
+Private CAPTION As String
 
 Sub AutoTableContinuation()
     On Error GoTo ErrorHandler
+    ' "Продолжение таблицы "
+    CAPTION = ChrW(1055) & ChrW(1088) & ChrW(1086) & ChrW(1076) & ChrW(1086) & ChrW(1083) & _
+              ChrW(1078) & ChrW(1077) & ChrW(1085) & ChrW(1080) & ChrW(1077) & ChrW(32) & _
+              ChrW(1090) & ChrW(1072) & ChrW(1073) & ChrW(1083) & ChrW(1080) & ChrW(1094) & _
+              ChrW(1099) & ChrW(32)
 
     Dim i As Long, r As Long
     Dim tbl As Table, secondTbl As Table
@@ -67,15 +73,18 @@ Sub AutoTableContinuation()
                     sepPara.PageBreakBefore = True
                     sepPara.KeepWithNext = True
 
-                    ' --- FIX 2: COPY THE HEADER ROW ---
-                    ' Copy the first row of the top table
-                    tbl.Rows(1).Range.Copy
-                    DoEvents
+                    ' ' --- FIX 2: COPY THE HEADER ROW ---
+                    ' ' Copy the first row of the top table
+                    ' tbl.Rows(1).Range.Copy
+                    ' DoEvents
 
-                    ' Paste it at the very beginning of the bottom table
-                    Set headerRng = secondTbl.Range
-                    headerRng.Collapse wdCollapseStart
-                    headerRng.Paste
+                    ' ' Paste it at the very beginning of the bottom table
+                    ' Set headerRng = secondTbl.Range
+                    ' headerRng.Collapse wdCollapseStart
+                    ' headerRng.Paste
+                    secondTbl.Rows.Add BeforeRow:=secondTbl.Rows(1)
+                    secondTbl.Rows(1).Range.FormattedText = tbl.Rows(1).Range.FormattedText
+                    secondTbl.Rows(2).Delete
                 End If
                 ' Exit the row loop. The second half will be checked on the next DO iteration.
                 Exit For

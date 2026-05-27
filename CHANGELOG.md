@@ -13,6 +13,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
+## [1.2.2] - 2026-05-27
+### Changed
+- allow simple list in "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"
+### Fixed
+- fix macros on non-Russian system locales
+- add count of appendices in "РЕФЕРАТ"
+
 ## [1.2.1] - 2026-05-23
 ### Fixed
 - fix link parsing
