@@ -128,7 +128,7 @@
         },
         "md2gost.ui.enhancedHighlighting": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "Использовать дополненную подсветку Markdown (требуется перезагрузка окна)."
         },
         "md2gost.ui.enhancedPreview": {

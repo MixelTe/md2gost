@@ -307,7 +307,7 @@ function showFormatterSuggest()
 function onEnhancedHighlighting(assets: string)
 {
 	const config = vscode.workspace.getConfiguration("md2gost");
-	const isDisabled = config.get<boolean>("ui.enhancedHighlighting", false);
+	const isEnabled = config.get<boolean>("ui.enhancedHighlighting", true);
 
 	const grammarPath = path.join(assets, "grammars.json");
 	const grammarCopyPath = path.join(assets, "grammars.copy.json");
@@ -320,7 +320,7 @@ function onEnhancedHighlighting(assets: string)
 
 	const emptyGrammar = `{"scopeName":"markdown.custom.injection","injectionSelector":"L:text.html.markdown","patterns":[]}`;
 	const currentContent = fs.readFileSync(grammarPath, "utf8");
-	const targetContent = isDisabled ? emptyGrammar : fs.readFileSync(grammarCopyPath, "utf8");
+	const targetContent = !isEnabled ? emptyGrammar : fs.readFileSync(grammarCopyPath, "utf8");
 
 	if (currentContent == targetContent) return;
 
@@ -339,7 +339,7 @@ function onEnhancedHighlighting(assets: string)
 	{
 		const action = "Copy Path";
 		vscode.window.showErrorMessage(
-			`md2gost: Permission denied. Please manually edit grammars.json to ${isDisabled ? "disable" : "enable"} highlighting.`,
+			`md2gost: Permission denied. Please manually edit grammars.json to ${isEnabled ? "enable" : "disable"} highlighting.`,
 			action
 		).then(selectedAction =>
 		{
