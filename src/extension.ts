@@ -134,7 +134,7 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean, di
 			{
 				rendering = true;
 				await vscode.window.activeTextEditor?.document.save();
-				const { fout: fname, err, errS, warn } = await render({
+				const { fout: fname, err, errS } = await render({
 					progress: (increment, message) => progress.report({ increment, message }),
 					assets,
 					file,
@@ -143,11 +143,12 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean, di
 					disableMacros,
 					logwarn: msg => vscode.window.showWarningMessage(msg),
 				});
+				if (errS) console.error(errS);
 				if (err == "inPS") vscode.window.showErrorMessage(`Unknown error! Возможно у вас не установлен Word или установлен неправильно`);
 				if (err == "noPS") vscode.window.showErrorMessage(`Cant start PowerShell! Возможно он не прописан у вас в PATH`);
 				if (err == "vba") vscode.window.showErrorMessage(`VBA error: ${errS}`);
-				if (err == "pdf") vscode.window.showErrorMessage(`Всё сломалось. PDF render error`);
-				if (warn) vscode.window.showWarningMessage(warn);
+				if (err == "pdf") vscode.window.showErrorMessage(`PDF render error` + (errS ? `: ${errS}` : ""));
+				if (err == "noWin") vscode.window.showWarningMessage("Функционал ограничен, полный функционал только на Windows (more info in readme)");
 				progress.report({ increment: 100, message: "Done!" });
 				vscode.window.showInformationMessage(`File rendered to ${fname}`, "Open").then(v =>
 				{

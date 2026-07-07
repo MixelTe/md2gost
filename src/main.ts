@@ -18,20 +18,26 @@ export interface RenderOptions
 	progress?: SetProgressFn;
 	assets: string;
 	file: string;
+	output?: string;
 	renderPDF?: boolean;
 	removeIntermediateDocx?: boolean;
 	disableMacros?: boolean;
 	logwarn?: (msg: string) => void;
+	logPS?: (msg: string) => void;
+	logPSError?: (msg: string) => void;
 }
 
 export async function render({
 	progress = (increment: number, message: string) => { },
 	assets,
 	file,
+	output,
 	renderPDF = false,
 	removeIntermediateDocx = false,
 	disableMacros = false,
-	logwarn = console.warn
+	logwarn = console.warn,
+	logPS = msg => console.log(`PS: ${msg}`),
+	logPSError = msg => console.error(`PS: ${msg}`),
 }: RenderOptions)
 {
 	// progress(10, "Trying to understand your scribbles");
@@ -50,11 +56,13 @@ export async function render({
 	alchemist(runicDoc, logwarn);
 	// console.log(runicDoc);
 
+	const pout = output && path.parse(path.resolve(output));
+	if (pout) await fs.mkdir(pout.dir, { recursive: true });
 	const p = path.parse(fin);
 	const fdir = p.dir;
 	const fname = trimEnd(p.name, ".g");
 	const ftmp = path.join(fdir, fname + ".tmp.docx");
-	const fout = path.join(fdir, fname + ".docx");
+	const fout = pout ? path.join(pout.dir, pout.name + ".docx") : path.join(fdir, fname + ".docx");
 	if (await checkIfFileIsBlocked(ftmp))
 		throw new Error(`Закройте docx файл. Output file is busy or locked: ${ftmp}`);
 	if (await checkIfFileIsBlocked(fout))
@@ -65,10 +73,10 @@ export async function render({
 
 	let willRunMacros = !disableMacros && (renderPDF || hasReasonForRunningMacros(runicDoc));
 
-	let warn = null as null | string;
+	let limitedRender = false;
 	if (process.platform != "win32" && willRunMacros)
 	{
-		warn = "Функционал ограничен, полный функционал только на Windows (more info in readme)";
+		limitedRender = true;
 		willRunMacros = false;
 	}
 
@@ -76,11 +84,11 @@ export async function render({
 	{
 		// progress(20, "Running complex macros");
 		progress(20, phrase_runMacros());
-		const tmpfolder = path.join(fdir, ".md2gost_out");
+		const tmpfolder = path.join(pout ? pout.dir : fdir, ".md2gost_out");
 		await fs.rm(tmpfolder, { recursive: true, force: true });
 		try
 		{
-			const ok = await runDocxMacro(progress, assets, fdir, ftmp, fout, renderPDF);
+			const ok = await runDocxMacro(progress, logPS, logPSError, assets, fdir, ftmp, fout, renderPDF);
 			if (!ok)
 			{
 				await fs.rename(ftmp, fout);
@@ -89,9 +97,8 @@ export async function render({
 		}
 		catch (x)
 		{
-			console.error(x);
 			await fs.rename(ftmp, fout);
-			return { fout, err: "noPS" };
+			return { fout, err: "noPS", errS: x };
 		}
 		await fs.unlink(ftmp);
 		const errorTxt = path.join(tmpfolder, "error.txt");
@@ -99,29 +106,34 @@ export async function render({
 		{
 			const err = await fs.readFile(errorTxt);
 			await fs.rm(tmpfolder, { recursive: true, force: true });
-			console.error(err);
 			return { fout, err: "vba", errS: `${err}` };
 		}
 		await updateMetadata(fout, doc);
 		if (renderPDF)
 		{
-			// progress(40, "Combine all together")
-			progress(40, phrase_combine());
+			// progress(10, "Combine all together")
+			progress(10, phrase_combine());
 			if (!existsSync(tmpfolder))
 				return { fout, err: "pdf" };
-			const files = (await fs.readdir(tmpfolder)).sort().map(f => path.join(tmpfolder, f));
-			const pdf = path.join(fdir, fname + ".pdf");
-			await mergePDFs(files, pdf, doc);
-			await fs.rm(tmpfolder, { recursive: true, force: true });
-			if (removeIntermediateDocx && existsSync(fout)) await fs.unlink(fout);
-			return { fout: pdf };
+			try
+			{
+				const files = (await fs.readdir(tmpfolder)).sort().map(f => path.join(tmpfolder, f));
+				const pdf = pout ? path.join(pout.dir, pout.base) : path.join(fdir, fname + ".pdf");
+				await mergePDFs(files, pdf, doc);
+				await fs.rm(tmpfolder, { recursive: true, force: true });
+				if (removeIntermediateDocx && existsSync(fout)) await fs.unlink(fout);
+				return { fout: pdf };
+			} catch (err)
+			{
+				return { fout, err: "pdf", errS: err };
+			}
 		}
 	}
 	else
 	{
 		await fs.rename(ftmp, fout);
 	}
-	return { fout, warn };
+	return { fout, err: limitedRender ? "noWin" : undefined };
 }
 
 function hasReasonForRunningMacros(doc: RunicDoc)
@@ -130,7 +142,7 @@ function hasReasonForRunningMacros(doc: RunicDoc)
 	return doc.nodes.some(n => n.type == "code" || n.type == "table");
 }
 
-function runDocxMacro(progress: SetProgressFn, assets: string, cwd: string, fin: string, fout: string, renderPDF: boolean)
+function runDocxMacro(progress: SetProgressFn, log: (msg: string) => void, logError: (msg: string) => void, assets: string, cwd: string, fin: string, fout: string, renderPDF: boolean)
 {
 	const script = path.join(assets, "run.ps1");
 	const templateMacro = path.join(assets, "template.dotm");
@@ -151,7 +163,7 @@ function runDocxMacro(progress: SetProgressFn, assets: string, cwd: string, fin:
 		{
 			data = `${data}`;
 			const m = /\[\*(\d)\]/.exec(data);
-			if (m) progress(20, {
+			if (m) progress(12, {
 				// "1": "Fixing breaks (listings)",
 				"1": render_fixingBreaks(),
 				// "2": "Fixing breaks (tables)",
@@ -159,13 +171,13 @@ function runDocxMacro(progress: SetProgressFn, assets: string, cwd: string, fin:
 				// "3": "Rendering to PDF",
 				"3": render_renderPDF(),
 			}[m[1]] || "Make some work");
-			console.log(`PS: ${data}`);
+			log(data);
 		});
 		let ok = true;
 		child.stderr.on("data", (data) =>
 		{
 			ok = false;
-			console.error(`PS: ${data}`);
+			logError(`${data}`);
 		});
 
 		child.on("close", () => res(ok));

@@ -1,9 +1,11 @@
 const esbuild = require("esbuild");
 const fs = require("node:fs");
 const { copy } = require('esbuild-plugin-copy');
+const package = require('./package.json');
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
+const npmPackage = process.argv.includes('--npm-package');
 
 /**
  * @type {import('esbuild').Plugin}
@@ -29,22 +31,28 @@ const esbuildProblemMatcherPlugin = {
 	},
 };
 
-async function main()
+async function main(entryPoint = 'src/extension.ts', outfile = 'dist/extension.js', format = 'cjs', banner, extraExternals = [])
 {
+	const externalList = [
+		'vscode',
+		...(npmPackage ? Object.keys({ ...package.dependencies, ...package.peerDependencies }) : []),
+		...extraExternals,
+	];
+
 	const ctx = await esbuild.context({
-		entryPoints: [
-			'src/extension.ts'
-		],
+		entryPoints: [entryPoint],
 		metafile: true,
 		bundle: true,
-		format: 'cjs',
+		format: format,
 		minify: production,
 		sourcemap: !production,
 		sourcesContent: false,
 		platform: 'node',
-		outfile: 'dist/extension.js',
-		external: ['vscode'],
+		target: 'node18',
+		outfile: outfile,
+		external: externalList,
 		logLevel: 'silent',
+		...(banner ? { banner } : {}),
 		plugins: [
 			/* add to the end of plugins array */
 			esbuildProblemMatcherPlugin,
@@ -57,6 +65,7 @@ async function main()
 			}),
 		],
 	});
+
 	if (watch)
 	{
 		await ctx.watch();
@@ -69,8 +78,22 @@ async function main()
 	}
 }
 
-main().catch(e =>
+function runMain(entryPoint, outfile, format, banner, extraExternals)
 {
-	console.error(e);
-	process.exit(1);
-});
+	main(entryPoint, outfile, format, banner, extraExternals).catch(e =>
+	{
+		console.error(e);
+		process.exit(1);
+	});
+}
+
+if (npmPackage)
+{
+	runMain('src/index.ts', 'dist/index.mjs', 'esm');
+	runMain('src/index.ts', 'dist/index.cjs', 'cjs');
+	runMain('src/cli.ts', 'dist/cli.js', 'cjs', { js: '#!/usr/bin/env node', }, ['./index', './index.cjs']);
+}
+else
+{
+	runMain();
+}

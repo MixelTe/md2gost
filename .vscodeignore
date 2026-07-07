@@ -15,6 +15,9 @@ vsc-extension-quickstart.md
 **/.vscode-test.*
 resources/**
 # assets/**
+dist/**
+!dist/extension.js
+*.tgz
 _hint.txt
 mac.txt
 esbuild-meta.json

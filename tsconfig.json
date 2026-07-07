@@ -6,6 +6,9 @@
 			"ES2022"
 		],
 		"sourceMap": true,
+		"declaration": true,
+		"emitDeclarationOnly": true,
+		"outDir": "./dist",
 		"rootDir": "src",
 		"strict": true,   /* enable all strict type-checking options */
 		/* Additional Checks */
