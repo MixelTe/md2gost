@@ -2,11 +2,13 @@
 
 Расширение для преобразования Markdown-файлов в **DOCX** и **PDF** с автоматическим соблюдением требований ГОСТ (курсовые, отчёты, дипломы). *Соответствие ГОСТ максимально приближено, но не гарантируется на 100%.*
 
-Другие интересные/полезные проекты автора: [тут ![tg chanel](imgs/mixelDev.png)](https://t.me/+gDaSs1PD7LhkODRi) и [тут ![github](imgs/github.png)](https://mixelte.github.io/)
+Другие интересные/полезные проекты автора: [тут ![tg chanel](./imgs/mixelDev.png)](https://t.me/+gDaSs1PD7LhkODRi) и [тут ![github](./imgs/github.png)](https://mixelte.github.io/)
 
 > 🎓 **Пишете курсовую?** Ознакомьтесь с [готовым шаблоном и правилами оформления](#написание-курсовой-работы).
 
 Если вам не хватает какой-то функции или вы знаете, как сделать инструмент лучше – пишите в [Issues](https://github.com/MixelTe/md2gost/issues). Рациональные предложения попадают в план, безумные – ждут вдохновения.
+
+> 💡 **Также доступно в виде [пакета npm](https://www.npmjs.com/package/md2gost)** с интерфейсом командной строки (CLI) и API на JavaScript/TypeScript для использования вне VS Code.
 
 ## 👻 Быстрый старт
 
@@ -235,24 +237,24 @@
 
 Перенос строки с помощью спецсимвола, <br>не добавляет таб перед переносом строки, чтобы делать *правильный* перенос строки
 ```
-![демонстрация разницы переносов строк](imgs/screenshot_linebreaks.png)
+![демонстрация разницы переносов строк](./imgs/screenshot_linebreaks.png)
 
 Выделение с помощью обратных кавычек ``` `монотекст` ``` по умолчанию отображается как курсив. С помощью [правила](#правила) `backtick_mono` можно именить отображение:
 * `!!rule backtick_mono italic` - курсив (по умолчанию)
 
-	![backtick_mono italic](imgs/backtick_mono_italic.png)
+	![backtick_mono italic](./imgs/backtick_mono_italic.png)
 
 * `!!rule backtick_mono off` - обычный текст
 
-	![backtick_mono off](imgs/backtick_mono_off.png)
+	![backtick_mono off](./imgs/backtick_mono_off.png)
 
 * `!!rule backtick_mono on` - моношрифт
 
-	![backtick_mono on](imgs/backtick_mono_on.png)
+	![backtick_mono on](./imgs/backtick_mono_on.png)
 
 * `!!rule backtick_mono outline` - моношрифт в рамочке
 
-	![backtick_mono outline](imgs/backtick_mono_outline.png)
+	![backtick_mono outline](./imgs/backtick_mono_outline.png)
 
 
 ### Заголовки
@@ -615,7 +617,7 @@
 **Особенности вставки:**
 * **DOCX:** Поддерживает передачу параметров. Внутри файла поля должны быть оформлены в двойных фигурных скобках: `{{поле}}`.
 
-	![screenshot](imgs/screenshot_doc_include.png)
+	![screenshot](./imgs/screenshot_doc_include.png)
 
 * **PDF:** Вставляется «как есть», блок параметров должен быть пустым `{}`.
 
@@ -935,7 +937,7 @@
 2. Наведите курсор на любую область существующей таблицы.
 3. Нажмите на появившуюся над кодом кнопку **"Edit table"**.
 
-![Кнопка "Edit table"](imgs/tableEditor_openBtn.png)
+![Кнопка "Edit table"](./imgs/tableEditor_openBtn.png)
 
 ### Двусторонняя синхронизация
 Редактор работает в режиме реального времени:
@@ -944,7 +946,7 @@
 
 > **Примечание:** Undo/Redo в GUI работают только частично, если не сработало, повторите в текстовом редакторе.
 
-![Внешний вид редактора](imgs/tableEditor.png)
+![Внешний вид редактора](./imgs/tableEditor.png)
 
 ### Горячие клавиши
 

@@ -1,0 +1,39 @@
+name: Publish
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish-vscode:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Shared Setup
+        uses: ./.github/actions/setup
+
+      - run: npm i -D @vscode/vsce
+
+      - run: npx @vscode/vsce publish
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+  publish-npm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Shared Setup
+        uses: ./.github/actions/setup
+
+      - run: npm run package-npm
+
+      - run: |
+          npm run build:npm-readme
+          cp README-NPM.md README.md
+
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

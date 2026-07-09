@@ -18,6 +18,9 @@ resources/**
 dist/**
 !dist/extension.js
 *.tgz
+md-patch.js
+README-NPM.md
+README-NPM.patch.md
 _hint.txt
 mac.txt
 esbuild-meta.json

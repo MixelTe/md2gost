@@ -6,3 +6,4 @@ node_modules
 *.tgz
 esbuild-meta.json
 assets/grammars.copy.json
+README-NPM.md
