@@ -4,8 +4,8 @@ Render Markdown files into formatted **DOCX** and **PDF** documents with automat
 
 The project is available in two forms:
 
-- **VS Code extension** – editing, preview, table editor and one-click export.
-- **npm package / CLI** – integrate the renderer into scripts, build pipelines and applications.
+- **npm package** – CLI and JavaScript/TypeScript API.
+- **[VS Code extension](https://marketplace.visualstudio.com/items?itemName=MixelTe.md2gost)** – editor integration with preview, table editor, and one-click export.
 
 > 💡 The Markdown syntax and rendering engine are identical in both versions. All documentation below applies to both.
 

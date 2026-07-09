@@ -13,6 +13,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
+## [1.3.0] - 2026-07-09
+### Added
+- NPM package support alongside the existing VS Code extension (dual distribution).
+- Command Line Interface (CLI) powered by `commander`.
+
 ## [1.2.2] - 2026-05-27
 ### Changed
 - allow simple list in "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"
