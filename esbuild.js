@@ -90,8 +90,8 @@ function runMain(entryPoint, outfile, format, banner, extraExternals)
 if (npmPackage)
 {
 	runMain('src/index.ts', 'dist/index.mjs', 'esm');
-	runMain('src/index.ts', 'dist/index.cjs', 'cjs');
-	runMain('src/cli.ts', 'dist/cli.js', 'cjs', { js: '#!/usr/bin/env node', }, ['./index', './index.cjs']);
+	runMain('src/index.ts', 'dist/index.js', 'cjs');
+	runMain('src/cli.ts', 'dist/cli.js', 'cjs', { js: '#!/usr/bin/env node', }, ['./index']);
 }
 else
 {

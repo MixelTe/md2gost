@@ -13,6 +13,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
+## [1.3.1] - 2026-07-09
+### Fixed
+- assert that macros are enabled for pdf output format
+- fix import in CLI
+
 ## [1.3.0] - 2026-07-09
 ### Added
 - NPM package support alongside the existing VS Code extension (dual distribution).

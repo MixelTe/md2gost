@@ -1,7 +1,6 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import { render } from "./main";
-import assert from "assert";
 
 /**
  * Configuration options for the Markdown rendering process.
@@ -111,6 +110,10 @@ export interface MDRenderResult
  */
 export default async function renderMarkdown(config: MDRenderConfig): Promise<MDRenderResult>
 {
+	function assert(value: unknown, message: string)
+	{
+		if (!value) throw new TypeError(message);
+	}
 	assert(config && typeof config == "object", "Config object is required");
 	assert(typeof config.input == "string", "Input file path must be a string.");
 	assert(typeof config.output == "string" || typeof config.output == "undefined", "Output path must be a string or undefined.");
@@ -128,6 +131,8 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	const renderPDF = config.format === "pdf" || (!config.format && !!config.output?.endsWith(".pdf"));
 	const removeIntermediateDocx = !config.keepIntermediateDocx;
 	const disableMacros = !!config.disableMacros;
+
+	assert(!(disableMacros && renderPDF), "Macros must be enabled to render PDF output.");
 
 	const warnings: string[] = [];
 	const logPS: string[] = [];

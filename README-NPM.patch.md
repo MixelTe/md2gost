@@ -49,8 +49,8 @@ Options:
 
 | Option                           | Description                                 |
 |----------------------------------|---------------------------------------------|
-| `-o, --output &lt;path&gt;`      | Output file                                 |
-| `-f, --format &lt;docx\|pdf&gt;` | Output format                               |
+| `-o, --output <path>`            | Output file                                 |
+| `-f, --format <docx\|pdf>`       | Output format                               |
 | `-k, --keep-intermediate-docx`   | Keep intermediate DOCX after PDF generation |
 | `-d, --disable-macros`           | Disable Word/VBA macros (PDF unavailable)   |
 
