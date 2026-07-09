@@ -4,8 +4,6 @@ description: "Checks out code, sets up Node.js, verifies version matches tag, an
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v7
-
     - uses: actions/setup-node@v6
       with:
         node-version: 22

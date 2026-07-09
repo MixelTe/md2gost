@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v7
+
       - name: Shared Setup
         uses: ./.github/actions/setup
 
@@ -26,6 +28,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v7
+
       - name: Shared Setup
         uses: ./.github/actions/setup
 
