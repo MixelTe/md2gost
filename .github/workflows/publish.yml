@@ -42,7 +42,7 @@ jobs:
       - name: Build and Package Artifacts
         run: |
           npx @vscode/vsce package
-          npm run package-npm
+          npm run build:npm
 
           npm run build:npm-readme
           cp README-NPM.md README.md
