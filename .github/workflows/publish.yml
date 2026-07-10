@@ -9,34 +9,86 @@ permissions:
   contents: read
 
 jobs:
-  publish-vscode:
+  build-and-verify:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v7
 
-      - name: Shared Setup
-        uses: ./.github/actions/setup
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
 
-      - run: npm i -D @vscode/vsce
+      - name: Verify Tag Version Matches package.json
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "Release tag ($TAG) does not match package.json version ($PKG)"
+            exit 1
+          fi
 
-      - run: npx @vscode/vsce publish
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Linter
+        run: npm run lint
+
+      - name: Run Type Check
+        run: npm run check-types
+
+      - name: Build and Package Artifacts
+        run: |
+          npx @vscode/vsce package
+          npm run package-npm
+
+          npm run build:npm-readme
+          cp README-NPM.md README.md
+
+          npm pack
+
+      - name: Verify Package Contents
+        run: node check-package-files.js
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-artifacts
+          path: |
+            *.vsix
+            *.tgz
+
+  publish-vscode:
+    runs-on: ubuntu-latest
+    needs: build-and-verify
+    steps:
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: release-artifacts
+
+      - name: Publish to VS Code Marketplace
+        run: npx @vscode/vsce publish --packagePath $(ls *.vsix | head -n 1)
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
   publish-npm:
     runs-on: ubuntu-latest
-
+    needs: build-and-verify
     steps:
-      - uses: actions/checkout@v7
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false # never use caching in release builds
 
-      - name: Shared Setup
-        uses: ./.github/actions/setup
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: release-artifacts
 
-      - run: npm run package-npm
-
-      - run: |
-          npm run build:npm-readme
-          cp README-NPM.md README.md
-
-      - run: npm publish
+      - name: Publish to NPM
+        run: npm publish $(ls *.tgz | head -n 1)

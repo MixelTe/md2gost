@@ -29,5 +29,9 @@ _hint.txt
 mac.txt
 force_update_nb.bat
 
-dist/**
-!dist/extension.js
+imgs/**
+assets/**
+!assets/run.ps1
+!assets/styles.xml
+!assets/template.dotm
+dist/extension.js
