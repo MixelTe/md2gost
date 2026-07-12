@@ -134,6 +134,20 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 
 	assert(!(disableMacros && renderPDF), "Macros must be enabled to render PDF output.");
 
+	const pin = path.parse(path.resolve(config.input));
+	const fname = pin.name.endsWith(".g") ? pin.name.slice(0, -2) : pin.name;
+
+	let resolvedOutput = config.output;
+	if (resolvedOutput)
+	{
+		const isDir = resolvedOutput.endsWith("/") || resolvedOutput.endsWith("\\") || !path.extname(resolvedOutput);
+		if (isDir)
+		{
+			const ext = renderPDF ? ".pdf" : ".docx";
+			resolvedOutput = path.join(resolvedOutput, fname + ext);
+		}
+	}
+
 	const warnings: string[] = [];
 	const logPS: string[] = [];
 	let totalPercent = 0;
@@ -151,7 +165,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 			progress: handleProgress,
 			assets: getAssetsDir(),
 			file: config.input,
-			output: config.output,
+			output: resolvedOutput,
 			renderPDF,
 			removeIntermediateDocx,
 			disableMacros,
@@ -163,7 +177,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 		function throwMDE(code: MDRenderErrorCode, msg: string)
 		{
 			throw new MDRenderError(code, msg, fout, warnings, logPS, errS ? { cause: errS } : undefined);
-		};
+		}
 		if (err == "noPS") throwMDE("noPS", `Failed to initialize PowerShell. Ensure PowerShell is installed and explicitly added to your system's PATH environment variable.`);
 		if (err == "inPS") throwMDE("inPS", `An unexpected error occurred executing commands inside PowerShell. Verify that Microsoft Word is properly installed and licensed.`);
 		if (err == "vba") throwMDE("vba", `Microsoft Word VBA Macro execution failed: ${errS}`);
@@ -171,11 +185,9 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 		if (err == "noWin") throwMDE("noWin", `Platform restriction: Extended formatting macros and PDF rendering are only supported natively on Windows systems.`);
 
 		let intermediateDocxPath: string | undefined;
-		if (renderPDF)
+		if (renderPDF && !removeIntermediateDocx)
 		{
-			const pin = path.parse(path.resolve(config.input));
-			const fname = pin.name.endsWith(".g") ? pin.name.slice(0, -2) : pin.name;
-			const pout = config.output ? path.parse(path.resolve(config.output)) : undefined;
+			const pout = resolvedOutput ? path.parse(path.resolve(resolvedOutput)) : undefined;
 			intermediateDocxPath = pout ? path.join(pout.dir, pout.name + ".docx") : path.join(pin.dir, fname + ".docx");
 		}
 

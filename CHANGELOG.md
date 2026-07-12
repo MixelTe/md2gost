@@ -13,6 +13,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
+## [1.3.2] - 2026-07-12
+### Added
+* **Directory Output Support**: `renderMarkdown` now accepts directory paths for `config.output`, auto-generating the filename from the input file with the correct extension (`.pdf`/`.docx`).
+### Fixed
+* Fixed a bug where intermediate `.docx` path was returned even when `removeIntermediateDocx` was active.
+
 ## [1.3.1] - 2026-07-09
 ### Fixed
 - assert that macros are enabled for pdf output format
