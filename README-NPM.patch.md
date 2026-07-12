@@ -41,6 +41,7 @@ md2gost report.md --format pdf
 Specify an output path:
 
 ```bash
+md2gost report.md -o dist/
 md2gost report.md -o dist/report.docx
 md2gost report.md -o dist/report.pdf
 ```
