@@ -479,6 +479,7 @@
 </template>
 
 <script>
+	// eslint-disable-next-line no-undef
 	const vscode = acquireVsCodeApi();
 	const table = document.getElementById("table");
 	const sizers = document.getElementById("sizers");
@@ -499,7 +500,7 @@
 	table.children[columnCount]?.firstChild.focus();
 
 	let lastFocusedElementId = table.children[columnCount]?.firstChild.id;
-	document.addEventListener("focusin", (e) =>
+	document.addEventListener("focusin", e =>
 	{
 		lastFocusedElementId = e.target.id;
 	});
@@ -562,7 +563,7 @@
 			key: "autosave",
 			value: cbx_autosave.checked,
 		});
-		if (isDirty) save(silent);
+		if (isDirty) save(true);
 	});
 
 	function createTable()
@@ -604,7 +605,7 @@
 			ta.style.height = "auto";
 			onChanged();
 		});
-		ta.addEventListener("keydown", (e) =>
+		ta.addEventListener("keydown", e =>
 		{
 			const ctrl = event.ctrlKey || event.metaKey;
 			const row = parseInt(el.dataset.row);
@@ -705,7 +706,7 @@
 				const nta = nel.firstChild;
 				el.dataset.cursorPos = ta.selectionStart;
 				nta.focus();
-				const npos = parseInt(nel.dataset.cursorPos)
+				const npos = parseInt(nel.dataset.cursorPos);
 				const pos = isFinite(npos) ? npos : atStart ? 0 : nta.value.length;
 				nta.setSelectionRange(pos, pos);
 			}
@@ -855,7 +856,7 @@
 	function swapCols(j, di)
 	{
 		const j1 = j;
-		const j2 = (j + di + columnCount) % columnCount
+		const j2 = (j + di + columnCount) % columnCount;
 		const rowCount = Math.floor(table.children.length / columnCount);
 		for (let i = 0; i < rowCount; i++)
 		{
@@ -870,7 +871,7 @@
 	{
 		const rowCount = Math.floor(table.children.length / columnCount);
 		const i1 = i;
-		const i2 = (i + di + rowCount) % rowCount
+		const i2 = (i + di + rowCount) % rowCount;
 		for (let j = 0; j < columnCount; j++)
 		{
 			const el1 = table.children[i1 * columnCount + j];
@@ -894,12 +895,13 @@
 		resizeTable();
 	}
 
+	/* exported transpose */
 	function transpose()
 	{
 		const rowCount = Math.floor(table.children.length / columnCount);
 		let rows = repeat(rowCount,
 			i => repeat(columnCount,
-				j => table.children[i * columnCount + j].firstChild.value
+				j => table.children[i * columnCount + j].firstChild.value,
 			));
 		rows = rows[0].map((_, j) => rows.map(row => row[j]));
 		columnCount = rows[0].length;
@@ -914,12 +916,13 @@
 		onChanged();
 	}
 
+	/* exported sortByCol */
 	function sortByCol(col)
 	{
 		const rowCount = Math.floor(table.children.length / columnCount);
 		const all_rows = repeat(rowCount,
 			i => [i, ...repeat(columnCount,
-				j => table.children[i * columnCount + j].firstChild.value
+				j => table.children[i * columnCount + j].firstChild.value,
 			)]);
 		const header = all_rows[0].slice(1);
 		const rows = all_rows.slice(1);
@@ -929,7 +932,7 @@
 			const an = parseFloat(a[col]);
 			const bn = parseFloat(b[col]);
 			if (isFinite(an) && isFinite(bn)) return an - bn;
-			return a[col] < b[col] ? -1 : a[col] > b[col] ? 1 : 0
+			return a[col] < b[col] ? -1 : a[col] > b[col] ? 1 : 0;
 		});
 		const noChanges = rows.every((row, i) => row[0] == i + 1);
 		if (noChanges) rows.reverse();
@@ -946,12 +949,12 @@
 		Array.from(sizers.children).map(s => s.remove());
 		const cells = Array.from(table.children).slice(0, columnCount);
 		const _sizes = cells.map(el => el.dataset.width && parseFloat(el.dataset.width)).filter(v => !!v);
-		const mean = Math.round(_sizes.reduce((pv, v) => pv + v, 0) / _sizes.length)
+		const mean = Math.round(_sizes.reduce((pv, v) => pv + v, 0) / _sizes.length);
 		const def = isFinite(mean) ? mean : 1;
 		const sizes = cells.map(el => parseFloat(el.dataset.width || def));
 		while (sizes.length < columnCount) sizes.push(def);
 		table.style.gridTemplateColumns = sizes.map(s => `${s}fr`).join(" ");
-		const full = sizes.reduce((pv, v) => pv + v, 0);
+		// const full = sizes.reduce((pv, v) => pv + v, 0);
 		const offset = cells[0]?.getBoundingClientRect().left;
 		for (let i = 0; i < columnCount - 1; i++)
 		{
@@ -1014,7 +1017,8 @@
 		{
 			const maxDx = Math.max(0, widths[i + 1] - MIN_WIDTH);
 			ndx = Math.min(dx, maxDx);
-		} else
+		}
+		else
 		{
 			const maxDx = Math.max(0, widths[i] - MIN_WIDTH);
 			ndx = Math.max(dx, -maxDx);
@@ -1115,7 +1119,7 @@
 			align: [],
 			rows: [],
 			width: [],
-		}
+		};
 		Array.from(table.children).forEach((el, i) =>
 		{
 			const rowI = Math.floor(i / columnCount);
@@ -1133,6 +1137,7 @@
 	{
 		vscode.postMessage({ command: "close", newData: data });
 	}
+	/* exported save_close */
 	function save_close()
 	{
 		save();

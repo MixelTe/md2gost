@@ -125,7 +125,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 		const extraProps = getExtraProperties(config,
 			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "progress"],
 		);
-		assert(extraProps.length == 0, `Found unknown properties in config: ${extraProps.join(', ')}`);
+		assert(extraProps.length == 0, `Found unknown properties in config: ${extraProps.join(", ")}`);
 	}
 
 	const renderPDF = config.format === "pdf" || (!config.format && !!config.output?.endsWith(".pdf"));
@@ -182,7 +182,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 		return {
 			filePath: fout,
 			...(intermediateDocxPath && { intermediateDocxPath }),
-			warnings
+			warnings,
 		};
 	}
 	catch (x)
@@ -272,6 +272,6 @@ function getAssetsDir()
 function getExtraProperties(configObj: any, allowedConfigKeys: string[])
 {
 	return Object.keys(configObj).filter(
-		(key) => !allowedConfigKeys.includes(key)
+		key => !allowedConfigKeys.includes(key),
 	);
 }

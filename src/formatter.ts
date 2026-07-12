@@ -1,6 +1,6 @@
-import { TextDocument, Range, FormattingOptions, CancellationToken, TextEdit, workspace } from "vscode";
+import { type TextDocument, Range, type FormattingOptions, type CancellationToken, TextEdit, workspace } from "vscode";
 import { parseLine } from "./parser";
-import { lt, repeat, trimEnd } from "./utils";
+import { repeat, trimEnd } from "./utils";
 import { parseTable, stringifyTable } from "./tableEditor";
 
 export async function md_formatter(document: TextDocument, range: Range, options: FormattingOptions, token: CancellationToken): Promise<TextEdit[]>
@@ -12,7 +12,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 
 	range = new Range(
 		document.lineAt(range.start.line).range.start,
-		document.lineAt(range.end.line).range.end
+		document.lineAt(range.end.line).range.end,
 	);
 
 	const re_sep = /^\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/;
@@ -37,7 +37,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 				applyNewText(text.trim().split(/\s+/).join(" "));
 				continue;
 			}
-			const m_doc = /(^!!\([^\)]+\)\s*)({.*)/.exec(text);
+			const m_doc = /(^!!\([^)]+\)\s*)({.*)/.exec(text);
 			if (m_doc)
 			{
 				const prefix = m_doc[1];
@@ -59,7 +59,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 					const re_remTrailingComma = /,(\s*[}\]])/g;
 					let dict = {};
 					try { dict = JSON.parse(json.replaceAll(re_remTrailingComma, "$1")); }
-					catch (x) { isDoc = false; }
+					catch { isDoc = false; }
 					if (isDoc)
 					{
 						let addNewline = false;
@@ -75,7 +75,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 						edits.push(TextEdit.replace(
 							new Range(
 								document.lineAt(startI).range.start,
-								document.lineAt(i).range.end
+								document.lineAt(i).range.end,
 							),
 							prefix + jsonS + (addNewline ? "\n" : ""),
 						));
@@ -175,7 +175,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 			let itemN = -1;
 			let sign = "";
 			let txt = "";
-			const m_ulist = /^(\*|\-)\s+(.*)/.exec(textT);
+			const m_ulist = /^(\*|-)\s+(.*)/.exec(textT);
 			if (m_ulist)
 			{
 				sign = m_ulist[1];
@@ -201,7 +201,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 				const line = document.lineAt(i);
 				const text = line.text;
 				if (text.trim() == "") continue;
-				const m = /^(\s*)(((\d+[\.\)])|\*|\-)\s+(.*)|([^\s].*))/.exec(text);
+				const m = /^(\s*)(((\d+[.)])|\*|-)\s+(.*)|([^\s].*))/.exec(text);
 				if (!m) { i--; break; }
 				if (m[6])
 				{

@@ -75,7 +75,8 @@ async function run()
 
 		console.log(`\n✨ Success! File counts match snapshot (.tgz: ${currentSnapshot.tgzFiles.length} files, .vsix: ${currentSnapshot.vsixFiles.length} files).`);
 
-	} catch (error)
+	}
+	catch (error)
 	{
 		console.error("An error occurred during verification:", error);
 		process.exit(1);
@@ -88,7 +89,7 @@ async function getTgzFiles(filePath)
 	const files = [];
 	await tar.list({
 		file: filePath,
-		onentry: (entry_1) =>
+		onentry: entry_1 =>
 		{
 			files.push(entry_1.path);
 		},
@@ -106,7 +107,7 @@ function getVsixFiles(filePath)
 		{
 			if (err) return reject(err);
 			zipfile.readEntry();
-			zipfile.on("entry", (entry) =>
+			zipfile.on("entry", entry =>
 			{
 				if (!entry.fileName.endsWith("/"))
 					files.push(entry.fileName);

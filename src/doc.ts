@@ -154,7 +154,7 @@ export interface NodeTableOfContents
 	type: "tableOfContents",
 }
 
-export type NodeTableAlign = "l" | "c" | "r"
+export type NodeTableAlign = "l" | "c" | "r";
 export interface NodeTable
 {
 	type: "table",

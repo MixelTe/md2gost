@@ -1,4 +1,4 @@
-import { CodeLens, InlineCompletionItem, TextDocument, Position, CompletionItem, CompletionItemKind, Hover, InlayHint, SnippetString, MarkdownString, Range, InlayHintKind, type CodeLensProvider, workspace, EventEmitter, type ExtensionContext, Diagnostic, languages, DiagnosticSeverity, window, type TextEditor } from "vscode";
+import { CodeLens, InlineCompletionItem, type TextDocument, type Position, CompletionItem, CompletionItemKind, Hover, InlayHint, SnippetString, MarkdownString, Range, InlayHintKind, type CodeLensProvider, workspace, EventEmitter, type ExtensionContext, Diagnostic, languages, DiagnosticSeverity, window, type TextEditor } from "vscode";
 import { choice, repeat } from "./utils";
 
 export function md_completion(document: TextDocument, position: Position): CompletionItem[] | undefined
@@ -11,7 +11,7 @@ export function md_completion(document: TextDocument, position: Position): Compl
 	{
 		const item = new CompletionItem({
 			label: "Вставить docx",
-			description: "!(файл.docx){}"
+			description: "!(файл.docx){}",
 		}, CompletionItemKind.Snippet);
 		const p = linePrefix ? "" : "!";
 		item.insertText = new SnippetString(p + '!(${1:путькфайлу}){\n\t"${2:поле}": "${3:значение}",\n}\n!!section from 2');
@@ -24,22 +24,22 @@ export function md_completion(document: TextDocument, position: Position): Compl
 	{
 		const item = new CompletionItem({
 			label: "Вставить pdf",
-			description: "!(файл.pdf){}"
+			description: "!(файл.pdf){}",
 		}, CompletionItemKind.Snippet);
 		const p = linePrefix ? "" : "!";
-		item.insertText = new SnippetString(p + '!(${1:путькфайлу}){}\n!!section from 2');
+		item.insertText = new SnippetString(p + "!(${1:путькфайлу}){}\n!!section from 2");
 		item.sortText = "!doc";
 		item.documentation = new MarkdownString("Вставляет блок для вставки pdf");
-		item.documentation.appendCodeblock('!(путькфайлу){}\n!!section from 2');
+		item.documentation.appendCodeblock("!(путькфайлу){}\n!!section from 2");
 		res.push(item);
 	}
 	if (linePrefix == "")
 	{
 		const item = new CompletionItem({
 			label: "Вставить таблицу",
-			description: "Insert table"
+			description: "Insert table",
 		}, CompletionItemKind.Snippet);
-		item.insertText = new SnippetString('${1:h1} | ${2:h2}\n---|---\n${3:v1} | ${4:v2}\n');
+		item.insertText = new SnippetString("${1:h1} | ${2:h2}\n---|---\n${3:v1} | ${4:v2}\n");
 		item.sortText = "!table";
 		res.push(item);
 	}
@@ -76,7 +76,7 @@ export function md_completion(document: TextDocument, position: Position): Compl
 		}
 	}
 	addHint(linePrefix, "!!rule ", "Вставить правило", undefined, undefined, undefined, item =>
-		item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" }
+		item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" },
 	);
 	addHint(linePrefix, "!!section ", "Вставить разрыв секции");
 	addHint(linePrefix, "!!section from", "", undefined, "2", undefined, item => item.label = { label: "!!section from", description: "Начать нумерацию страниц" });
@@ -125,8 +125,8 @@ export function md_inlineCompletion(document: TextDocument, position: Position):
 		return [
 			new InlineCompletionItem(
 				prevLine.replaceAll(/[^|]/g, "-"),
-				new Range(position, position)
-			)
+				new Range(position, position),
+			),
 		];
 	}
 	if (!isListItemEnabled) return;
@@ -135,16 +135,16 @@ export function md_inlineCompletion(document: TextDocument, position: Position):
 		return [
 			new InlineCompletionItem(
 				`${m_olist[1]}${parseInt(m_olist[2]) + 1}${m_olist[3]} `,
-				line.range
-			)
+				line.range,
+			),
 		];
 	const m_list = /^(\s*)(-|\*)\s/.exec(prevLine);
 	if (m_list)
 		return [
 			new InlineCompletionItem(
 				`${m_list[1]}${m_list[2]} `,
-				line.range
-			)
+				line.range,
+			),
 		];
 }
 
@@ -315,7 +315,7 @@ export class TableCodeLensProvider implements CodeLensProvider
 				title: "Edit table",
 				tooltip: "Open table editor",
 				command: "md2gost.edit_table",
-				arguments: [document.uri, range]
+				arguments: [document.uri, range],
 			}));
 		}
 		return lenses;
@@ -372,21 +372,21 @@ export function addDiagnostic(context: ExtensionContext)
 			{
 				const options = rule.type == "bool" ? ["", "on", "off"] : rule.options!;
 				if (options.findIndex(v => String(v) == value) < 0)
-					addWarn(`Wrong value: "${value}". Допустимые: ${options.join(', ')}`);
+					addWarn(`Wrong value: "${value}". Допустимые: ${options.join(", ")}`);
 				continue;
 			}
 			if (rule.checker)
 			{
 				const err = rule.checker(value);
 				if (err)
-					addWarn(`Wrong value: "${value}". Требуется: ${err}`,);
+					addWarn(`Wrong value: "${value}". Требуется: ${err}`);
 				continue;
 			}
 			if (rule.type == "string") continue;
 			if (rule.type == "toggle")
 			{
 				if (value != "")
-					addWarn(`Правило не принимает входный значений`,);
+					addWarn(`Правило не принимает входный значений`);
 				continue;
 			}
 			if (rule.type == "int")
@@ -420,7 +420,7 @@ export function addDiagnostic(context: ExtensionContext)
 	}
 
 	context.subscriptions.push(
-		window.onDidChangeActiveTextEditor(editor => run(editor))
+		window.onDidChangeActiveTextEditor(editor => run(editor)),
 	);
 	run(window.activeTextEditor);
 	context.subscriptions.push(
@@ -429,7 +429,7 @@ export function addDiagnostic(context: ExtensionContext)
 			const editor = window.activeTextEditor;
 			if (editor && event.document == editor.document)
 				run(editor);
-		})
+		}),
 	);
 }
 
@@ -819,7 +819,7 @@ const Headings: {
 	doc: string,
 }[] = [{
 	keyword: "РЕФЕРАТ",
-	text: '\nКлючевые, слова, 5-15 ШТУК\n\nТекст реферата на одной странице.',
+	text: "\nКлючевые, слова, 5-15 ШТУК\n\nТекст реферата на одной странице.",
 	short: "",
 	doc: `### Раздел документа: Реферат
 Ключевое слово для вставки реферата в документ.\n
@@ -865,7 +865,7 @@ const Headings: {
 },
 {
 	keyword: "ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ",
-	text: '\n* Термин: Определение после двоеточия\n* Термин: Определение после двоеточия',
+	text: "\n* Термин: Определение после двоеточия\n* Термин: Определение после двоеточия",
 	short: "",
 	doc: `### Раздел документа: Термины и определения
 Ключевое слово для вставки терминов и определений в документ.\n
@@ -891,7 +891,7 @@ Git    | Система контроля версий, позволяющая о
 },
 {
 	keyword: "ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ",
-	text: '\n* Обозначение - описание\n* Обозначение - описание',
+	text: "\n* Обозначение - описание\n* Обозначение - описание",
 	short: "",
 	doc: `### Раздел документа: Перечень сокращений и обозначений
 Ключевое слово для вставки перечня сокращений и обозначений в документ.\n
@@ -946,7 +946,7 @@ Git    | Система контроля версий, позволяющая о
 },
 {
 	keyword: "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ",
-	text: '\n[id_источника] Источник\n[id_источника] Источник',
+	text: "\n[id_источника] Источник\n[id_источника] Источник",
 	short: "",
 	doc: `### Раздел документа: Список использованных источников
 Ключевое слово для вставки списка источников в документ.\n
@@ -968,9 +968,9 @@ Git    | Система контроля версий, позволяющая о
 },
 {
 	keyword: "ПРИЛОЖЕНИЯ",
-	text: '\n## [id_приложения] Название приложения\n',
-    short: "",
-    doc: `### Раздел документа: Приложения
+	text: "\n## [id_приложения] Название приложения\n",
+	short: "",
+	doc: `### Раздел документа: Приложения
 Ключевое слово для вставки приложений в документ.\n
 При рендере подразделы преобразуются в Приложение А, Приложение Б и т.д. Внутренние элементы (листинги, изображения) нумеруются в соответствии с буквой приложения. Добавляется перенос страницы.\n
 #### Требуемый формат раздела:
@@ -999,4 +999,4 @@ Git    | Система контроля версий, позволяющая о
 <разрыв страницы>
 \`\`\``,
 },
-	];
+];

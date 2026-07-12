@@ -1,5 +1,5 @@
-import * as vscode from 'vscode';
-import { TextEditorDecorationBlock } from './textEditorDecorationBlock';
+import * as vscode from "vscode";
+import { TextEditorDecorationBlock } from "./textEditorDecorationBlock";
 
 export class RangeTracker
 {
@@ -40,7 +40,7 @@ export class RangeTracker
 					if (editor.document.uri.toString() == this.document.uri.toString())
 						this.applyDecoration(editor);
 				});
-			})
+			}),
 		];
 	}
 
@@ -76,8 +76,8 @@ export class RangeTracker
 	{
 		if (!this._isValid || changes.length === 0) return;
 
-		let startOffset = this.document.offsetAt(this._range.start);
-		let endOffset = this.document.offsetAt(this._range.end);
+		const startOffset = this.document.offsetAt(this._range.start);
+		const endOffset = this.document.offsetAt(this._range.end);
 
 		let startDelta = 0;
 		let endDelta = 0;
@@ -101,7 +101,7 @@ export class RangeTracker
 				endDelta += diff;
 				call_onContentChange = true;
 			}
-			else if (changeStart > endOffset) { }
+			else if (changeStart > endOffset) { /* */ }
 			else
 			{
 				call_onUnvalidated = this._isValid;
@@ -118,7 +118,7 @@ export class RangeTracker
 
 		this._range = new vscode.Range(
 			this.document.positionAt(newStart),
-			this.document.positionAt(newEnd)
+			this.document.positionAt(newEnd),
 		);
 		if (call_onContentChange) this._onContentChange.forEach(f => f());
 	}
@@ -153,7 +153,7 @@ export class RangeTracker
 				endLine += lineDelta;
 				call_onContentChange = true;
 			}
-			else if (changeStartLine > endLine) { }
+			else if (changeStartLine > endLine) { /* */ }
 			else
 			{
 				call_onUnvalidated = this._isValid;
@@ -180,11 +180,11 @@ export class RangeTracker
 		this._disposable.forEach(d => d.dispose());
 		vscode.window.visibleTextEditors.forEach(e =>
 		{
-			if (e.document === this.document)
-				this.decorationType instanceof TextEditorDecorationBlock ?
-					this.decorationType.setDecorations(e, null)
-					:
-					e.setDecorations(this.decorationType, []);
+			if (e.document != this.document) return;
+			if (this.decorationType instanceof TextEditorDecorationBlock)
+				this.decorationType.setDecorations(e, null);
+			else
+				e.setDecorations(this.decorationType, []);
 		});
 	}
 }

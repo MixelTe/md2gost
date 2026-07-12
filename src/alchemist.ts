@@ -178,7 +178,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 			}
 			if (rune.type != "ref") return;
 			const type = node.type;
-			const m = /^(.*?)([-\+]\d+)?$/.exec(rune.text.replaceAll(/\s+/g, ""));
+			const m = /^(.*?)([-+]\d+)?$/.exec(rune.text.replaceAll(/\s+/g, ""));
 			const tag = m?.[1] || "";
 			const math = m?.[2] || "";
 			const mathSubstarct = math.at(0) == "-";

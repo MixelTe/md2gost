@@ -3,23 +3,23 @@ const path = require("path");
 
 if (process.argv.length != 5 && process.argv.length != 8)
 {
-	const name = path.parse(process.argv[1]).base
+	const name = path.parse(process.argv[1]).base;
 	console.log(`Usage: node ${name} path/to/doc.md path/to/doc.patch.md path/to/out.md`);
 	console.log(`Usage: node ${name} path/to/doc.md path/to/doc.patch.md path/to/out.md GITHUB_USER REPO_NAME BRANCH`);
 	process.exit(1);
 }
 
-const BASE_URL = process.argv.length == 8 && `https://raw.githubusercontent.com/${process.argv[5]}/${process.argv[6]}/${process.argv[7]}/`
+const BASE_URL = process.argv.length == 8 && `https://raw.githubusercontent.com/${process.argv[5]}/${process.argv[6]}/${process.argv[7]}/`;
 
 const README_PATH = path.resolve(process.argv[2]);
 const PATCH_PATH = path.resolve(process.argv[3]);
 const OUTPUT_PATH = path.resolve(process.argv[4]);
 
-let content = readFile("Source MD", README_PATH).split("\n").map(l => l.trimEnd());
+const content = readFile("Source MD", README_PATH).split("\n").map(l => l.trimEnd());
 const patch = readFile("MD patch", PATCH_PATH).split("\n").map(l => l.trimEnd());
 
 let patchSec = { start: 0, end: 0 };
-while (patchSec = findNextSection(patch, patchSec.end))
+while ((patchSec = findNextSection(patch, patchSec.end)))
 {
 	const header = patch[patchSec.start];
 	const contentSec = findSection(content, header);
@@ -37,7 +37,7 @@ while (patchSec = findNextSection(patch, patchSec.end))
 	}
 	if (/^\s+\[diff\]\s*$/.exec(newLines[1] || ""))
 	{
-		let oldLines = content.slice(contentSec.start, contentSec.end);
+		const oldLines = content.slice(contentSec.start, contentSec.end);
 		oldLines[0] = newLines[0];
 		newLines = applyDiff(oldLines, newLines.slice(1), header);
 	}

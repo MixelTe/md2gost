@@ -22,13 +22,13 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 			"md2gost.tableEditor",
 			"Table Editor",
 			vscode.ViewColumn.Active,
-			{ enableScripts: true, retainContextWhenHidden: true }
+			{ enableScripts: true, retainContextWhenHidden: true },
 		);
 		const iconLightTheme = vscode.Uri.file(path.join(context.extensionPath, "imgs", "table_edit.svg"));
 		const iconDarkTheme = vscode.Uri.file(path.join(context.extensionPath, "imgs", "table_edit_white.svg"));
 		panel.iconPath = {
 			light: iconLightTheme,
-			dark: iconDarkTheme
+			dark: iconDarkTheme,
 		};
 
 		const document = vscode.workspace.textDocuments.find(d => d.uri.toString() === uri.toString());
@@ -132,7 +132,7 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 				tracker.dispose();
 			},
 			null,
-			context.subscriptions
+			context.subscriptions,
 		);
 	};
 }
@@ -172,7 +172,7 @@ export function parseTable(text: string)
 				.replaceAll("<br>", "\n")
 				.replaceAll("\\|", "|")
 				.replaceAll("&lt;", "<")
-				.replaceAll("&gt;", ">")
+				.replaceAll("&gt;", ">"),
 			));
 	}
 	const cols = Math.max(...table.rows.map(l => l.length));
@@ -220,13 +220,13 @@ export function stringifyTable(table: Table)
 		const row = table.rows[i];
 		while (row.length < cols) row.push("");
 		res += (prefix + row.map((v, i) =>
-			v + (compact ? "" : repeat(lens[i] - v.length, " ").join(""))
+			v + (compact ? "" : repeat(lens[i] - v.length, " ").join("")),
 		).join(" | ") + postfix).trim() + "\n";
 		if (i == 0)
 			res += prefix.replace(" ", "") + table.align.map((v, i) => ({
-				v, sep: (compact ? "---" : repeat(lens[i] + 1 + (i == 0 && !border ? 0 : 1), "-").join(""))
+				v, sep: (compact ? "---" : repeat(lens[i] + 1 + (i == 0 && !border ? 0 : 1), "-").join("")),
 			})).map(({ v, sep }) =>
-				v == "c" ? `:${sep.slice(2)}:` : v == "r" ? `${sep.slice(1)}:` : (alwaysAddLeftColon ? `:${sep.slice(1)}` : sep)
+				v == "c" ? `:${sep.slice(2)}:` : v == "r" ? `${sep.slice(1)}:` : (alwaysAddLeftColon ? `:${sep.slice(1)}` : sep),
 			).join("|") + postfix.replace(" ", "") + "\n";
 	}
 	return res.trim();

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import MarkdownIt, { type StateCore, type Token } from "markdown-it";
+import type MarkdownIt from "markdown-it";
+import { type Token } from "markdown-it";
 import { toCapitalCase, trimEnd, trimStart } from "./utils";
 import { stringifyDict } from "./parser";
 
@@ -35,7 +36,7 @@ export function markdownItPlugin(md: MarkdownIt)
 			const json = m[2]!.replaceAll(re_remTrailingComma, "$1");
 			let jsonParsed = {};
 			try { jsonParsed = JSON.parse(json); }
-			catch (x) { continue; }
+			catch { continue; }
 
 			const path = trimEnd(trimStart(m[1]!, "<", '"'), ">", '"');
 			const dict = stringifyDict(jsonParsed);
@@ -55,8 +56,8 @@ export function markdownItPlugin(md: MarkdownIt)
 				<span class="hljs-attr">${md.utils.escapeHtml(k)}</span>
 				<span class="hljs-punctuation">${svg_arrow}</span>
 				<span class="hljs-string">${md.utils.escapeHtml(v)}</span>
-				</div>`.replaceAll(/\s+/g, " ").trim()
-			).join("")}
+				</div>`.replaceAll(/\s+/g, " ").trim(),
+				).join("")}
 			</div>
 			`.replaceAll(/\s+/g, " ").trim();
 			tokens[i].children = [];
@@ -120,7 +121,8 @@ export function markdownItPlugin(md: MarkdownIt)
 				child.content = textAfter;
 				newInline.children = [child];
 				newTokens.push(newInline);
-			} else
+			}
+			else
 			{
 				if (tokens[i + 1]?.type == "paragraph_close")
 					tokens.splice(i + 1, 1);
@@ -130,15 +132,15 @@ export function markdownItPlugin(md: MarkdownIt)
 		}
 	});
 
-	md.core.ruler.after("inline", "md2gost_hide_rule_paragraphs", (state) =>
+	md.core.ruler.after("inline", "md2gost_hide_rule_paragraphs", state =>
 	{
 		if (!isGostyMd(state.env))
 			return true;
 		state.tokens.forEach(blockToken =>
 		{
 			if (blockToken.type != "inline" || !blockToken.children) return;
-			let children = blockToken.children;
-			let newChildren = [];
+			const children = blockToken.children;
+			const newChildren = [];
 
 			for (let i = 0; i < children.length; i++)
 			{
@@ -160,7 +162,7 @@ export function markdownItPlugin(md: MarkdownIt)
 		return true;
 	});
 
-	md.core.ruler.push("md2gost_generate_toc", (state) =>
+	md.core.ruler.push("md2gost_generate_toc", state =>
 	{
 		if (!isGostyMd(state.env))
 			return true;
@@ -193,7 +195,7 @@ export function markdownItPlugin(md: MarkdownIt)
 		if (tocIndex < 0 || toc.length == 0) return true;
 		const tocTokens: Token[] = [];
 
-		toc.forEach((item) =>
+		toc.forEach(item =>
 		{
 			const containerOpen = new state.Token("container_open", "div", 1);
 			containerOpen.attrPush(["class", `md2gost_toc-entry`]);
@@ -221,7 +223,7 @@ export function markdownItPlugin(md: MarkdownIt)
 				linkOpen, text, linkClose,
 				dots, dotsClose,
 				pageOpen, pageText, pageClose,
-				containerClose
+				containerClose,
 			);
 		});
 
@@ -233,7 +235,7 @@ export function markdownItPlugin(md: MarkdownIt)
 		return true;
 	});
 
-	md.core.ruler.push("md2gost_enricher", (state) =>
+	md.core.ruler.push("md2gost_enricher", state =>
 	{
 		if (!isGostyMd(state.env))
 			return true;
@@ -362,7 +364,7 @@ export function markdownItPlugin(md: MarkdownIt)
 		return true;
 	});
 
-	md.core.ruler.after("inline", "md2gost_detect_rules", (state) =>
+	md.core.ruler.after("inline", "md2gost_detect_rules", state =>
 	{
 		if (!isGostyMd(state.env))
 			return true;
@@ -391,7 +393,7 @@ export function markdownItPlugin(md: MarkdownIt)
 				if (state.tokens[i - 1]?.type == "paragraph_close" && state.tokens[i - 2]?.type == "inline")
 				{
 					const titleToken = state.tokens[i - 2];
-					let tag = /^(.*?)\[([a-zA-Zа-яА-ЯёЁ_\d]+|#)\]/.exec(titleToken.content);
+					const tag = /^(.*?)\[([a-zA-Zа-яА-ЯёЁ_\d]+|#)\]/.exec(titleToken.content);
 					if (!settings.md2gost_autoprefixDisable && (lazy || tag))
 					{
 						const text = titleToken.children?.find(t => t.type == "text");
@@ -486,11 +488,11 @@ export function markdownItPlugin(md: MarkdownIt)
 			.replaceAll(" - ", " – ");
 		title = toCapitalCase(title);
 
-		let tag = /^(.*?)\[([a-zA-Zа-яА-ЯёЁ_\d]+|#)\]/.exec(title);
+		const tag = /^(.*?)\[([a-zA-Zа-яА-ЯёЁ_\d]+|#)\]/.exec(title);
 		if (!autoprefixDisable && (lazy || tag))
 		{
 			let num = sections ? "#.#" : "#";
-			let prefix = type == "fence" ? "Листинг " : type == "table" ? "Таблица " : "Рисунок ";
+			const prefix = type == "fence" ? "Листинг " : type == "table" ? "Таблица " : "Рисунок ";
 			if (tag)
 			{
 				if (tag[1].trim().toLowerCase() == prefix.trim().toLowerCase())

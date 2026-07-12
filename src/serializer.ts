@@ -11,7 +11,7 @@ const STYLE_code_title = "ListingCaption";
 const STYLE_code = "ListingCode";
 
 type IListItem = DeepWriteable<INumberingOptions>["config"][number];
-type IListItemLevel = IListItem["levels"][number]
+type IListItemLevel = IListItem["levels"][number];
 export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string, assets: string)
 {
 	const getPath = (fname: string) =>
@@ -52,8 +52,8 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						left: convertMillimetersToTwip(30),
 						right: convertMillimetersToTwip(15),
 						bottom: convertMillimetersToTwip(20),
-					}
-				}
+					},
+				},
 			},
 			footers: {
 				default: new Footer({
@@ -83,7 +83,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						spacing: {
 							...(node.noMargin ? { after: 0 } : {}),
 							...(prevChild instanceof Table ? { before: (doc.table.spacing.after ?? doc.text.spacing.after) * 20 } : {}),
-						}
+						},
 					});
 				case "title":
 					if (node.level < 0 || node.level > 6) throw new Error("Wrong heading level");
@@ -98,7 +98,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						spacing: {
 							before: styles.spacing.before * 20,
 							after: styles.spacing.after * 20,
-						}
+						},
 					});
 				case "pageBreak":
 					if (!(prevChild instanceof Paragraph))
@@ -110,7 +110,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					const id = `l${numbering.length + 1}`;
 					const list: IListItem = {
 						reference: id,
-						levels: []
+						levels: [],
 					};
 					numbering.push(list);
 					const items: FileChild[] = [];
@@ -133,7 +133,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 									numbering: { reference: id, level },
 									spacing: {
 										...(addMargin ? { before: (doc.table.spacing.after ?? doc.text.spacing.after) * 20 } : {}),
-									}
+									},
 								}));
 								addMargin = false;
 							}
@@ -154,9 +154,9 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 								),
 							}),
 						] : prevChild instanceof Table ? [
-							new Paragraph({ spacing: { line: 20, before: spacingInner * 20, after: 0 }, }),
+							new Paragraph({ spacing: { line: 20, before: spacingInner * 20, after: 0 } }),
 						] : doc.table.spacing.before ? [
-							new Paragraph({ spacing: { line: 20, before: doc.table.spacing.before * 20, after: 0 }, }),
+							new Paragraph({ spacing: { line: 20, before: doc.table.spacing.before * 20, after: 0 } }),
 						] : []),
 						new Table({
 							// width: { type: "pct", size: 100 },
@@ -173,7 +173,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 													: node.align[colI] == "r" ? "right" : "left",
 											indent: { firstLine: 0 },
 											spacing: { after: 0, line: 240 * doc.table.text.line_spacing },
-										})
+										}),
 									],
 								})),
 							})),
@@ -185,7 +185,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 							hyperlink: true,
 							headingStyleRange: "1-3",
 						}),
-						new Paragraph({ children: [new PageBreak()] })
+						new Paragraph({ children: [new PageBreak()] }),
 					];
 				case "image":
 					const type = node.src.split(".").at(-1) || "";
@@ -241,9 +241,9 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 							new Paragraph({
 								children: renderText(node.title, doc.code.title.size),
 								style: STYLE_code_title,
-							})
+							}),
 						] : prevNode?.type == "code" ? [
-							new Paragraph({ spacing: { line: 20 }, }),
+							new Paragraph({ spacing: { line: 20 } }),
 						] : []),
 						...(code ? code :
 							node.code.split("\n").map((p, i) =>
@@ -296,7 +296,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 				consecutiveHyphenLimit: 2,
 				doNotHyphenateCaps: true,
 				hyphenationZone: 360,
-			}
+			},
 		} : {}),
 		// title: doc.title,
 		// creator: doc.author,
@@ -311,7 +311,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 				creator: doc.author,
 				createdAt: doc.ctime,
 				modifiedAt: doc.mtime,
-			})
+			}),
 		},
 	]);
 	fs.writeFileSync(fout, buffer);
@@ -453,8 +453,8 @@ function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: n
 		style: {
 			...(text == "\u00B7" ? {
 				run: {
-					font: { name: "Symbol" }
-				}
+					font: { name: "Symbol" },
+				},
 			} : {}),
 			paragraph: {
 				indent: {
@@ -649,7 +649,7 @@ function renderCodeHighlighting(code: string, lang: string)
 						color: themeColors[type] || themeColors["plain"],
 						bold: type === "bold",
 						italics: type === "italic",
-					})
+					}),
 				);
 
 				if (index < lines.length - 1)

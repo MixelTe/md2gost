@@ -167,7 +167,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 					else
 					{
 						const end = itemNext?.type == "list" ? ":" : isLastItem && isLast ? "." : ending;
-						item.text = trimEnd(item.text, ".", ",", ';', ":", "!") + end;
+						item.text = trimEnd(item.text, ".", ",", ";", ":", "!") + end;
 					}
 				}
 			}
@@ -175,17 +175,17 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 		else if (node.type == "image")
 		{
 			if (node.text)
-				node.text = trimEnd(node.text, ".", ",", ';', ":", "!");
+				node.text = trimEnd(node.text, ".", ",", ";", ":", "!");
 		}
 		else if (node.type == "table")
 		{
 			if (node.title)
-				node.title = trimEnd(node.title, ".", ",", ';', ":", "!");
+				node.title = trimEnd(node.title, ".", ",", ";", ":", "!");
 		}
 		else if (node.type == "code")
 		{
 			if (node.title)
-				node.title = trimEnd(node.title, ".", ",", ';', ":", "!");
+				node.title = trimEnd(node.title, ".", ",", ";", ":", "!");
 		}
 		else if (node.type == "externalDoc")
 		{

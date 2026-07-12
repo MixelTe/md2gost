@@ -61,12 +61,12 @@ export class TextEditorDecorationBlock
 
 		const topRange = new vscode.Range(
 			range.start,
-			e.document.lineAt(startLine).range.end
+			e.document.lineAt(startLine).range.end,
 		);
 
 		const bottomRange = new vscode.Range(
 			e.document.lineAt(endLine).range.start,
-			range.end
+			range.end,
 		);
 
 		const middleRanges: vscode.Range[] = [];

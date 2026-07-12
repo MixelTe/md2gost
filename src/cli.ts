@@ -1,4 +1,4 @@
-import renderMarkdown, { MDRenderConfig, MDRenderError } from "./index";
+import renderMarkdown, { type MDRenderConfig, MDRenderError } from "./index";
 
 (async function ()
 {
@@ -34,7 +34,8 @@ async function action(input: string, options: any)
 				process.stdout.clearLine(0);
 				process.stdout.cursorTo(0);
 				process.stdout.write(`[${totalPercent}%] ${message}`);
-			} else
+			}
+			else
 			{
 				console.log(`[${totalPercent}%] ${message}`);
 			}
@@ -50,7 +51,7 @@ async function action(input: string, options: any)
 			process.stdout.write("\n");
 		}
 
-		result.warnings.forEach((w) => console.warn(`[WARNING] ${w}`));
+		result.warnings.forEach(w => console.warn(`[WARNING] ${w}`));
 
 		console.log(`\nSuccessfully saved to: ${result.filePath}`);
 
@@ -60,7 +61,8 @@ async function action(input: string, options: any)
 		}
 
 		process.exit(0);
-	} catch (error)
+	}
+	catch (error)
 	{
 		if (process.stdout.isTTY)
 		{
@@ -79,7 +81,7 @@ async function action(input: string, options: any)
 			if (error.warnings && error.warnings.length > 0)
 			{
 				console.warn("\nWarnings prior to failure:");
-				error.warnings.forEach((w) => console.warn(` - ${w}`));
+				error.warnings.forEach(w => console.warn(` - ${w}`));
 			}
 
 			if (error.code.endsWith("PS") && error.powershellLog && error.powershellLog.length > 0)
@@ -93,7 +95,8 @@ async function action(input: string, options: any)
 			{
 				console.error("\nRoot cause:", error.cause);
 			}
-		} else
+		}
+		else
 		{
 			console.error("\n[FATAL] Unexpected runtime error:");
 			console.error(error);

@@ -123,7 +123,8 @@ export async function render({
 				await fs.rm(tmpfolder, { recursive: true, force: true });
 				if (removeIntermediateDocx && existsSync(fout)) await fs.unlink(fout);
 				return { fout: pdf };
-			} catch (err)
+			}
+			catch (err)
 			{
 				return { fout, err: "pdf", errS: err };
 			}
@@ -159,7 +160,7 @@ function runDocxMacro(progress: SetProgressFn, log: (msg: string) => void, logEr
 		], { cwd });
 		// ], { cwd, detached: true, shell: true });
 
-		child.stdout.on("data", (data) =>
+		child.stdout.on("data", data =>
 		{
 			data = `${data}`;
 			const m = /\[\*(\d)\]/.exec(data);
@@ -174,7 +175,7 @@ function runDocxMacro(progress: SetProgressFn, log: (msg: string) => void, logEr
 			log(data);
 		});
 		let ok = true;
-		child.stderr.on("data", (data) =>
+		child.stderr.on("data", data =>
 		{
 			ok = false;
 			logError(`${data}`);
@@ -208,7 +209,7 @@ async function mergePDFs(files: string[], fout: string, doc?: Doc)
 		const bytes = await fs.readFile(file);
 		const pdf = await PDFDocument.load(bytes);
 		const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-		pages.forEach((page) => mergedPdf.addPage(page));
+		pages.forEach(page => mergedPdf.addPage(page));
 	}
 	const pdfBytes = await mergedPdf.save();
 	await fs.writeFile(fout, pdfBytes);
@@ -223,7 +224,7 @@ async function updateMetadata(docfile: string, doc: Doc)
 	{
 		const regex = new RegExp(`(<${tag}\\b[^>]*>)(.*?)(</${tag}>)`, "gs");
 		return xml.replace(regex, (m, otag, old, ctag) =>
-			`${otag}${escapeXml(value)}${ctag}`
+			`${otag}${escapeXml(value)}${ctag}`,
 		);
 	}
 
@@ -245,15 +246,15 @@ async function updateMetadata(docfile: string, doc: Doc)
 
 	function escapeXml(unsafe: string)
 	{
-		return unsafe.replaceAll(/[<>&"']/g, (ch) =>
+		return unsafe.replaceAll(/[<>&"']/g, ch =>
 		{
 			switch (ch)
 			{
-				case '<': return '&lt;';
-				case '>': return '&gt;';
-				case '&': return '&amp;';
-				case '"': return '&quot;';
-				case "'": return '&apos;';
+				case "<": return "&lt;";
+				case ">": return "&gt;";
+				case "&": return "&amp;";
+				case '"': return "&quot;";
+				case "'": return "&apos;";
 				default: return ch;
 			}
 		});

@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import MarkdownIt from "markdown-it";
+import type MarkdownIt from "markdown-it";
 import { render } from "./main";
 import { openFile, trimStart } from "./utils";
 import fs from "fs";
@@ -19,17 +19,17 @@ export function activate(context: vscode.ExtensionContext)
 	context.subscriptions.push(
 		vscode.commands.registerCommand("md2gost.render_pdf",
 			(uri: vscode.Uri) => onRenderCommand(assets, uri, true),
-		)
+		),
 	);
 	context.subscriptions.push(
 		vscode.commands.registerCommand("md2gost.render_docx",
 			(uri: vscode.Uri) => onRenderCommand(assets, uri, false),
-		)
+		),
 	);
 	context.subscriptions.push(
 		vscode.commands.registerCommand("md2gost.render_docx_fast",
 			(uri: vscode.Uri) => onRenderCommand(assets, uri, false, true),
-		)
+		),
 	);
 	const _onEditTableCommand = onEditTableCommand(context);
 	context.subscriptions.push(vscode.commands.registerCommand("md2gost.edit_table", _onEditTableCommand));
@@ -39,7 +39,7 @@ export function activate(context: vscode.ExtensionContext)
 		{
 			const readmeUri = vscode.Uri.joinPath(context.extensionUri, "README.md");
 			vscode.commands.executeCommand("markdown.showPreview", readmeUri);
-		})
+		}),
 	);
 
 	context.subscriptions.push(vscode.languages.registerDocumentFormattingEditProvider("markdown", {
@@ -47,35 +47,35 @@ export function activate(context: vscode.ExtensionContext)
 		{
 			const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
 			return await md_formatter(document, fullRange, options, token);
-		}
+		},
 	}));
 	context.subscriptions.push(vscode.languages.registerDocumentRangeFormattingEditProvider("markdown", {
 		async provideDocumentRangeFormattingEdits(document: vscode.TextDocument, range: vscode.Range, options: vscode.FormattingOptions, token: vscode.CancellationToken): Promise<vscode.TextEdit[]>
 		{
 			return await md_formatter(document, range, options, token);
-		}
+		},
 	}));
 
 	context.subscriptions.push(vscode.languages.registerCompletionItemProvider(
 		{ language: "markdown", pattern: "**/*.g.md" },
 		{ provideCompletionItems: md_completion },
-		"!", " ", "#"
+		"!", " ", "#",
 	));
 	context.subscriptions.push(vscode.languages.registerInlineCompletionItemProvider(
 		{ language: "markdown" },
-		{ provideInlineCompletionItems: md_inlineCompletion }
+		{ provideInlineCompletionItems: md_inlineCompletion },
 	));
 	context.subscriptions.push(vscode.languages.registerHoverProvider(
 		{ language: "markdown", pattern: "**/*.g.md" },
-		{ provideHover: md_hover }
+		{ provideHover: md_hover },
 	));
 	const onDidChangeInlayHints = new vscode.EventEmitter<void>();
 	context.subscriptions.push(vscode.languages.registerInlayHintsProvider(
 		{ language: "markdown", pattern: "**/*.g.md" },
 		{
 			provideInlayHints: md_inlineHints,
-			onDidChangeInlayHints: onDidChangeInlayHints.event
-		}
+			onDidChangeInlayHints: onDidChangeInlayHints.event,
+		},
 	));
 	const tableCodeLensProvider = new TableCodeLensProvider();
 	context.subscriptions.push(vscode.languages.registerCodeLensProvider(
@@ -92,14 +92,14 @@ export function activate(context: vscode.ExtensionContext)
 				tableCodeLensProvider.refresh();
 			if (e.affectsConfiguration("md2gost.ui.enhancedHighlighting"))
 				onEnhancedHighlighting(assets);
-		})
+		}),
 	);
 
 	return {
 		extendMarkdownIt(md: MarkdownIt)
 		{
 			return md.use(markdownItPlugin);
-		}
+		},
 	};
 }
 
@@ -127,58 +127,57 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean, di
 		location: vscode.ProgressLocation.Notification,
 		title: "Rendering...",
 		cancellable: false,
-	},
-		async (progress, token) =>
+	}, async (progress, token) =>
+	{
+		try
 		{
-			try
+			rendering = true;
+			await vscode.window.activeTextEditor?.document.save();
+			const { fout: fname, err, errS } = await render({
+				progress: (increment, message) => progress.report({ increment, message }),
+				assets,
+				file,
+				renderPDF,
+				removeIntermediateDocx,
+				disableMacros,
+				logwarn: msg => vscode.window.showWarningMessage(msg),
+			});
+			if (errS) console.error(errS);
+			if (err == "inPS") vscode.window.showErrorMessage(`Unknown error! Возможно у вас не установлен Word или установлен неправильно`);
+			if (err == "noPS") vscode.window.showErrorMessage(`Cant start PowerShell! Возможно он не прописан у вас в PATH`);
+			if (err == "vba") vscode.window.showErrorMessage(`VBA error: ${errS}`);
+			if (err == "pdf") vscode.window.showErrorMessage(`PDF render error` + (errS ? `: ${errS}` : ""));
+			if (err == "noWin") vscode.window.showWarningMessage("Функционал ограничен, полный функционал только на Windows (more info in readme)");
+			progress.report({ increment: 100, message: "Done!" });
+			vscode.window.showInformationMessage(`File rendered to ${fname}`, "Open").then(v =>
 			{
-				rendering = true;
-				await vscode.window.activeTextEditor?.document.save();
-				const { fout: fname, err, errS } = await render({
-					progress: (increment, message) => progress.report({ increment, message }),
-					assets,
-					file,
-					renderPDF,
-					removeIntermediateDocx,
-					disableMacros,
-					logwarn: msg => vscode.window.showWarningMessage(msg),
-				});
-				if (errS) console.error(errS);
-				if (err == "inPS") vscode.window.showErrorMessage(`Unknown error! Возможно у вас не установлен Word или установлен неправильно`);
-				if (err == "noPS") vscode.window.showErrorMessage(`Cant start PowerShell! Возможно он не прописан у вас в PATH`);
-				if (err == "vba") vscode.window.showErrorMessage(`VBA error: ${errS}`);
-				if (err == "pdf") vscode.window.showErrorMessage(`PDF render error` + (errS ? `: ${errS}` : ""));
-				if (err == "noWin") vscode.window.showWarningMessage("Функционал ограничен, полный функционал только на Windows (more info in readme)");
-				progress.report({ increment: 100, message: "Done!" });
-				vscode.window.showInformationMessage(`File rendered to ${fname}`, "Open").then(v =>
-				{
-					if (v != "Open") return;
-					openFile(fname);
-				});
-			}
-			catch (x)
-			{
-				console.error(x);
-				x = trimStart(`${x}`, "Error: ");
-				vscode.window.showErrorMessage(`Error: ${x}`);
-			}
-			finally
-			{
-				rendering = false;
-			}
-			// token.onCancellationRequested(() =>
-			// {
-			// 	console.log("User cancelled the operation.");
-			// });
-			// for (let i = 0; i < 10; i++)
-			// {
-			// 	if (token.isCancellationRequested) { return; }
-
-			// 	progress.report({ increment: 10, message: `Step ${i + 1} of 10...` });
-
-			// 	await new Promise(resolve => setTimeout(resolve, 1000));
-			// }
+				if (v != "Open") return;
+				openFile(fname);
+			});
 		}
+		catch (x)
+		{
+			console.error(x);
+			const e = trimStart(`${x}`, "Error: ");
+			vscode.window.showErrorMessage(`Error: ${e}`);
+		}
+		finally
+		{
+			rendering = false;
+		}
+		// token.onCancellationRequested(() =>
+		// {
+		// 	console.log("User cancelled the operation.");
+		// });
+		// for (let i = 0; i < 10; i++)
+		// {
+		// 	if (token.isCancellationRequested) { return; }
+
+		// 	progress.report({ increment: 10, message: `Step ${i + 1} of 10...` });
+
+		// 	await new Promise(resolve => setTimeout(resolve, 1000));
+		// }
+	},
 	);
 }
 
@@ -202,7 +201,7 @@ function showChangelogOnUpdate(context: vscode.ExtensionContext)
 	};
 
 	context.subscriptions.push(
-		vscode.workspace.registerTextDocumentContentProvider("md2gost-readme", myProvider)
+		vscode.workspace.registerTextDocumentContentProvider("md2gost-readme", myProvider),
 	);
 
 	context.subscriptions.push(
@@ -214,11 +213,11 @@ function showChangelogOnUpdate(context: vscode.ExtensionContext)
 				vscode.ViewColumn.One,
 				{
 					enableScripts: true,
-				}
+				},
 			);
 			panel.iconPath = {
 				light: vscode.Uri.file(path.join(context.extensionPath, "imgs", "ghost.svg")),
-				dark: vscode.Uri.file(path.join(context.extensionPath, "imgs", "ghost_white.svg"))
+				dark: vscode.Uri.file(path.join(context.extensionPath, "imgs", "ghost_white.svg")),
 			};
 			const rootUri = panel.webview.asWebviewUri(context.extensionUri);
 			const filePath = context.asAbsolutePath(path.join("assets", "whats_new.html"));
@@ -241,9 +240,9 @@ function showChangelogOnUpdate(context: vscode.ExtensionContext)
 					}
 				},
 				undefined,
-				context.subscriptions
+				context.subscriptions,
 			);
-		})
+		}),
 	);
 	function extractSection(fullText: string, sectionTitle: string): string
 	{
@@ -332,16 +331,17 @@ function onEnhancedHighlighting(assets: string)
 		const action = "Reload Window";
 		vscode.window.showInformationMessage(
 			"Для применения настроек подсветки требуется перезагрузка окна.",
-			action
+			action,
 		).then(selectedAction =>
-			selectedAction === action && vscode.commands.executeCommand("workbench.action.reloadWindow")
+			selectedAction === action && vscode.commands.executeCommand("workbench.action.reloadWindow"),
 		);
-	} catch (err)
+	}
+	catch
 	{
 		const action = "Copy Path";
 		vscode.window.showErrorMessage(
 			`md2gost: Permission denied. Please manually edit grammars.json to ${isEnabled ? "enable" : "disable"} highlighting.`,
-			action
+			action,
 		).then(selectedAction =>
 		{
 			if (selectedAction != action) return;

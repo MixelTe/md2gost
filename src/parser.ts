@@ -1,4 +1,4 @@
-import { Doc, tableRow, type DocNode, type NodeListItem, type NodeTable, type Rune, type RunicDoc, type Runify } from "./doc";
+import { Doc, tableRow, type DocNode, type NodeListItem, type NodeTable, type Rune, type RunicDoc } from "./doc";
 import fs from "fs/promises";
 import { hslToHex, toCapitalCase, trimEnd, trimStart, type JSONValue } from "./utils";
 import path from "path";
@@ -94,7 +94,7 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 		text = "";
 		while (lineI < lines.length)
 		{
-			let ln = lines[lineI++]!;
+			const ln = lines[lineI++]!;
 			if (ln.startsWith("```")) break;
 			text += "\n" + ln;
 		}
@@ -166,7 +166,7 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 		const reRules: { re: RegExp, n: (m: RegExpExecArray) => { rule: string, value: string }, f: (m: RegExpExecArray) => void }[] = [
 			{
 				re: /^(headings (h[1-6])(\+?) (size|spacing (before|after)|uppercase|indent))(.*)/,
-				n: (m) => ({ rule: m[1], value: (m.at(-1) || "").trim() }), f(m)
+				n: m => ({ rule: m[1], value: (m.at(-1) || "").trim() }), f(m)
 				{
 					const level = parseInt(m[2][1]);
 					const plus = m[3] == "+";
@@ -186,10 +186,10 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 		];
 
 		const rulePrefix = Object.keys(rules).find(prefix =>
-			textl.startsWith(prefix) && !textl.slice(prefix.length)[0]?.trim()
+			textl.startsWith(prefix) && !textl.slice(prefix.length)[0]?.trim(),
 		);
 		const reRule = rulePrefix ? undefined : reRules.map(({ re, f, n }) => ({ f, n, m: re.exec(textl) })).find(({ m }) => !!m);
-		let applyRule = rulePrefix ?
+		const applyRule = rulePrefix ?
 			() => rules[rulePrefix](text.slice(rulePrefix.length).trim()) :
 			reRule ? () => reRule.f(reRule.m!) : undefined;
 		if (applyRule)
@@ -305,7 +305,7 @@ export function parseLine(line: string): { prefix: Prefix, text: string, level: 
 	if (/^\s*---+\s*$/.test(line)) return { prefix: "---", text: "", level, parts: [] };
 	const splited = line.trim().split(/\s/);
 	let prefix = splited[0]!.toLowerCase();
-	let text = splited.slice(1).join(" ");
+	const text = splited.slice(1).join(" ");
 	let parts: string[] = [];
 	if (prefix.startsWith("!"))
 	{
@@ -350,7 +350,7 @@ function findDocs(nodes: DocNode[], logwarn: (msg: string) => void = console.war
 		if (!m_doc) continue;
 		let dict = {};
 		try { dict = JSON.parse(`{${m_doc[2]!}}`); }
-		catch (x) { logwarn(`Cant parse doc dict: {${m_doc[2]!.replaceAll("\n", " ")}}`); }
+		catch { logwarn(`Cant parse doc dict: {${m_doc[2]!.replaceAll("\n", " ")}}`); }
 		nodes.splice(i, 1, {
 			type: "externalDoc",
 			path: trimEnd(trimStart(m_doc[1]!, "<", '"'), ">", '"'),
@@ -483,10 +483,10 @@ function runifyText(text: string, rainbow = false): Rune[]
 		.replaceAll(/(^|[^\p{L}\d_])"([\p{L}\d_])/gu, "$1«$2")
 		.replaceAll(/([\p{L}\d_])"([^\p{L}\d_]|$)/gu, "$1»$2")
 		.replaceAll(/(^|\s)(\*+)($|\s)/g, sub => sub.replaceAll("*", "&Star;"))
-		.split(/(\[[^\]]*\]\([^\)]*\))/g)
+		.split(/(\[[^\]]*\]\([^)]*\))/g)
 		.map(p =>
 		{
-			const m = /\[([^\]]*)\]\(([^\)]*)\)/.exec(p);
+			const m = /\[([^\]]*)\]\(([^)]*)\)/.exec(p);
 			if (!m) return { text: p } as Rune;
 			return { text: m[1], link: m[2] } as Rune;
 		})
@@ -528,9 +528,9 @@ function runifyText(text: string, rainbow = false): Rune[]
 			linebreak: i == 0 && rune.linebreak,
 			mono: (i % 2 == 1 && i != arr.length - 1),
 		}) as Rune)).flat()
-		.map(rune => rune.link ? [rune] : rune.text.split(/(\[!?[a-zA-Zа-яА-ЯёЁ_\d#]+\s*[+\-]?\s*\d*\])/g).map((p, i) =>
+		.map(rune => rune.link ? [rune] : rune.text.split(/(\[!?[a-zA-Zа-яА-ЯёЁ_\d#]+\s*[+-]?\s*\d*\])/g).map((p, i) =>
 		{
-			const m = /\[(!?([a-zA-Zа-яА-ЯёЁ_\d]+|#)(\s*[-\+]\s*\d+)?)\]/.exec(p);
+			const m = /\[(!?([a-zA-Zа-яА-ЯёЁ_\d]+|#)(\s*[-+]\s*\d+)?)\]/.exec(p);
 			const v = m && m[1];
 			const isVal = v?.at(0) == "!";
 			return {
@@ -546,7 +546,7 @@ function runifyText(text: string, rainbow = false): Rune[]
 				text: rune.text
 					.replaceAll("&Star;", "*")
 					.replaceAll("&#x200B;", ""),
-			} : {})
+			} : {}),
 		}) as Rune)
 		.map(rune => !rainbow || (rune.type && rune.type != "text") ? [rune] : rune.text.split("").map((p, i) => ({
 			...rune,
@@ -554,7 +554,7 @@ function runifyText(text: string, rainbow = false): Rune[]
 			linebreak: i == 0 && rune.linebreak,
 			color: hslToHex(rainbowI++ % 360, 100, 50),
 		}) as Rune)).flat()
-		;
+	;
 }
 
 function replaceAmpCodes(text: string)
