@@ -55,6 +55,24 @@ export default tseslint.config(
 				catch: "always",
 			}],
 
+			// Spacing directly inside of parentheses
+			"space-in-parens": ["error", "never"],
+
+			// Spacing inside an open/close block token on the same line.
+			"@stylistic/block-spacing": "error",
+
+			// Space after commas
+			"@stylistic/comma-spacing": ["error", { before: false, after: true }],
+
+			// Spaces in object
+			"object-curly-spacing": ["error", "always"],
+
+			// Spacing around keywords and keyword-like tokens
+			"@stylistic/keyword-spacing": ["error", { "before": true, "after": true }],
+
+			// Spaces around operators
+			"@stylistic/space-infix-ops": "error",
+
 			// --- TypeScript Style & Leniency ---
 
 			// Allow inline type imports: `import { Doc, type DocNode } from "./doc";`
@@ -95,7 +113,7 @@ export default tseslint.config(
 			// Prefer const when variables are not reassigned
 			"prefer-const": ["error", { destructuring: "all" }],
 		},
-	},{
+	}, {
 		files: ["**/*.html"],
 
 		languageOptions: {
