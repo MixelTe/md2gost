@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- totalPagesOffset property of Doc to modify TOTAL_PAGES field value (`!!rule` isn't implemented yet)
 ### Changed
 ### Deprecated
 ### Removed

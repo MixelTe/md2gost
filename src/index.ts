@@ -38,6 +38,20 @@ export interface MDRenderConfig
 	disableMacros?: boolean;
 
 	/**
+	 * DOES NOT WORK!
+	 * @experimental
+	 */
+	useLibreOffice?: boolean;
+
+	/**
+	 * Maps internal outputs to specific log levels:
+	 * - **info**: Shadows {@link progress} and info in {@link MDRenderError.powershellLog}
+	 * - **warn**: Shadows {@link MDRenderResult.warnings} (and {@link MDRenderError.warnings})
+	 * - **error**: Shadows errors in {@link MDRenderError.powershellLog}
+	 */
+	logger?: { info: (msg: string) => void, warn: (msg: string) => void, error: (msg: string) => void };
+
+	/**
 	 * Optional callback function triggered periodically to report the total rendering progress.
 	 * @param totalPercent - The total calculated completion progress, clamped between 0 and 100.
 	 * @param message - A human-readable description of the active step.
@@ -120,12 +134,24 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	assert(config.format == "docx" || config.format == "pdf" || typeof config.format == "undefined", "Format must be either 'docx' or 'pdf', or undefined.");
 	assert(typeof config.keepIntermediateDocx == "boolean" || typeof config.keepIntermediateDocx == "undefined", "keepIntermediateDocx must be a boolean or undefined.");
 	assert(typeof config.disableMacros == "boolean" || typeof config.disableMacros == "undefined", "disableMacros must be a boolean or undefined.");
+	assert(typeof config.useLibreOffice == "boolean" || typeof config.useLibreOffice == "undefined", "useLibreOffice must be a boolean or undefined.");
 	assert(typeof config.progress == "function" || typeof config.progress == "undefined", "Progress callback must be a function or undefined.");
 	{
 		const extraProps = getExtraProperties(config,
 			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "progress"],
 		);
 		assert(extraProps.length == 0, `Found unknown properties in config: ${extraProps.join(", ")}`);
+	}
+	assert((typeof config.logger == "object" && config.logger) || typeof config.logger == "undefined", "Logger must be a object or undefined.");
+	const logger = config.logger;
+	if (logger)
+	{
+		const props = ["info", "warn", "error"] as const;
+		const extraProps = getExtraProperties(logger, props as unknown as string[]);
+		assert(extraProps.length == 0, `Found unknown properties in config.logger: ${extraProps.join(", ")}`);
+		props.forEach(p =>
+			assert(typeof logger[p] == "function", `config.logger.${p} must be a function.`),
+		);
 	}
 
 	const renderPDF = config.format === "pdf" || (!config.format && !!config.output?.endsWith(".pdf"));
@@ -151,13 +177,12 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	const warnings: string[] = [];
 	const logPS: string[] = [];
 	let totalPercent = 0;
-	const handleProgress = config.progress
-		? (increment: number, message: string) =>
-		{
-			totalPercent = Math.min(totalPercent + increment, 99);
-			config.progress!(totalPercent, message);
-		}
-		: undefined;
+	const handleProgress = (increment: number, message: string) =>
+	{
+		totalPercent = Math.min(totalPercent + increment, 99);
+		config.progress?.(totalPercent, message);
+		logger?.info(message);
+	};
 
 	try
 	{
@@ -169,11 +194,13 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 			renderPDF,
 			removeIntermediateDocx,
 			disableMacros,
-			logwarn: msg => warnings.push(msg),
-			logPS: msg => logPS.push(msg),
-			logPSError: msg => logPS.push(msg),
+			useLibreOffice: config.useLibreOffice,
+			logwarn: msg => { logger?.warn(msg); warnings.push(msg); },
+			logPS: msg => { logger?.info(msg); logPS.push(msg); },
+			logPSError: msg => { logger?.error(msg); logPS.push(msg); },
 		});
 		config.progress?.(100, "Done!");
+		logger?.info("Done!");
 		function throwMDE(code: MDRenderErrorCode, msg: string)
 		{
 			throw new MDRenderError(code, msg, fout, warnings, logPS, errS ? { cause: errS } : undefined);

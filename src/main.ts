@@ -22,6 +22,7 @@ export interface RenderOptions
 	renderPDF?: boolean;
 	removeIntermediateDocx?: boolean;
 	disableMacros?: boolean;
+	useLibreOffice?: boolean;
 	logwarn?: (msg: string) => void;
 	logPS?: (msg: string) => void;
 	logPSError?: (msg: string) => void;
@@ -35,10 +36,15 @@ export async function render({
 	renderPDF = false,
 	removeIntermediateDocx = false,
 	disableMacros = false,
+	useLibreOffice = false,
 	logwarn = console.warn,
 	logPS = msg => console.log(`PS: ${msg}`),
-	logPSError = msg => console.error(`PS: ${msg}`),
-}: RenderOptions)
+	logPSError = msg => console.error(`PS ERROR: ${msg}`),
+}: RenderOptions): Promise<{
+	fout: string;
+	err?: "inPS" | "noPS" | "vba" | "pdf" | "noWin";
+	errS?: any;
+}>
 {
 	// progress(10, "Trying to understand your scribbles");
 	progress(10, "Пытаемся понять, что вы тут написали...");
@@ -74,7 +80,7 @@ export async function render({
 	let willRunMacros = !disableMacros && (renderPDF || hasReasonForRunningMacros(runicDoc));
 
 	let limitedRender = false;
-	if (process.platform != "win32" && willRunMacros)
+	if (process.platform != "win32" && willRunMacros && !useLibreOffice)
 	{
 		limitedRender = true;
 		willRunMacros = false;
@@ -88,7 +94,8 @@ export async function render({
 		await fs.rm(tmpfolder, { recursive: true, force: true });
 		try
 		{
-			const ok = await runDocxMacro(progress, logPS, logPSError, assets, fdir, ftmp, fout, renderPDF);
+			const macroRunner = useLibreOffice ? runUnoScript : runDocxMacro;
+			const ok = await macroRunner(progress, logPS, logPSError, assets, fdir, ftmp, fout, renderPDF);
 			if (!ok)
 			{
 				await fs.rename(ftmp, fout);
@@ -196,6 +203,68 @@ function runDocxMacro(progress: SetProgressFn, log: (msg: string) => void, logEr
 	// execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File macros\\run.ps1 -InputDoc "${fin}" -OutputDoc "${fout}" -MacroTemplate macros\\template.dotm`);
 }
 
+/**
+ * Resolves the Python executable. On Windows, it attempts to use LibreOffice's bundled python
+ * to guarantee the 'uno' library is present without requiring global environment configuration.
+ */
+function getPythonExecutable(): string
+{
+	if (process.platform === "win32")
+	{
+		const loPython = "C:\\Program Files\\LibreOffice\\program\\python.exe";
+		if (existsSync(loPython)) return loPython;
+	}
+	return process.env.UNO_PYTHON_PATH || "python3";
+}
+
+function runUnoScript(progress: (inc: number, msg: string) => void, log: (msg: string) => void, logError: (msg: string) => void, assets: string, cwd: string, fin: string, fout: string, renderPDF: boolean): Promise<boolean>
+{
+	const script = path.join(assets, "macro_engine.py");
+	const pythonExec = getPythonExecutable();
+
+	return new Promise<boolean>((res, rej) =>
+	{
+		const args = [
+			script,
+			"--input", fin,
+			"--output", fout,
+		];
+		if (renderPDF) args.push("--render-pdf");
+
+		const child = spawn(pythonExec, args, { cwd });
+
+		child.stdout.on("data", data =>
+		{
+			const lines = `${data}`.split("\n");
+			for (const line of lines)
+			{
+				log(line.trimEnd());
+				if (!line.trimEnd()) continue;
+				const m = /\[\*(\d)\]/.exec(line);
+				if (m)
+				{
+					const msg = {
+						"1": render_fixingBreaks(),
+						"2": render_fixingBreaks(),
+						"3": render_renderPDF(),
+					}[m[1]] || "Processing document...";
+					progress(12, msg);
+				}
+			}
+		});
+
+		let ok = true;
+		child.stderr.on("data", data =>
+		{
+			ok = false;
+			logError(`${data}`);
+		});
+
+		child.on("close", code => res(ok && code == 0));
+		child.on("error", rej);
+	});
+}
+
 
 async function mergePDFs(files: string[], fout: string, doc?: Doc)
 {
@@ -206,6 +275,7 @@ async function mergePDFs(files: string[], fout: string, doc?: Doc)
 	if (doc?.mtime) mergedPdf.setModificationDate(doc.mtime);
 	for (const file of files)
 	{
+		if (!file.endsWith(".pdf")) continue;
 		const bytes = await fs.readFile(file);
 		const pdf = await PDFDocument.load(bytes);
 		const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());

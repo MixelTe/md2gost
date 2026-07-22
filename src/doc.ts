@@ -12,6 +12,7 @@ export class Doc
 	public ctime: Date | undefined;
 	public mtime: Date | undefined;
 	public hyphenation = false;
+	public totalPagesOffset = 0;
 	public headings: DocHeadings = {
 		h1: { size: 14, spacing: { before: 18, after: 4 }, indent_full: false, uppercase: false },
 		h3: { size: 14, spacing: { before: 8, after: 4 }, indent_full: false, uppercase: false },

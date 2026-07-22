@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { AlignmentType, Document, Footer, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark } from "docx";
+import { AlignmentType, Document, Footer, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark, XmlComponent, LineRuleType } from "docx";
 import type { NodeList, NodeListMark, Rune, RunicDoc, RunicNode, Runify } from "./doc";
 import { randomInt, type DeepWriteable } from "./utils";
 import { imageSize } from "image-size";
@@ -16,6 +16,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 {
 	const getPath = (fname: string) =>
 	{
+		if (process.platform != "win32") fname = fname.replaceAll("\\", "/");
 		if (process.platform == "win32" && fname[0] == "/") fname = "." + fname;
 		return path.isAbsolute(fname) ? fname : path.join(workdir, fname);
 	};
@@ -209,6 +210,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 							indent: { firstLine: 0 },
 							spacing: {
 								line: 240,
+								lineRule: LineRuleType.AT_LEAST, // For LibreOffice to not shrink image
 								...(!node.text && doc.img.spacing.after !== undefined ? { after: doc.img.spacing.after * 20 } : {}),
 								...(doc.img.spacing.before !== undefined ? { before: doc.img.spacing.before * 20 } : {}),
 							},
@@ -331,11 +333,31 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					new InternalHyperlink({ children, anchor: rune.link.slice(1) }) :
 					new ExternalHyperlink({ children, link: rune.link });
 			}
-			let children: null | string[] = null;
+			let children: null | (string | XmlComponent)[] = null;
 			if (rune.type == "val" && rune.text == "pages")
 			{
 				rune.type = "text";
-				children = [PageNumber.TOTAL_PAGES];
+				children = doc.totalPagesOffset == 0 ? [PageNumber.TOTAL_PAGES] : [
+					// Complex Formula Field: { = { NUMPAGES } + 1 }
+					// Outer field start: "="
+					new RawXml("w:fldChar", { "w:fldCharType": "begin" }),
+					new RawXml("w:instrText", { "xml:space": "preserve" }, " = "),
+
+					// Inner field start: "NUMPAGES"
+					new RawXml("w:fldChar", { "w:fldCharType": "begin" }),
+					new RawXml("w:instrText", { "xml:space": "preserve" }, " NUMPAGES "),
+					new RawXml("w:fldChar", { "w:fldCharType": "separate" }),
+					new RawXml("w:fldChar", { "w:fldCharType": "end" }),
+
+					// Operator
+					new RawXml("w:instrText", { "xml:space": "preserve" },
+						doc.totalPagesOffset > 0 ? ` + ${doc.totalPagesOffset}` : ` - ${-doc.totalPagesOffset}`,
+					),
+
+					// Outer field close
+					new RawXml("w:fldChar", { "w:fldCharType": "separate" }),
+					new RawXml("w:fldChar", { "w:fldCharType": "end" }),
+				];
 			}
 			return new TextRun({
 				...(children ? { children } : { text: rune.text }),
@@ -439,7 +461,6 @@ function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: n
 	}
 	const longList = startIndex + itemCount > 10;
 	const left = alternativeStyle ? 0 : longList ? 20.5 : 17.5;
-	const hanging = longList && !alternativeStyle ? convertMillimetersToTwip(8) : null;
 	const text = ordered ?
 		(alternativeStyle ? `%${level + 1}.` :
 			mark == "." ? `%${level + 1}.` : `%${level + 1})`) :
@@ -459,12 +480,24 @@ function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: n
 			paragraph: {
 				indent: {
 					left: convertMillimetersToTwip(left + 5 * indent),
+					hanging: convertMillimetersToTwip(longList && !alternativeStyle ? 8 : 5),
 					...(alternativeStyle ? { firstLine: convertMillimetersToTwip(12.5) } : {}),
-					...(hanging ? { hanging } : {}),
 				},
 			},
 		},
 	});
+}
+
+class RawXml extends XmlComponent
+{
+	constructor(tag: string, attributes = {}, text: string | null = null)
+	{
+		super(tag);
+		if (Object.keys(attributes).length > 0)
+			this.root.push({ _attr: attributes });
+		if (text)
+			this.root.push(text);
+	}
 }
 
 // const docx = new Document({
