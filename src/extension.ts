@@ -11,6 +11,7 @@ import { markdownItPlugin } from "./markdownPlugin";
 
 export function activate(context: vscode.ExtensionContext)
 {
+	const logger = vscode.window.createOutputChannel("md2gost", { log: true });
 	const assets = context.asAbsolutePath("assets");
 	showChangelogOnUpdate(context);
 	showFormatterSuggest();
@@ -18,17 +19,17 @@ export function activate(context: vscode.ExtensionContext)
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("md2gost.render_pdf",
-			(uri: vscode.Uri) => onRenderCommand(assets, uri, true),
+			(uri: vscode.Uri) => onRenderCommand(assets, logger, uri, true),
 		),
 	);
 	context.subscriptions.push(
 		vscode.commands.registerCommand("md2gost.render_docx",
-			(uri: vscode.Uri) => onRenderCommand(assets, uri, false),
+			(uri: vscode.Uri) => onRenderCommand(assets, logger, uri, false),
 		),
 	);
 	context.subscriptions.push(
 		vscode.commands.registerCommand("md2gost.render_docx_fast",
-			(uri: vscode.Uri) => onRenderCommand(assets, uri, false, true),
+			(uri: vscode.Uri) => onRenderCommand(assets, logger, uri, false, true),
 		),
 	);
 	const _onEditTableCommand = onEditTableCommand(context);
@@ -91,7 +92,7 @@ export function activate(context: vscode.ExtensionContext)
 			if (e.affectsConfiguration("md2gost.tables.editor.enabled"))
 				tableCodeLensProvider.refresh();
 			if (e.affectsConfiguration("md2gost.ui.enhancedHighlighting"))
-				onEnhancedHighlighting(assets);
+				onEnhancedHighlighting(assets, logger);
 		}),
 	);
 
@@ -106,7 +107,7 @@ export function activate(context: vscode.ExtensionContext)
 export function deactivate() { }
 
 let rendering = false;
-function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean, disableMacros = false)
+function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, uri: vscode.Uri, renderPDF: boolean, disableMacros = false)
 {
 	if (rendering)
 	{
@@ -140,9 +141,12 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean, di
 				renderPDF,
 				removeIntermediateDocx,
 				disableMacros,
+				loginfo: logger.info,
 				logwarn: msg => vscode.window.showWarningMessage(msg),
+				logPS: msg => logger.info(`PS: ${msg.trimEnd()}`),
+				logPSError: msg => logger.error(`PS ERROR: ${msg.trimEnd()}`),
 			});
-			if (errS) console.error(errS);
+			if (errS) logger.error(errS);
 			if (err == "inPS") vscode.window.showErrorMessage(`Unknown error! Возможно у вас не установлен Word или установлен неправильно`);
 			if (err == "noPS") vscode.window.showErrorMessage(`Cant start PowerShell! Возможно он не прописан у вас в PATH`);
 			if (err == "vba") vscode.window.showErrorMessage(`VBA error: ${errS}`);
@@ -157,7 +161,7 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean, di
 		}
 		catch (x)
 		{
-			console.error(x);
+			logger.error(x as any);
 			const e = trimStart(`${x}`, "Error: ");
 			vscode.window.showErrorMessage(`Error: ${e}`);
 		}
@@ -167,7 +171,7 @@ function onRenderCommand(assets: string, uri: vscode.Uri, renderPDF: boolean, di
 		}
 		// token.onCancellationRequested(() =>
 		// {
-		// 	console.log("User cancelled the operation.");
+		// 	logger.info("User cancelled the operation.");
 		// });
 		// for (let i = 0; i < 10; i++)
 		// {
@@ -304,7 +308,7 @@ function showFormatterSuggest()
 	});
 }
 
-function onEnhancedHighlighting(assets: string)
+function onEnhancedHighlighting(assets: string, logger: vscode.LogOutputChannel)
 {
 	const config = vscode.workspace.getConfiguration("md2gost");
 	const isEnabled = config.get<boolean>("ui.enhancedHighlighting", true);
@@ -348,6 +352,6 @@ function onEnhancedHighlighting(assets: string)
 			vscode.env.clipboard.writeText(grammarPath);
 			vscode.window.showInformationMessage("Path copied to clipboard!");
 		});
-		console.error(`Manual fix: replace content of ${grammarPath} with: ${targetContent}`);
+		logger.error(`Manual fix: replace content of ${grammarPath} with: ${targetContent}`);
 	}
 }

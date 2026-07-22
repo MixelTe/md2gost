@@ -24,6 +24,7 @@ export interface RenderOptions
 	disableMacros?: boolean;
 	useLibreOffice?: boolean;
 	logwarn?: (msg: string) => void;
+	loginfo?: (msg: string) => void;
 	logPS?: (msg: string) => void;
 	logPSError?: (msg: string) => void;
 }
@@ -38,6 +39,7 @@ export async function render({
 	disableMacros = false,
 	useLibreOffice = false,
 	logwarn = console.warn,
+	loginfo = console.info,
 	logPS = msg => console.log(`PS: ${msg}`),
 	logPSError = msg => console.error(`PS ERROR: ${msg}`),
 }: RenderOptions): Promise<{
@@ -46,14 +48,16 @@ export async function render({
 	errS?: any;
 }>
 {
+	const fin = path.resolve(file);
 	// progress(10, "Trying to understand your scribbles");
 	progress(10, "Пытаемся понять, что вы тут написали...");
-	const fin = path.resolve(file);
+	loginfo(`[!1] Parsing file ${fin}`);
 	const doc = await parseMD(fin, logwarn);
 	// console.log(doc);
 
 	// progress(10, "Trying to understand your scribbles");
 	progress(10, "Колдуем над синтаксисом...");
+	loginfo("[!2] Processing document");
 	enrichDoc(doc, logwarn);
 	// console.log(doc);
 
@@ -75,6 +79,7 @@ export async function render({
 		throw new Error(`Закройте docx файл. Output file is busy or locked: ${fout}`);
 	// progress(10, "Rendering to docx");
 	progress(10, phrase_renderDocx());
+	loginfo("[!3] Serializing to docx");
 	await serializeDocx(runicDoc, ftmp, fdir, assets);
 
 	let willRunMacros = !disableMacros && (renderPDF || hasReasonForRunningMacros(runicDoc));
@@ -90,6 +95,7 @@ export async function render({
 	{
 		// progress(20, "Running complex macros");
 		progress(20, phrase_runMacros());
+		loginfo("[!4] Starting macros");
 		const tmpfolder = path.join(pout ? pout.dir : fdir, ".md2gost_out");
 		await fs.rm(tmpfolder, { recursive: true, force: true });
 		try
@@ -115,11 +121,13 @@ export async function render({
 			await fs.rm(tmpfolder, { recursive: true, force: true });
 			return { fout, err: "vba", errS: `${err}` };
 		}
+		loginfo("[!5] Updating metadata");
 		await updateMetadata(fout, doc);
 		if (renderPDF)
 		{
 			// progress(10, "Combine all together")
 			progress(10, phrase_combine());
+			loginfo("[!6] Merging pdfs");
 			if (!existsSync(tmpfolder))
 				return { fout, err: "pdf" };
 			try
@@ -141,6 +149,7 @@ export async function render({
 	{
 		await fs.rename(ftmp, fout);
 	}
+	loginfo(`[!7] Rendered to ${fout}`);
 	return { fout, err: limitedRender ? "noWin" : undefined };
 }
 

@@ -181,7 +181,6 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	{
 		totalPercent = Math.min(totalPercent + increment, 99);
 		config.progress?.(totalPercent, message);
-		logger?.info(message);
 	};
 
 	try
@@ -195,12 +194,12 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 			removeIntermediateDocx,
 			disableMacros,
 			useLibreOffice: config.useLibreOffice,
+			loginfo: logger?.info,
 			logwarn: msg => { logger?.warn(msg); warnings.push(msg); },
 			logPS: msg => { logger?.info(msg); logPS.push(msg); },
 			logPSError: msg => { logger?.error(msg); logPS.push(msg); },
 		});
 		config.progress?.(100, "Done!");
-		logger?.info("Done!");
 		function throwMDE(code: MDRenderErrorCode, msg: string)
 		{
 			throw new MDRenderError(code, msg, fout, warnings, logPS, errS ? { cause: errS } : undefined);
