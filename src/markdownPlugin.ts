@@ -440,7 +440,7 @@ export function markdownItPlugin(md: MarkdownIt)
 			}
 		}
 
-		const title = addNumberToTitle(token.meta, "image", token.content);
+		const title = addNumberToTitle(token.meta, "image", token.content.replaceAll("<br>", "\\n"));
 		const imageHtml = defaultImageRender(tokens, idx, options, env, self);
 
 		return (

@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Deprecated
 ### Removed
 ### Fixed
+- fix typos in readme
+- fix `<br>` display in image title in preview
 ### Security
 
 ## [1.3.2] - 2026-07-12

@@ -228,7 +228,7 @@ function getPythonExecutable(): string
 
 function runUnoScript(progress: (inc: number, msg: string) => void, log: (msg: string) => void, logError: (msg: string) => void, assets: string, cwd: string, fin: string, fout: string, renderPDF: boolean): Promise<boolean>
 {
-	const script = path.join(assets, "macro_engine.py");
+	const script = process.env.MACRO_ENGINE_PATH || path.join(assets, "macro_engine.py");
 	const pythonExec = getPythonExecutable();
 
 	return new Promise<boolean>((res, rej) =>

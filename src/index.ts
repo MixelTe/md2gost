@@ -138,7 +138,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	assert(typeof config.progress == "function" || typeof config.progress == "undefined", "Progress callback must be a function or undefined.");
 	{
 		const extraProps = getExtraProperties(config,
-			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "progress"],
+			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "useLibreOffice", "progress", "logger"],
 		);
 		assert(extraProps.length == 0, `Found unknown properties in config: ${extraProps.join(", ")}`);
 	}
@@ -157,6 +157,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	const renderPDF = config.format === "pdf" || (!config.format && !!config.output?.endsWith(".pdf"));
 	const removeIntermediateDocx = !config.keepIntermediateDocx;
 	const disableMacros = !!config.disableMacros;
+	const useLibreOffice = !!config.useLibreOffice;
 
 	assert(!(disableMacros && renderPDF), "Macros must be enabled to render PDF output.");
 
@@ -193,7 +194,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 			renderPDF,
 			removeIntermediateDocx,
 			disableMacros,
-			useLibreOffice: config.useLibreOffice,
+			useLibreOffice,
 			loginfo: logger?.info,
 			logwarn: msg => { logger?.warn(msg); warnings.push(msg); },
 			logPS: msg => { logger?.info(msg); logPS.push(msg); },
@@ -204,8 +205,16 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 		{
 			throw new MDRenderError(code, msg, fout, warnings, logPS, errS ? { cause: errS } : undefined);
 		}
-		if (err == "noPS") throwMDE("noPS", `Failed to initialize PowerShell. Ensure PowerShell is installed and explicitly added to your system's PATH environment variable.`);
-		if (err == "inPS") throwMDE("inPS", `An unexpected error occurred executing commands inside PowerShell. Verify that Microsoft Word is properly installed and licensed.`);
+		if (useLibreOffice)
+		{
+			if (err == "noPS") throwMDE("noPS", `Failed to run the LibreOffice binary (soffice). Ensure LibreOffice is installed and added to your system's PATH environment variable.`);
+			if (err == "inPS") throwMDE("inPS", `An unexpected error occurred executing the LibreOffice conversion command. Verify that LibreOffice is properly installed, up to date, and has permission to access the target files.`);
+		}
+		else
+		{
+			if (err == "noPS") throwMDE("noPS", `Failed to initialize PowerShell. Ensure PowerShell is installed and explicitly added to your system's PATH environment variable.`);
+			if (err == "inPS") throwMDE("inPS", `An unexpected error occurred executing commands inside PowerShell. Verify that Microsoft Word is properly installed and licensed.`);
+		}
 		if (err == "vba") throwMDE("vba", `Microsoft Word VBA Macro execution failed: ${errS}`);
 		if (err == "pdf") throwMDE("pdf", `Failed to export document to PDF.`);
 		if (err == "noWin") throwMDE("noWin", `Platform restriction: Extended formatting macros and PDF rendering are only supported natively on Windows systems.`);

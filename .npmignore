@@ -35,3 +35,4 @@ assets/**
 !assets/styles.xml
 !assets/template.dotm
 dist/extension.js
+dist/extension.js.map
