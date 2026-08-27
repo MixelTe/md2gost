@@ -1,6 +1,7 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import { render } from "./main";
+import { UserInputError } from "./errors";
 
 /**
  * Configuration options for the Markdown rendering process.
@@ -57,6 +58,11 @@ export interface MDRenderConfig
 	 * @param message - A human-readable description of the active step.
 	 */
 	progress?: (totalPercent: number, message: string) => void;
+
+	/**
+	 * Optional `AbortSignal` used to cancel the rendering process.
+	 */
+	abortSignal?: AbortSignal;
 }
 
 /**
@@ -112,7 +118,7 @@ export interface MDRenderResult
  * 		if (error.cause)
  * 			console.error("Root cause:", error.cause);
  *
- * 		result.warnings.forEach(w => console.warn(`[W] ${w}`));
+ * 		error.warnings.forEach(w => console.warn(`[W] ${w}`));
  *
  * 		if (error.code.endsWith("PS") && error.powershellLog.length > 0)
  * 			console.error("PowerShell Logs:\n", error.powershellLog.join(""));
@@ -136,9 +142,10 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	assert(typeof config.disableMacros == "boolean" || typeof config.disableMacros == "undefined", "disableMacros must be a boolean or undefined.");
 	assert(typeof config.useLibreOffice == "boolean" || typeof config.useLibreOffice == "undefined", "useLibreOffice must be a boolean or undefined.");
 	assert(typeof config.progress == "function" || typeof config.progress == "undefined", "Progress callback must be a function or undefined.");
+	assert(config.abortSignal instanceof AbortSignal || typeof config.abortSignal == "undefined", "abortSignal must be an AbortSignal or undefined.");
 	{
 		const extraProps = getExtraProperties(config,
-			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "useLibreOffice", "progress", "logger"],
+			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "useLibreOffice", "progress", "logger", "abortSignal"],
 		);
 		assert(extraProps.length == 0, `Found unknown properties in config: ${extraProps.join(", ")}`);
 	}
@@ -199,6 +206,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 			logwarn: msg => { logger?.warn(msg); warnings.push(msg); },
 			logPS: msg => { logger?.info(msg); logPS.push(msg); },
 			logPSError: msg => { logger?.error(msg); logPS.push(msg); },
+			signal: config.abortSignal,
 		});
 		config.progress?.(100, "Done!");
 		function throwMDE(code: MDRenderErrorCode, msg: string)
@@ -235,13 +243,14 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	catch (x)
 	{
 		if (x instanceof MDRenderError) throw x;
+		if (x instanceof UserInputError) throw new MDRenderError("userInput", x.message, null, warnings, logPS, { cause: x });
 		const message = x instanceof Error ? x.message : String(x);
 		throw new MDRenderError("unknown", `An unhandled internal error occurred during rendering: ${message}`, null, warnings, logPS, { cause: x });
 	}
 }
 
 /** Error codes identifying unique failure points in the compilation. */
-export type MDRenderErrorCode = "unknown" | "noPS" | "inPS" | "vba" | "pdf" | "noWin";
+export type MDRenderErrorCode = "unknown" | "userInput" | "noPS" | "inPS" | "vba" | "pdf" | "noWin";
 
 /**
  * Custom error thrown when compilation or rendering fails.
@@ -257,6 +266,7 @@ export class MDRenderError extends Error
 	/**
 	 * Code indicating the underlying cause of the failure:
 	 * - `unknown`: An unhandled or unexpected internal runtime error.
+	 * - `userInput`: Invalid user input or Markdown document structure.
 	 * - `noPS`: PowerShell could not be started or found in the system PATH.
 	 * - `inPS`: A failure occurred inside PowerShell; MS Word may be missing or corrupt.
 	 * - `vba`: An error occurred during the execution of internal Word VBA macros.

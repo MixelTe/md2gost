@@ -127,9 +127,11 @@ function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, uri: v
 	vscode.window.withProgress({
 		location: vscode.ProgressLocation.Notification,
 		title: "Rendering...",
-		cancellable: false,
+		cancellable: true,
 	}, async (progress, token) =>
 	{
+		const controller = new AbortController();
+		const listener = token.onCancellationRequested(() => controller.abort());
 		try
 		{
 			rendering = true;
@@ -145,6 +147,7 @@ function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, uri: v
 				logwarn: msg => vscode.window.showWarningMessage(msg),
 				logPS: msg => logger.info(`PS: ${msg.trimEnd()}`),
 				logPSError: msg => logger.error(`PS ERROR: ${msg.trimEnd()}`),
+				signal: controller.signal,
 			});
 			if (errS) logger.error(errS);
 			if (err == "inPS") vscode.window.showErrorMessage(`Unknown error! Возможно у вас не установлен Word или установлен неправильно`);
@@ -162,12 +165,14 @@ function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, uri: v
 		catch (x)
 		{
 			logger.error(x as any);
+			if (token.isCancellationRequested) return;
 			const e = trimStart(`${x}`, "Error: ");
 			vscode.window.showErrorMessage(`Error: ${e}`);
 		}
 		finally
 		{
 			rendering = false;
+			listener.dispose();
 		}
 		// token.onCancellationRequested(() =>
 		// {

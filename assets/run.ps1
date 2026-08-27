@@ -27,9 +27,18 @@ $MacroTemplate = [System.IO.Path]::GetFullPath($MacroTemplate)
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8;
 
+# Take a snapshot of currently running Word instances
+$existingPids = @(Get-Process WINWORD -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
+
 $word = New-Object -ComObject Word.Application
 $word.Visible = $false
 $word.DisplayAlerts = 0
+
+# Find the new Word instance and print its PID for Node.js
+$newWord = Get-Process WINWORD -ErrorAction SilentlyContinue | Where-Object { $_.Id -notin $existingPids }
+if ($newWord) {
+    Write-Host "[WordPID:$($newWord[0].Id)]"
+}
 
 try {
     # Подключаем глобальный шаблон
@@ -56,6 +65,10 @@ try {
 	Write-Host "Done: $OutputDoc"
 }
 finally {
-    $word.Quit()
-    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($word) | Out-Null
+    try {
+        $word.Quit()
+    } catch {}
+    try {
+        [System.Runtime.InteropServices.Marshal]::ReleaseComObject($word) | Out-Null
+    } catch {}
 }

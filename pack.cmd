@@ -76,4 +76,4 @@ if exist bak_README.md (
     if exist README-NPM.md del /f /q README.md >nul
 )
 
-pause
+echo %cmdcmdline% | findstr /i /c:"/c" >nul && (echo Script finished. Press any key to exit... & pause >nul)

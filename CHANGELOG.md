@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - totalPagesOffset property of Doc to modify TOTAL_PAGES field value (`!!rule` isn't implemented yet)
+- make render process cancellable
+- add `userInput` error code to `MDRenderError`
+- add `abortSignal` property to `MDRenderConfig`
 ### Changed
 ### Deprecated
 ### Removed

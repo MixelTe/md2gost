@@ -3,7 +3,7 @@ import { parseMD, runifyDoc } from "./parser";
 import { serializeDocx } from "./serializer";
 import { checkIfFileIsBlocked, choice, randomInt, trimEnd, type SetProgressFn } from "./utils";
 import { enrichDoc } from "./enricher";
-import { spawn } from "child_process";
+import { exec, spawn, type ChildProcess } from "child_process";
 import fs from "fs/promises";
 import { existsSync } from "fs";
 import { PDFDocument } from "pdf-lib";
@@ -27,6 +27,7 @@ export interface RenderOptions
 	loginfo?: (msg: string) => void;
 	logPS?: (msg: string) => void;
 	logPSError?: (msg: string) => void;
+	signal?: AbortSignal | null;
 }
 
 export async function render({
@@ -42,17 +43,21 @@ export async function render({
 	loginfo = console.info,
 	logPS = msg => console.log(`PS: ${msg}`),
 	logPSError = msg => console.error(`PS ERROR: ${msg}`),
+	signal = null,
 }: RenderOptions): Promise<{
 	fout: string;
 	err?: "inPS" | "noPS" | "vba" | "pdf" | "noWin";
 	errS?: any;
 }>
 {
+	signal?.throwIfAborted();
+
 	const fin = path.resolve(file);
 	// progress(10, "Trying to understand your scribbles");
 	progress(10, "Пытаемся понять, что вы тут написали...");
 	loginfo(`[!1] Parsing file ${fin}`);
 	const doc = await parseMD(fin, logwarn);
+	signal?.throwIfAborted();
 	// console.log(doc);
 
 	// progress(10, "Trying to understand your scribbles");
@@ -78,6 +83,8 @@ export async function render({
 	if (await checkIfFileIsBlocked(fout))
 		throw new Error(`Закройте docx файл. Output file is busy or locked: ${fout}`);
 	// progress(10, "Rendering to docx");
+
+	signal?.throwIfAborted();
 	progress(10, phrase_renderDocx());
 	loginfo("[!3] Serializing to docx");
 	await serializeDocx(runicDoc, ftmp, fdir, assets);
@@ -93,6 +100,7 @@ export async function render({
 
 	if (willRunMacros)
 	{
+		signal?.throwIfAborted();
 		// progress(20, "Running complex macros");
 		progress(20, phrase_runMacros());
 		loginfo("[!4] Starting macros");
@@ -101,7 +109,7 @@ export async function render({
 		try
 		{
 			const macroRunner = useLibreOffice ? runUnoScript : runDocxMacro;
-			const ok = await macroRunner(progress, logPS, logPSError, assets, fdir, ftmp, fout, renderPDF);
+			const ok = await macroRunner(progress, logPS, logPSError, assets, fdir, ftmp, fout, renderPDF, signal);
 			if (!ok)
 			{
 				await fs.rename(ftmp, fout);
@@ -110,10 +118,20 @@ export async function render({
 		}
 		catch (x)
 		{
+			if (signal?.aborted)
+			{
+				await fs.unlink(ftmp).catch(() => { });
+				throw x;
+			}
 			await fs.rename(ftmp, fout);
 			return { fout, err: "noPS", errS: x };
 		}
-		await fs.unlink(ftmp);
+
+		if (existsSync(ftmp))
+			await fs.unlink(ftmp);
+
+		signal?.throwIfAborted();
+
 		const errorTxt = path.join(tmpfolder, "error.txt");
 		if (existsSync(errorTxt))
 		{
@@ -125,6 +143,7 @@ export async function render({
 		await updateMetadata(fout, doc);
 		if (renderPDF)
 		{
+			signal?.throwIfAborted();
 			// progress(10, "Combine all together")
 			progress(10, phrase_combine());
 			loginfo("[!6] Merging pdfs");
@@ -134,13 +153,14 @@ export async function render({
 			{
 				const files = (await fs.readdir(tmpfolder)).sort().map(f => path.join(tmpfolder, f));
 				const pdf = pout ? path.join(pout.dir, pout.base) : path.join(fdir, fname + ".pdf");
-				await mergePDFs(files, pdf, doc);
+				await mergePDFs(files, pdf, doc, signal || undefined);
 				await fs.rm(tmpfolder, { recursive: true, force: true });
 				if (removeIntermediateDocx && existsSync(fout)) await fs.unlink(fout);
 				return { fout: pdf };
 			}
 			catch (err)
 			{
+				if (signal?.aborted) throw err;
 				return { fout, err: "pdf", errS: err };
 			}
 		}
@@ -159,13 +179,57 @@ function hasReasonForRunningMacros(doc: RunicDoc)
 	return doc.nodes.some(n => n.type == "code" || n.type == "table");
 }
 
-function runDocxMacro(progress: SetProgressFn, log: (msg: string) => void, logError: (msg: string) => void, assets: string, cwd: string, fin: string, fout: string, renderPDF: boolean)
+/**
+ * Cross-platform process tree killer.
+ * - On Windows: Uses taskkill /T /F to terminate the entire process hierarchy.
+ * - On POSIX: Sends SIGKILL to the negative PID (process group).
+ */
+function killProcessTree(child: ChildProcess, wordPid?: number | null): void
+{
+	if (!child.pid) return;
+
+	if (process.platform === "win32")
+	{
+		if (wordPid)
+		{
+			// Send polite WM_CLOSE to Word (no /F flag)
+			exec(`taskkill /pid ${wordPid}`, () =>
+			{
+				setTimeout(() =>
+				{
+					exec(`taskkill /pid ${wordPid} /F`, () => {});
+					setTimeout(() =>
+					{
+						killProcessTree(child);
+					}, 2000);
+				}, 2000);
+
+			});
+		}
+		else
+		{
+			exec(`taskkill /pid ${child.pid} /T /F`, () => { });
+		}
+	}
+	else
+	{
+		try
+		{
+			process.kill(-child.pid, "SIGKILL");
+		}
+		catch {}
+	}
+}
+
+function runDocxMacro(progress: SetProgressFn, log: (msg: string) => void, logError: (msg: string) => void, assets: string, cwd: string, fin: string, fout: string, renderPDF: boolean, signal: AbortSignal | null)
 {
 	const script = path.join(assets, "run.ps1");
 	const templateMacro = path.join(assets, "template.dotm");
 	// console.log(template);
 	return new Promise<boolean>((res, rej) =>
 	{
+		if (signal?.aborted)
+			return rej(signal.reason ?? new Error("Aborted before execution started"));
 		const child = spawn("powershell", [
 			"-NoProfile", "-ExecutionPolicy", "Bypass",
 			"-File", script,
@@ -173,13 +237,35 @@ function runDocxMacro(progress: SetProgressFn, log: (msg: string) => void, logEr
 			"-OutputDoc", fout,
 			"-MacroTemplate", templateMacro,
 			...(renderPDF ? ["-RenderPDF"] : []),
-		], { cwd });
-		// ], { cwd, detached: true, shell: true });
+		], {
+			cwd,
+			detached: process.platform !== "win32", // Enables PGID on POSIX
+			// detached: true,
+			// shell: true,
+		});
+
+		let wordPid: number | null = null;
+
+		let onAbort: (() => void) | undefined;
+		if (signal)
+		{
+			onAbort = () =>
+			{
+				logError("Operation aborted. Terminating process tree...");
+				killProcessTree(child, wordPid);
+				rej(signal.reason ?? new Error("Job timed out or aborted"));
+			};
+			signal.addEventListener("abort", onAbort, { once: true });
+		}
 
 		child.stdout.on("data", data =>
 		{
-			data = `${data}`;
-			const m = /\[\*(\d)\]/.exec(data);
+			const raw = `${data}`;
+
+			const pidMatch = /\[WordPID:(\d+)\]/.exec(raw);
+			if (pidMatch) wordPid = parseInt(pidMatch[1], 10);
+
+			const m = /\[\*(\d)\]/.exec(raw);
 			if (m) progress(12, {
 				// "1": "Fixing breaks (listings)",
 				"1": render_fixingBreaks(),
@@ -188,7 +274,7 @@ function runDocxMacro(progress: SetProgressFn, log: (msg: string) => void, logEr
 				// "3": "Rendering to PDF",
 				"3": render_renderPDF(),
 			}[m[1]] || "Make some work");
-			log(data);
+			log(raw);
 		});
 		let ok = true;
 		child.stderr.on("data", data =>
@@ -197,19 +283,24 @@ function runDocxMacro(progress: SetProgressFn, log: (msg: string) => void, logEr
 			logError(`${data}`);
 		});
 
-		child.on("close", () => res(ok));
-		child.on("error", rej);
+		child.on("close", code =>
+		{
+			if (signal && onAbort)
+			{
+				signal.removeEventListener("abort", onAbort);
+			}
+			res(ok && code === 0);
+		});
+
+		child.on("error", err =>
+		{
+			if (signal && onAbort)
+			{
+				signal.removeEventListener("abort", onAbort);
+			}
+			rej(err);
+		});
 	});
-	// spawnSync("powershell", [
-	// 	"-NoProfile", "-ExecutionPolicy", "Bypass",
-	// 	"-File", script,
-	// 	"-InputDoc", fin,
-	// 	"-OutputDoc", fout,
-	// 	"-MacroTemplate", templateMacro,
-	// 	"-Template", template,
-	// 	...(renderPDF ? ["-RenderPDF"] : []),
-	// ], { stdio: "inherit", cwd });
-	// execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File macros\\run.ps1 -InputDoc "${fin}" -OutputDoc "${fout}" -MacroTemplate macros\\template.dotm`);
 }
 
 /**
@@ -226,13 +317,18 @@ function getPythonExecutable(): string
 	return process.env.UNO_PYTHON_PATH || "python3";
 }
 
-function runUnoScript(progress: (inc: number, msg: string) => void, log: (msg: string) => void, logError: (msg: string) => void, assets: string, cwd: string, fin: string, fout: string, renderPDF: boolean): Promise<boolean>
+function runUnoScript(progress: (inc: number, msg: string) => void, log: (msg: string) => void, logError: (msg: string) => void, assets: string, cwd: string, fin: string, fout: string, renderPDF: boolean, signal: AbortSignal | null): Promise<boolean>
 {
 	const script = process.env.MACRO_ENGINE_PATH || path.join(assets, "macro_engine.py");
 	const pythonExec = getPythonExecutable();
 
 	return new Promise<boolean>((res, rej) =>
 	{
+		if (signal?.aborted)
+		{
+			return rej(signal.reason ?? new Error("Aborted before execution started"));
+		}
+
 		const args = [
 			script,
 			"--input", fin,
@@ -240,7 +336,22 @@ function runUnoScript(progress: (inc: number, msg: string) => void, log: (msg: s
 		];
 		if (renderPDF) args.push("--render-pdf");
 
-		const child = spawn(pythonExec, args, { cwd });
+		const child = spawn(pythonExec, args, {
+			cwd,
+			detached: process.platform !== "win32", // Enables PGID on POSIX
+		});
+
+		let onAbort: (() => void) | undefined;
+		if (signal)
+		{
+			onAbort = () =>
+			{
+				logError("Operation aborted. Terminating process tree...");
+				killProcessTree(child);
+				rej(signal.reason ?? new Error("Job timed out or aborted"));
+			};
+			signal.addEventListener("abort", onAbort, { once: true });
+		}
 
 		child.stdout.on("data", data =>
 		{
@@ -269,13 +380,29 @@ function runUnoScript(progress: (inc: number, msg: string) => void, log: (msg: s
 			logError(`${data}`);
 		});
 
-		child.on("close", code => res(ok && code == 0));
-		child.on("error", rej);
+
+		child.on("close", code =>
+		{
+			if (signal && onAbort)
+			{
+				signal.removeEventListener("abort", onAbort);
+			}
+			res(ok && code === 0);
+		});
+
+		child.on("error", err =>
+		{
+			if (signal && onAbort)
+			{
+				signal.removeEventListener("abort", onAbort);
+			}
+			rej(err);
+		});
 	});
 }
 
 
-async function mergePDFs(files: string[], fout: string, doc?: Doc)
+async function mergePDFs(files: string[], fout: string, doc?: Doc, signal?: AbortSignal)
 {
 	const mergedPdf = await PDFDocument.create();
 	if (doc?.title) mergedPdf.setTitle(doc.title, { showInWindowTitleBar: true });
@@ -285,13 +412,15 @@ async function mergePDFs(files: string[], fout: string, doc?: Doc)
 	for (const file of files)
 	{
 		if (!file.endsWith(".pdf")) continue;
-		const bytes = await fs.readFile(file);
+		const bytes = await fs.readFile(file, { signal });
 		const pdf = await PDFDocument.load(bytes);
+		signal?.throwIfAborted();
 		const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
 		pages.forEach(page => mergedPdf.addPage(page));
+		signal?.throwIfAborted();
 	}
 	const pdfBytes = await mergedPdf.save();
-	await fs.writeFile(fout, pdfBytes);
+	await fs.writeFile(fout, pdfBytes, { signal });
 }
 
 async function updateMetadata(docfile: string, doc: Doc)

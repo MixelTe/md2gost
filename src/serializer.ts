@@ -191,10 +191,10 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 				case "image":
 					const type = node.src.split(".").at(-1) || "";
 					if (!["jpg", "png", "gif", "bmp", "svg"].includes(type))
-						throw new Error(`Unsupported image format: "${type}", file: ${node.src}`);
+						throw new UserInputError(`Unsupported image format: "${type}", file: ${node.src}`);
 					const img_path = getPath(node.src);
 					if (!fs.existsSync(img_path))
-						throw new Error(`File not exist: ${node.src}`);
+						throw new UserInputError(`File not exist: ${node.src}`);
 					const data = fs.readFileSync(img_path);
 					const dimensions = imageSize(data);
 					const [MaxW, MaxH] = [600, 800];
@@ -259,10 +259,10 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 				case "externalDoc":
 					const doc_path = getPath(node.path);
 					if (!fs.existsSync(doc_path))
-						throw new Error(`File not exist: ${node.path}`);
+						throw new UserInputError(`File not exist: ${node.path}`);
 					const ext = path.extname(doc_path);
 					if (ext != ".docx" && ext != ".pdf")
-						throw new Error(`File not .docx or .pdf: ${node.path}`);
+						throw new UserInputError(`File not .docx or .pdf: ${node.path}`);
 					return new Paragraph({
 						text: `!!(${doc_path})${JSON.stringify(node.dict)}`,
 						indent: { firstLine: 0 },
@@ -573,6 +573,7 @@ import "prismjs/components/prism-yaml";
 import "prismjs/components/prism-markdown";
 import "prismjs/components/prism-docker";
 import "prismjs/components/prism-nginx";
+import { UserInputError } from "./errors";
 
 
 function renderCodeHighlighting(code: string, lang: string)
