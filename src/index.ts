@@ -63,6 +63,14 @@ export interface MDRenderConfig
 	 * Optional `AbortSignal` used to cancel the rendering process.
 	 */
 	abortSignal?: AbortSignal;
+
+	/**
+	 * When `true`, permits referencing external assets (e.g. images or `include` documents)
+	 * that resolve outside the source file's working directory.
+	 * @note When `false`, accessing any path outside the working directory throws a `userInput` error.
+	 * @defaultValue `false`
+	 */
+	allowExternalFiles?: boolean;
 }
 
 /**
@@ -141,11 +149,12 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	assert(typeof config.keepIntermediateDocx == "boolean" || typeof config.keepIntermediateDocx == "undefined", "keepIntermediateDocx must be a boolean or undefined.");
 	assert(typeof config.disableMacros == "boolean" || typeof config.disableMacros == "undefined", "disableMacros must be a boolean or undefined.");
 	assert(typeof config.useLibreOffice == "boolean" || typeof config.useLibreOffice == "undefined", "useLibreOffice must be a boolean or undefined.");
+	assert(typeof config.allowExternalFiles == "boolean" || typeof config.allowExternalFiles == "undefined", "allowExternalFiles must be a boolean or undefined.");
 	assert(typeof config.progress == "function" || typeof config.progress == "undefined", "Progress callback must be a function or undefined.");
 	assert(config.abortSignal instanceof AbortSignal || typeof config.abortSignal == "undefined", "abortSignal must be an AbortSignal or undefined.");
 	{
 		const extraProps = getExtraProperties(config,
-			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "useLibreOffice", "progress", "logger", "abortSignal"],
+			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "useLibreOffice", "progress", "logger", "abortSignal", "allowExternalFiles"],
 		);
 		assert(extraProps.length == 0, `Found unknown properties in config: ${extraProps.join(", ")}`);
 	}
@@ -165,6 +174,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	const removeIntermediateDocx = !config.keepIntermediateDocx;
 	const disableMacros = !!config.disableMacros;
 	const useLibreOffice = !!config.useLibreOffice;
+	const allowExternalFiles = !!config.allowExternalFiles;
 
 	assert(!(disableMacros && renderPDF), "Macros must be enabled to render PDF output.");
 
@@ -202,6 +212,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 			removeIntermediateDocx,
 			disableMacros,
 			useLibreOffice,
+			allowExternalFiles,
 			loginfo: logger?.info,
 			logwarn: msg => { logger?.warn(msg); warnings.push(msg); },
 			logPS: msg => { logger?.info(msg); logPS.push(msg); },

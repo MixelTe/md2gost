@@ -12,13 +12,22 @@ const STYLE_code = "ListingCode";
 
 type IListItem = DeepWriteable<INumberingOptions>["config"][number];
 type IListItemLevel = IListItem["levels"][number];
-export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string, assets: string)
+export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string, assets: string, allowExternalFiles: boolean)
 {
 	const getPath = (fname: string) =>
 	{
 		if (process.platform != "win32") fname = fname.replaceAll("\\", "/");
 		if (process.platform == "win32" && fname[0] == "/") fname = "." + fname;
-		return path.isAbsolute(fname) ? fname : path.join(workdir, fname);
+		const targetPath = path.isAbsolute(fname)
+			? path.resolve(fname)
+			: path.resolve(workdir, fname);
+		if (!allowExternalFiles)
+		{
+			const relative = path.relative(workdir, targetPath);
+			const isOutside = relative.startsWith("..") || path.isAbsolute(relative);
+			if (isOutside) throw new UserInputError(`Access denied: "${fname}" resolves outside the working directory.`);
+		}
+		return targetPath;
 	};
 	const sections: ISectionOptions[] = [];
 	const numbering: DeepWriteable<INumberingOptions>["config"] = [];
