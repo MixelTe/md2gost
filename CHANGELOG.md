@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.4.0] - 2026-09-06
+### Added
 - totalPagesOffset property of Doc to modify TOTAL_PAGES field value (`!!rule` isn't implemented yet)
 - make render process cancellable
 - add `userInput` error code to `MDRenderError`
@@ -15,12 +23,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - support page orientation (`landscape`/`portrait`) and disable numbering (`unpaged`) in `!!section` directive
 ### Changed
 - `!!section` directive now accepts multiple optional parameters in any order (orientation and numbering)
-### Deprecated
-### Removed
 ### Fixed
 - fix typos in readme
 - fix `<br>` display in image title in preview
-### Security
 
 ## [1.3.2] - 2026-07-12
 ### Added
