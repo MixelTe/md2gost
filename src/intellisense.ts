@@ -75,11 +75,31 @@ export function md_completion(document: TextDocument, position: Position): Compl
 			if (f) return;
 		}
 	}
+
+	addHint(linePrefix, "!!section ", "Вставить разрыв секции", "Вставляет разрыв раздела и задаёт параметры форматирования для следующей страницы", undefined, undefined, item =>
+		item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" },
+	);
+
+	if (linePrefix.startsWith("!!section "))
+	{
+		const base = linePrefix.slice(0, linePrefix.lastIndexOf(" ") + 1);
+
+		if (!linePrefix.includes("landscape") && !linePrefix.includes("portrait"))
+		{
+			addHint(linePrefix, base + "landscape", "Альбомная ориентация", "Устанавливает альбомную ориентацию листа");
+			addHint(linePrefix, base + "portrait", "Книжная ориентация", "Устанавливает книжную ориентацию листа");
+		}
+		if (!linePrefix.includes("from") && !linePrefix.includes("unpaged"))
+		{
+			addHint(linePrefix, base + "unpaged", "Без нумерации", "Полностью отключает нумерацию на страницах раздела");
+			addHint(linePrefix, base + "from", "Начать нумерацию с N", "Сбрасывает счетчик страниц на число N", "2");
+		}
+	}
+	
 	addHint(linePrefix, "!!rule ", "Вставить правило", undefined, undefined, undefined, item =>
 		item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" },
 	);
-	addHint(linePrefix, "!!section ", "Вставить разрыв секции");
-	addHint(linePrefix, "!!section from", "", undefined, "2", undefined, item => item.label = { label: "!!section from", description: "Начать нумерацию страниц" });
+
 	if (linePrefix.startsWith("!!rule "))
 	{
 		const rule = linePrefix.slice("!!rule ".length);

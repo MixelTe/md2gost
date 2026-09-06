@@ -69,66 +69,109 @@ export function markdownItPlugin(md: MarkdownIt)
 
 	md.core.ruler.after("inline", "md2gost_sections", function (state)
 	{
-		if (!isGostyMd(state.env))
-			return true;
-		const regex = /^!!section(|\s+from\s+(\d+))\s*$/m;
+		if (!isGostyMd(state.env)) return true;
+
 		const tokens = state.tokens;
+		const validLineRegex = /^\s*!!section(|\s+(from\s+\d+|unpaged|landscape|portrait))+\s*$/;
 
 		for (let i = tokens.length - 1; i >= 0; i--)
 		{
-			if (tokens[i].type != "inline" || tokens[i].level != 1) continue;
 			const inlineToken = tokens[i];
-			const content = inlineToken.children?.map(t => t.type == "softbreak" ? "\n" : t.content).join("") || "";
-			const match = regex.exec(content);
-			if (!match) continue;
-			const sectionValue = match[2] || "";
 
-			const parts = content.split(match[0]);
-			const textBefore = parts[0].replaceAll("\\n", " ").trim();
-			const textAfter = parts.slice(1).join(match[0]).replaceAll("\\n", " ").trim();
+			if (inlineToken.type !== "inline" || inlineToken.level !== 1 || !inlineToken.children) continue;
+
+			const hasMatch = inlineToken.children.some(child =>
+				child.type === "text" && validLineRegex.test(child.content),
+			);
+			if (!hasMatch) continue;
 
 			const newTokens = [];
+			let currentChildren = [];
 
-			if (textBefore == "")
+			for (let j = 0; j < inlineToken.children.length; j++)
 			{
-				if (tokens[i - 1]?.type == "paragraph_open")
+				const child = inlineToken.children[j];
+
+				if (child.type === "text" && validLineRegex.test(child.content))
 				{
-					tokens.splice(i - 1, 1);
-					i--;
+					while (currentChildren.length && currentChildren[currentChildren.length - 1].type === "softbreak")
+					{
+						currentChildren.pop();
+					}
+					while (currentChildren.length && currentChildren[0].type === "softbreak")
+					{
+						currentChildren.shift();
+					}
+
+					if (currentChildren.length > 0)
+					{
+						newTokens.push(new state.Token("paragraph_open", "p", 1));
+
+						const newInline = new state.Token("inline", "", 0);
+						newInline.children = currentChildren;
+						newInline.content = currentChildren.map(c => c.content).join("");
+						newTokens.push(newInline);
+
+						newTokens.push(new state.Token("paragraph_close", "p", -1));
+					}
+
+					const line = child.content.match(validLineRegex)?.[0] || "";
+					const isLandscape = line.includes("landscape");
+					const isPortrait = line.includes("portrait");
+					const isUnpaged = line.includes("unpaged");
+					const pageMatch = line.match(/from\s+(?<page>\d+)/);
+					const pageNumber = pageMatch ? pageMatch.groups?.page : null;
+
+					const flags = [];
+					if (isLandscape) flags.push("Альбомная");
+					else if (isPortrait) flags.push("Книжная");
+					if (isUnpaged) flags.push("Без нумерации");
+
+					const flagsHtml = flags.length > 0
+						? `<div class="md2gost_section_flags">${flags.map(f => `<span>${f}</span>`).join("")}</div><div class="md2gost_section_line_tail"></div>`
+						: "";
+
+					const pageHtml = pageNumber
+						? `<div class="md2gost_section_line"></div><div class="md2gost_section_page">${md.utils.escapeHtml(pageNumber)}</div>`
+						: "";
+
+					const customToken = new state.Token("html_block", "", 0);
+					customToken.content = `<div class="md2gost_section">${pageHtml}<div class="md2gost_section_line"></div>${flagsHtml}</div>\n`;
+					newTokens.push(customToken);
+
+					currentChildren = [];
+				}
+				else
+				{
+					currentChildren.push(child);
 				}
 			}
-			else
+
+			while (currentChildren.length && currentChildren[currentChildren.length - 1].type === "softbreak")
 			{
-				inlineToken.content = textBefore;
-				const child = new state.Token("text", "", 0);
-				child.content = textBefore;
-				inlineToken.children = [child];
-				newTokens.push(inlineToken);
+				currentChildren.pop();
+			}
+			while (currentChildren.length && currentChildren[0].type === "softbreak")
+			{
+				currentChildren.shift();
+			}
+
+			if (currentChildren.length > 0)
+			{
+				newTokens.push(new state.Token("paragraph_open", "p", 1));
+
+				const newInline = new state.Token("inline", "", 0);
+				newInline.children = currentChildren;
+				newInline.content = currentChildren.map(c => c.content).join("");
+				newTokens.push(newInline);
+
 				newTokens.push(new state.Token("paragraph_close", "p", -1));
 			}
 
-			const customToken = new state.Token("html_block", "", 0);
-			const cls = sectionValue ? "" : "md2gost_section_nonumber";
-			customToken.content = `<div class="md2gost_section ${cls}">${md.utils.escapeHtml(sectionValue)}</div>\n`;
-			newTokens.push(customToken);
-
-			if (textAfter != "")
+			if (tokens[i - 1]?.type === "paragraph_open" && tokens[i + 1]?.type === "paragraph_close")
 			{
-				newTokens.push(new state.Token("paragraph_open", "p", 1));
-				const newInline = new state.Token("inline", "", 0);
-				newInline.content = textAfter;
-				const child = new state.Token("text", "", 0);
-				child.content = textAfter;
-				newInline.children = [child];
-				newTokens.push(newInline);
+				tokens.splice(i - 1, 3, ...newTokens);
 			}
-			else
-			{
-				if (tokens[i + 1]?.type == "paragraph_close")
-					tokens.splice(i + 1, 1);
-			}
-
-			tokens.splice(i, 1, ...newTokens);
 		}
 	});
 

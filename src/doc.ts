@@ -206,8 +206,10 @@ export interface NodeExternalDoc
 	dict: { [key: string]: string };
 }
 
+export type DocPageOrientation = "portrait" | "landscape";
 export interface NodeSectionBreak
 {
 	type: "sectionBreak",
 	pageStart: number | null,
+	orientation: DocPageOrientation | null,
 }

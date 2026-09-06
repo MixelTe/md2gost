@@ -2,21 +2,37 @@
 	display: flex;
 	align-items: center;
 	height: 1em;
-	margin-block: 0.5em;
+	margin: 0.7em 0.5em;
+	user-select: none;
 }
-
-.md2gost_section::before,
-.md2gost_section::after {
+.md2gost_section_line,
+.md2gost_section_line_tail {
 	content: "";
 	background-color: var(--vscode-textBlockQuote-border);
 	border-radius: 1em;
 	height: 0.15em;
-	margin-inline: 0.5em;
 	flex-grow: 1;
 }
-
-.md2gost_section_nonumber::after {
-	display: none;
+.md2gost_section_line_tail {
+	width: 2.5rem;
+	flex-grow: 0;
+}
+.md2gost_section_page {
+	padding: 0 1rem;
+	font-weight: bold;
+}
+.md2gost_section_flags {
+	display: flex;
+	gap: 0.35em;
+	padding: 0 0.75em;
+}
+.md2gost_section_flags > span {
+	font-size: 0.65em;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	border: 1px solid var(--vscode-textBlockQuote-border);
+	padding: 0.15rem 0.4rem;
+	border-radius: 4px;
 }
 
 

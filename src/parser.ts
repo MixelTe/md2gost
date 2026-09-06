@@ -103,9 +103,17 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 	}
 	function parseSection(text: string): DocNode
 	{
+		text = text.toLowerCase();
 		const match = /from\s+(\d+)/.exec(text);
 		const num = match ? parseInt(match[1] || "") : NaN;
-		return { type: "sectionBreak", pageStart: isFinite(num) ? num : null };
+		const unpaged = text.includes("unpaged");
+		const portrait = text.includes("portrait");
+		const landscape = text.includes("landscape");
+		return {
+			type: "sectionBreak",
+			pageStart: unpaged ? -1 : isFinite(num) ? num : null,
+			orientation: portrait ? "portrait" : landscape ? "landscape" : null,
+		};
 	}
 	class RuleError extends Error { };
 	function apllyRule(text: string)

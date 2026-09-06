@@ -12,7 +12,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - add `userInput` error code to `MDRenderError`
 - add `abortSignal` property to `MDRenderConfig`
 - add `allowExternalFiles` property to `MDRenderConfig`
+- support page orientation (`landscape`/`portrait`) and disable numbering (`unpaged`) in `!!section` directive
 ### Changed
+- `!!section` directive now accepts multiple optional parameters in any order (orientation and numbering)
 ### Deprecated
 ### Removed
 ### Fixed

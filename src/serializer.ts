@@ -1,6 +1,6 @@
 import * as fs from "fs";
-import { AlignmentType, Document, Footer, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark, XmlComponent, LineRuleType } from "docx";
-import type { NodeList, NodeListMark, Rune, RunicDoc, RunicNode, Runify } from "./doc";
+import { AlignmentType, Document, Footer, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark, XmlComponent, LineRuleType, PageOrientation } from "docx";
+import type { DocPageOrientation, NodeList, NodeListMark, Rune, RunicDoc, RunicNode, Runify } from "./doc";
 import { randomInt, type DeepWriteable } from "./utils";
 import { imageSize } from "image-size";
 import path from "path";
@@ -34,13 +34,20 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 
 	const docSections = (function splitSections()
 	{
-		const sections: { pageStart: number | null, nodes: RunicNode[] }[]
-			= [{ pageStart: 1, nodes: [] }];
+		const sections: { displayPageNum: boolean, orientation: DocPageOrientation, pageStart: number | null, nodes: RunicNode[] }[]
+			= [{ displayPageNum: true, orientation: "portrait", pageStart: 1, nodes: [] }];
 		for (let j = 0; j < doc.nodes.length; j++)
 		{
 			const node = doc.nodes[j]!;
 			if (node.type == "sectionBreak")
-				sections.push({ pageStart: node.pageStart, nodes: [] });
+				sections.push({
+					displayPageNum: node.pageStart == null
+						? sections.at(-1)?.displayPageNum || true
+						: node.pageStart >= 0,
+					orientation: node.orientation || sections.at(-1)?.orientation || "portrait",
+					pageStart: node.pageStart,
+					nodes: [],
+				});
 			else
 				sections.at(-1)?.nodes.push(node);
 		}
@@ -54,6 +61,18 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 			children,
 			properties: {
 				page: {
+					// size: section.orientation == "landscape" ? {
+					// 	orientation: PageOrientation.LANDSCAPE,
+					// 	width: convertMillimetersToTwip(297),
+					// 	height: convertMillimetersToTwip(210),
+					// } : {
+					// 	orientation: PageOrientation.PORTRAIT,
+					// 	width: convertMillimetersToTwip(210),
+					// 	height: convertMillimetersToTwip(297),
+					// },
+					size: {
+						orientation: section.orientation == "landscape" ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT,
+					},
 					pageNumbers: !section.pageStart ? {} : {
 						start: section.pageStart,
 					},
@@ -71,7 +90,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						new Paragraph({
 							alignment: AlignmentType.CENTER,
 							children: [new TextRun({
-								children: section.pageStart ? [PageNumber.CURRENT] : [],
+								children: section.displayPageNum ? [PageNumber.CURRENT] : [],
 							})],
 							indent: { firstLine: 0 },
 							spacing: { line: 240 },
@@ -206,13 +225,15 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						throw new UserInputError(`File not exist: ${node.src}`);
 					const data = fs.readFileSync(img_path);
 					const dimensions = imageSize(data);
-					const [MaxW, MaxH] = [600, 800];
+					const [MaxW, MaxH] = (section.orientation == "landscape" ? [950, 600] : [600, 900]);
 					let [width, height] = [dimensions.width, dimensions.height];
 					if (node.width && node.height) [width, height] = [node.width, node.height];
 					if (node.width) [width, height] = [node.width, height / width * node.width];
 					if (node.height) [width, height] = [width / height * node.height, node.height];
 					if (height > MaxH) [width, height] = [width / height * MaxH, MaxH];
 					if (width > MaxW) [width, height] = [MaxW, height / width * MaxW];
+					width = MaxW;
+					height = MaxH;
 					return [
 						new Paragraph({
 							alignment: "center",
