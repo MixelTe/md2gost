@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
+## [1.4.1] - 2026-09-07
+### Fixed
+- fix bug with image size (rem dev code from prev release)
+
 ## [1.4.0] - 2026-09-06
 ### Added
 - totalPagesOffset property of Doc to modify TOTAL_PAGES field value (`!!rule` isn't implemented yet)

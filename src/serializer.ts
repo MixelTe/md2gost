@@ -232,8 +232,6 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					if (node.height) [width, height] = [width / height * node.height, node.height];
 					if (height > MaxH) [width, height] = [width / height * MaxH, MaxH];
 					if (width > MaxW) [width, height] = [MaxW, height / width * MaxW];
-					width = MaxW;
-					height = MaxH;
 					return [
 						new Paragraph({
 							alignment: "center",
