@@ -5,7 +5,7 @@ import { openFile, trimStart } from "./utils";
 import fs from "fs";
 import path from "path";
 import { md_formatter } from "./formatter";
-import { addDiagnostic, md_completion, md_hover, md_inlineCompletion, md_inlineHints, TableCodeLensProvider } from "./intellisense";
+import { addDiagnostic, FileDropProvider, md_completion, md_hover, md_inlineCompletion, md_inlineHints, TableCodeLensProvider } from "./intellisense";
 import { onEditTableCommand } from "./tableEditor";
 import { markdownItPlugin } from "./markdownPlugin";
 
@@ -82,6 +82,11 @@ export function activate(context: vscode.ExtensionContext)
 	context.subscriptions.push(vscode.languages.registerCodeLensProvider(
 		{ language: "markdown" },
 		tableCodeLensProvider,
+	));
+	const documentDropEditProvider = new FileDropProvider();
+	context.subscriptions.push(vscode.languages.registerDocumentDropEditProvider(
+		{ language: "markdown" },
+		documentDropEditProvider,
 	));
 
 	context.subscriptions.push(

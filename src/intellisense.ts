@@ -1,5 +1,6 @@
-import { CodeLens, InlineCompletionItem, type TextDocument, type Position, CompletionItem, CompletionItemKind, Hover, InlayHint, SnippetString, MarkdownString, Range, InlayHintKind, type CodeLensProvider, workspace, EventEmitter, type ExtensionContext, Diagnostic, languages, DiagnosticSeverity, window, type TextEditor } from "vscode";
+import { CodeLens, InlineCompletionItem, type TextDocument, type Position, CompletionItem, CompletionItemKind, DocumentDropEdit, Hover, InlayHint, SnippetString, MarkdownString, Range, InlayHintKind, type CodeLensProvider, workspace, EventEmitter, type ExtensionContext, Diagnostic, languages, DiagnosticSeverity, window, type TextEditor, type DocumentDropEditProvider, type DataTransfer, type CancellationToken, Uri } from "vscode";
 import { choice, repeat } from "./utils";
+import path from "path";
 
 export function md_completion(document: TextDocument, position: Position): CompletionItem[] | undefined
 {
@@ -95,7 +96,7 @@ export function md_completion(document: TextDocument, position: Position): Compl
 			addHint(linePrefix, base + "from", "Начать нумерацию с N", "Сбрасывает счетчик страниц на число N", "2");
 		}
 	}
-	
+
 	addHint(linePrefix, "!!rule ", "Вставить правило", undefined, undefined, undefined, item =>
 		item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" },
 	);
@@ -452,6 +453,43 @@ export function addDiagnostic(context: ExtensionContext)
 		}),
 	);
 }
+
+export class FileDropProvider implements DocumentDropEditProvider
+{
+	async provideDocumentDropEdits(
+		document: TextDocument,
+		position: Position,
+		dataTransfer: DataTransfer,
+		token: CancellationToken,
+	): Promise<DocumentDropEdit | undefined>
+	{
+		if (!document.fileName.endsWith(".g.md")) return;
+
+		const dataTransferItem = dataTransfer.get("text/uri-list");
+		if (!dataTransferItem) return undefined;
+
+		const urlList = await dataTransferItem.asString();
+		const uris = urlList.split(/\r?\n/).filter(Boolean);
+
+		if (uris.length === 0) return undefined;
+
+		const targetUri = Uri.parse(uris[0]);
+		const targetPath = targetUri.fsPath;
+
+		const ext = path.extname(targetPath).toLowerCase();
+		if (ext !== ".pdf" && ext !== ".docx") return undefined;
+
+		const mdDir = path.dirname(document.uri.fsPath);
+		let relativePath = path.relative(mdDir, targetPath);
+
+		relativePath = relativePath.replace(/\\/g, "/");
+
+		const insertText = `!!(${relativePath}){}`;
+
+		return new DocumentDropEdit(insertText);
+	}
+}
+
 
 function completeWord(text: string, word: string, rem: { v: string })
 {

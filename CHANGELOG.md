@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- support docx/pdf file drop into editor (`editor.dropIntoEditor.enabled` user setting must be set to `true`)
 ### Changed
 ### Deprecated
 ### Removed
