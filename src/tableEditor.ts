@@ -169,10 +169,13 @@ export function parseTable(text: string)
 					v.endsWith(":") ? "r" : "l" as const);
 		else
 			table.rows.push(line.split(/(?<!\\)\|/).map(v => v.trim()
-				.replaceAll("<br>", "\n")
-				.replaceAll("\\|", "|")
-				.replaceAll("&lt;", "<")
-				.replaceAll("&gt;", ">"),
+				.split("`").map((v, i) => i % 2 == 0 ? v
+					.replaceAll("<br>", "\n")
+					.replaceAll("\\|", "|")
+					.replaceAll("&lt;", "<")
+					.replaceAll("&gt;", ">")
+					: v.replaceAll("\\|", "|"),
+				).join("`"),
 			));
 	}
 	const cols = Math.max(...table.rows.map(l => l.length));
@@ -193,10 +196,13 @@ export function stringifyTable(table: Table)
 		for (let j = 0; j < row.length; j++)
 		{
 			row[j] = row[j].trim()
-				.replaceAll("|", "\\|")
-				.replaceAll("<", "&lt;")
-				.replaceAll(">", "&gt;")
-				.replaceAll("\n", "<br>");
+				.split("`").map((v, i) => i % 2 == 0 ? v
+					.replaceAll("|", "\\|")
+					.replaceAll("<", "&lt;")
+					.replaceAll(">", "&gt;")
+					.replaceAll("\n", "<br>")
+					: v.replaceAll("|", "\\|").replaceAll(/(\n+)/g, s => `\`${repeat(s.length, "<br>").join("")}\``),
+				).join("`");
 			lens[j] = Math.max(lens[j], row[j].length);
 		}
 	}

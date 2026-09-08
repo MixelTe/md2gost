@@ -8,10 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 - support docx/pdf file drop into editor (`editor.dropIntoEditor.enabled` user setting must be set to `true`)
+- table editor: add new row when "tab" in last cell
 ### Changed
 ### Deprecated
 ### Removed
 ### Fixed
+- table editor: fix ``` `code` ``` blocks chars replacment
 ### Security
 
 ## [1.4.1] - 2026-09-07

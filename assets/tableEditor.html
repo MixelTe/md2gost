@@ -456,23 +456,23 @@
 			</button>
 		</div>
 		<div>
-			<label class="toggle" tabindex="-1" title="Align left">
+			<label class="toggle" title="Align left">
 				<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">
 					<path d="M80-80v-800h80v800H80Zm160-200v-120h400v120H240Zm0-280v-120h640v120H240Z" />
 				</svg>
-				<input type="checkbox" id="inp_align_left" onchange="setColumnAlign(parseInt(this.closest('.cell').dataset.col), 'left')">
+				<input type="checkbox" tabindex="-1" id="inp_align_left" onchange="setColumnAlign(parseInt(this.closest('.cell').dataset.col), 'left')">
 			</label>
-			<label class="toggle" tabindex="-1" title="Align center">
+			<label class="toggle" title="Align center">
 				<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">
 					<path d="M440-80v-200H240v-120h200v-160H120v-120h320v-200h80v200h320v120H520v160h200v120H520v200h-80Z" />
 				</svg>
-				<input type="checkbox" id="inp_align_center" onchange="setColumnAlign(parseInt(this.closest('.cell').dataset.col), 'center')">
+				<input type="checkbox" tabindex="-1" id="inp_align_center" onchange="setColumnAlign(parseInt(this.closest('.cell').dataset.col), 'center')">
 			</label>
-			<label class="toggle" tabindex="-1" title="Align right">
+			<label class="toggle" title="Align right">
 				<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">
 					<path d="M800-80v-800h80v800h-80ZM320-280v-120h400v120H320ZM80-560v-120h640v120H80Z" />
 				</svg>
-				<input type="checkbox" id="inp_align_right" onchange="setColumnAlign(parseInt(this.closest('.cell').dataset.col), 'right')">
+				<input type="checkbox" tabindex="-1" id="inp_align_right" onchange="setColumnAlign(parseInt(this.closest('.cell').dataset.col), 'right')">
 			</label>
 		</div>
 	</div>
@@ -610,9 +610,19 @@
 			const ctrl = event.ctrlKey || event.metaKey;
 			const row = parseInt(el.dataset.row);
 			const col = parseInt(el.dataset.col);
+			if (!e.altKey && !e.shiftKey && !ctrl && e.key == "Tab")
+			{
+				const rowCount = Math.floor(table.children.length / columnCount);
+				if (row == rowCount - 1 && col == columnCount - 1)
+				{
+					addRow(row);
+					focus(-columnCount + 1, 1, true);
+					return;
+				}
+			}
 			if (!e.altKey && !e.shiftKey && ctrl && e.key == "Enter")
 			{
-				addRow(parseInt(el.dataset.row));
+				addRow(row);
 				focus(0, 1, true);
 				return;
 			}
@@ -632,21 +642,21 @@
 			}
 			if (e.altKey && !e.shiftKey && !ctrl && e.key == "Enter")
 			{
-				addCol(parseInt(el.dataset.col));
+				addCol(col);
 				focus(1, 0, true);
 				return;
 			}
 			if (!e.altKey && e.shiftKey && ctrl && e.key == "Backspace")
 			{
 				if (row == 0) return;
-				deleteRow(parseInt(el.dataset.row));
+				deleteRow(row);
 				focus(0, -1, true);
 				return;
 			}
 			if (e.altKey && e.shiftKey && !ctrl && e.key == "Backspace")
 			{
 				if (columnCount == 1) return;
-				deleteCol(parseInt(el.dataset.col));
+				deleteCol(col);
 				focus(-1, 0, true);
 				return;
 			}
