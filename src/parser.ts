@@ -488,6 +488,7 @@ function runifyText(text: string, rainbow = false): Rune[]
 {
 	return replaceAmpCodes(text).replaceAll("\n", "&Tab;\n").replaceAll(/\s*<br>\s*/g, "\n")
 		.replaceAll("—", "-").replaceAll(" - ", " \u2013 ")
+		.replaceAll(/(?<=[\p{L}\p{N}])-(?=[\p{L}\p{N}])/gu, "\u2011")
 		.replaceAll(/(^|[^\p{L}\d_])"([\p{L}\d_])/gu, "$1«$2")
 		.replaceAll(/([\p{L}\d_])"([^\p{L}\d_]|$)/gu, "$1»$2")
 		.replaceAll(/(^|\s)(\*+)($|\s)/g, sub => sub.replaceAll("*", "&Star;"))

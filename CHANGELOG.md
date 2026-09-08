@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - support docx/pdf file drop into editor (`editor.dropIntoEditor.enabled` user setting must be set to `true`)
 - table editor: add new row when "tab" in last cell
+- auto-replace hyphens with Unicode non-breaking hyphens (`\u2011`) to prevent mid-word text wrapping between letters and numbers.
 ### Changed
 ### Deprecated
 ### Removed
