@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import { AlignmentType, Document, Footer, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark, XmlComponent, LineRuleType, PageOrientation } from "docx";
 import type { DocPageOrientation, NodeList, NodeListMark, Rune, RunicDoc, RunicNode, Runify } from "./doc";
-import { randomInt, type DeepWriteable } from "./utils";
+import { randomInt, realpathAllowMissing, type DeepWriteable } from "./utils";
 import { imageSize } from "image-size";
 import path from "path";
 
@@ -12,19 +12,24 @@ const STYLE_code = "ListingCode";
 
 type IListItem = DeepWriteable<INumberingOptions>["config"][number];
 type IListItemLevel = IListItem["levels"][number];
-export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string, assets: string, allowExternalFiles: boolean)
+export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string, assets: string, checkFilesIsInsidePath: string | false)
 {
-	const getPath = (fname: string) =>
+	const allowedRealPath = checkFilesIsInsidePath === false ? false
+		: realpathAllowMissing(checkFilesIsInsidePath === "" ? workdir : checkFilesIsInsidePath);
+
+	const getPath = (fname: string): string =>
 	{
 		if (process.platform != "win32") fname = fname.replaceAll("\\", "/");
-		if (process.platform == "win32" && fname[0] == "/") fname = "." + fname;
+		if (process.platform == "win32" && fname.startsWith("/")) fname = "." + fname;
 		const targetPath = path.isAbsolute(fname)
 			? path.resolve(fname)
 			: path.resolve(workdir, fname);
-		if (!allowExternalFiles)
+		if (allowedRealPath !== false)
 		{
-			const relative = path.relative(workdir, targetPath);
-			const isOutside = relative.startsWith("..") || path.isAbsolute(relative);
+			const targetRealPath = realpathAllowMissing(targetPath); // Resolve symlinks
+			const relative = path.relative(allowedRealPath, targetRealPath);
+
+			const isOutside = relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative);
 			if (isOutside) throw new UserInputError(`Access denied: "${fname}" resolves outside the working directory.`);
 		}
 		return targetPath;

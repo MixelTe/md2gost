@@ -13,6 +13,8 @@ import renderMarkdown, { type MDRenderConfig, MDRenderError } from "./index";
 		.option("-f, --format <type>", 'Target output format ("docx" or "pdf")')
 		.option("-k, --keep-intermediate-docx", "Retain the intermediate .docx file after generating a PDF", false)
 		.option("-d, --disable-macros", "Disable VBA macro execution (PDF generation will be unavailable)", false)
+		.option("--check-files-inside <path>", "Restrict referenced files to this directory", process.cwd())
+		.option("-x, --allow-files-outside", "Allow referenced files outside the permitted directory", false)
 		.action(action);
 
 	program.parse(process.argv);
@@ -27,6 +29,7 @@ async function action(input: string, options: any)
 		format: options.format,
 		keepIntermediateDocx: options.keepIntermediateDocx,
 		disableMacros: options.disableMacros,
+		checkFilesIsInsidePath: options.allowFilesOutside ? false : options.checkFilesInside,
 		progress: (totalPercent, message) =>
 		{
 			if (process.stdout.isTTY)

@@ -65,12 +65,20 @@ export interface MDRenderConfig
 	abortSignal?: AbortSignal;
 
 	/**
-	 * When `true`, permits referencing external assets (e.g. images or `include` documents)
-	 * that resolve outside the source file's working directory.
-	 * @note When `false`, accessing any path outside the working directory throws a `userInput` error.
-	 * @defaultValue `false`
+	 * Restricts referenced files (e.g. images or `include` documents) to the specified directory.
+	 *
+	 * When set to a path, any referenced file that resolves outside that directory throws
+	 * a `userInput` error. Symlinks are resolved before the containment check.
+	 *
+	 * When set to an empty string, the source file's working directory is used.
+	 *
+	 * When `false`, path containment checks are disabled and files outside the working
+	 * directory may be referenced.
+	 *
+	 * @defaultValue `""`
 	 */
-	allowExternalFiles?: boolean;
+	checkFilesIsInsidePath?: string | false;
+
 }
 
 /**
@@ -149,12 +157,12 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	assert(typeof config.keepIntermediateDocx == "boolean" || typeof config.keepIntermediateDocx == "undefined", "keepIntermediateDocx must be a boolean or undefined.");
 	assert(typeof config.disableMacros == "boolean" || typeof config.disableMacros == "undefined", "disableMacros must be a boolean or undefined.");
 	assert(typeof config.useLibreOffice == "boolean" || typeof config.useLibreOffice == "undefined", "useLibreOffice must be a boolean or undefined.");
-	assert(typeof config.allowExternalFiles == "boolean" || typeof config.allowExternalFiles == "undefined", "allowExternalFiles must be a boolean or undefined.");
+	assert(typeof config.checkFilesIsInsidePath == "string" || config.checkFilesIsInsidePath === false || typeof config.checkFilesIsInsidePath == "undefined", "checkFilesIsInsidePath must be a string, false or undefined.");
 	assert(typeof config.progress == "function" || typeof config.progress == "undefined", "Progress callback must be a function or undefined.");
 	assert(config.abortSignal instanceof AbortSignal || typeof config.abortSignal == "undefined", "abortSignal must be an AbortSignal or undefined.");
 	{
 		const extraProps = getExtraProperties(config,
-			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "useLibreOffice", "progress", "logger", "abortSignal", "allowExternalFiles"],
+			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "useLibreOffice", "progress", "logger", "abortSignal", "checkFilesIsInsidePath"],
 		);
 		assert(extraProps.length == 0, `Found unknown properties in config: ${extraProps.join(", ")}`);
 	}
@@ -174,7 +182,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	const removeIntermediateDocx = !config.keepIntermediateDocx;
 	const disableMacros = !!config.disableMacros;
 	const useLibreOffice = !!config.useLibreOffice;
-	const allowExternalFiles = !!config.allowExternalFiles;
+	const checkFilesIsInsidePath = config.checkFilesIsInsidePath === undefined ? "" : config.checkFilesIsInsidePath;
 
 	assert(!(disableMacros && renderPDF), "Macros must be enabled to render PDF output.");
 
@@ -212,7 +220,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 			removeIntermediateDocx,
 			disableMacros,
 			useLibreOffice,
-			allowExternalFiles,
+			checkFilesIsInsidePath,
 			loginfo: logger?.info,
 			logwarn: msg => { logger?.warn(msg); warnings.push(msg); },
 			logPS: msg => { logger?.info(msg); logPS.push(msg); },

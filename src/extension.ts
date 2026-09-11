@@ -148,7 +148,7 @@ function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, uri: v
 				renderPDF,
 				removeIntermediateDocx,
 				disableMacros,
-				allowExternalFiles: true,
+				checkFilesIsInsidePath: false,
 				loginfo: logger.info,
 				logwarn: msg => vscode.window.showWarningMessage(msg),
 				logPS: msg => logger.info(`PS: ${msg.trimEnd()}`),

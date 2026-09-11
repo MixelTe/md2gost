@@ -1,3 +1,8 @@
+import fs from "fs/promises";
+import fss from "fs";
+import { exec } from "child_process";
+import * as path from "node:path";
+
 export type JSONValue = string | number | boolean | null | { [x: string]: JSONValue } | Array<JSONValue>;
 export function lt<T, R>(v: T | null | undefined, fn: (v: T) => R)
 {
@@ -67,7 +72,6 @@ export type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 export type DeepWriteable<T> = { -readonly [P in keyof T]: DeepWriteable<T[P]> };
 export type SetProgressFn = (increment: number, message: string) => void;
 
-import fs from "fs/promises";
 export async function checkIfFileIsBlocked(path: string)
 {
 	let file;
@@ -89,7 +93,6 @@ export async function checkIfFileIsBlocked(path: string)
 	}
 }
 
-import { exec } from "child_process";
 export function openFile(path: string)
 {
 	const command =
@@ -134,4 +137,67 @@ export function repeat<T>(n: number, v?: T | ((i: number) => T)): T[]
 {
 	if (v === undefined) v = i => i as T;
 	return new Array(n).fill(null).map((_, i) => v instanceof Function ? v(i) : v);
+}
+
+
+/**
+ * Resolves a path to its canonical absolute path while allowing part of the
+ * path to not exist.
+ *
+ * If the complete path exists, this behaves like `fs.realpath()`. Otherwise,
+ * it walks up the path until it finds an existing ancestor, resolves that
+ * ancestor through any symbolic links, and appends the missing path segments.
+ *
+ * @param inputPath The path to resolve. Relative paths are resolved against
+ * the current working directory.
+ * @returns The resolved absolute path.
+ * @throws Any filesystem error other than `ENOENT` or `ENOTDIR`.
+ */
+export function realpathAllowMissing(inputPath: string): string
+{
+	const absolute = path.resolve(inputPath);
+
+	try
+	{
+		return fss.realpathSync(absolute);
+	}
+	catch (err: unknown)
+	{
+		if (!isMissingPathError(err))
+			throw err;
+	}
+
+	const missingParts: string[] = [];
+	let current = absolute;
+
+	while (true)
+	{
+		const parent = path.dirname(current);
+
+		if (parent === current)
+			return absolute;
+
+		missingParts.unshift(path.basename(current));
+		current = parent;
+
+		try
+		{
+			const realParent = fss.realpathSync(current);
+			return path.resolve(realParent, ...missingParts);
+		}
+		catch (err: unknown)
+		{
+			if (!isMissingPathError(err))
+				throw err;
+		}
+	}
+}
+
+function isMissingPathError(err: unknown): err is NodeJS.ErrnoException
+{
+	return (
+		err instanceof Error &&
+		"code" in err &&
+		(err.code === "ENOENT" || err.code === "ENOTDIR")
+	);
 }

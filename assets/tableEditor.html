@@ -649,8 +649,9 @@
 			if (!e.altKey && e.shiftKey && ctrl && e.key == "Backspace")
 			{
 				if (row == 0) return;
+				const rowCount = Math.floor(table.children.length / columnCount);
 				deleteRow(row);
-				focus(0, -1, true);
+				focus(0, (row == rowCount - 1) ? -1 : 0, true);
 				return;
 			}
 			if (e.altKey && e.shiftKey && !ctrl && e.key == "Backspace")

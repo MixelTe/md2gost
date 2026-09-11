@@ -23,7 +23,7 @@ export interface RenderOptions
 	removeIntermediateDocx?: boolean;
 	disableMacros?: boolean;
 	useLibreOffice?: boolean;
-	allowExternalFiles?: boolean;
+	checkFilesIsInsidePath?: string | false;
 	logwarn?: (msg: string) => void;
 	loginfo?: (msg: string) => void;
 	logPS?: (msg: string) => void;
@@ -40,7 +40,7 @@ export async function render({
 	removeIntermediateDocx = false,
 	disableMacros = false,
 	useLibreOffice = false,
-	allowExternalFiles = false,
+	checkFilesIsInsidePath = "",
 	logwarn = console.warn,
 	loginfo = console.info,
 	logPS = msg => console.log(`PS: ${msg}`),
@@ -89,7 +89,7 @@ export async function render({
 	signal?.throwIfAborted();
 	progress(10, phrase_renderDocx());
 	loginfo("[!3] Serializing to docx");
-	await serializeDocx(runicDoc, ftmp, fdir, assets, allowExternalFiles);
+	await serializeDocx(runicDoc, ftmp, fdir, assets, checkFilesIsInsidePath);
 
 	let willRunMacros = !disableMacros && (renderPDF || hasReasonForRunningMacros(runicDoc));
 
