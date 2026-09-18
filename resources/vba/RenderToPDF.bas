@@ -6,10 +6,15 @@ Sub RenderSegmentsToPDF()
     Dim mainDoc As Document
     Set mainDoc = ActiveDocument
 
+    Dim fso As Object
     Dim outDir As String
-    outDir = mainDoc.Path & "\.md2gost_out\"
 
-    If Dir(outDir, vbDirectory) = "" Then MkDir outDir
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    ' Unicode-safe output directory
+    outDir = fso.BuildPath(mainDoc.Path, ".md2gost_out")
+    If Not fso.FolderExists(outDir) Then
+        fso.CreateFolder outDir
+    End If
 
     Dim segIndex As Long
     segIndex = 1
@@ -26,17 +31,18 @@ Sub RenderSegmentsToPDF()
         Set includeData = ParseIncludeSyntax(p.Range.Text)
 
         If Not includeData Is Nothing Then
-            ' Export text BEFORE include
+            ' Export text before include
             If ExportPagesAsPDF(mainDoc, startRange.Start, p.Range.Start - 1, outDir, segIndex) Then
                 segIndex = segIndex + 1
             End If
 
-            ' Export include itself
+            ' Export included file
             RenderIncludeToPDF includeData, outDir, segIndex
             segIndex = segIndex + 1
 
             Dim newStart As Long
             newStart = SkipTrailingSectionBreaks(mainDoc, p.Range.End)
+
             Set startRange = mainDoc.Range(newStart, newStart)
         End If
     Next p
@@ -45,8 +51,7 @@ Sub RenderSegmentsToPDF()
     If startRange.End < mainDoc.Content.End Then
         ExportPagesAsPDF mainDoc, startRange.Start, mainDoc.Content.End, outDir, segIndex
     End If
-    ' Selection.SetRange Start:=0, End:=1
-    ' Selection.Copy
+
     Exit Sub
 ErrorHandler:
     LogError "Error #" & Err.Number & ": " & Err.Description
@@ -64,6 +69,7 @@ Function ParseIncludeSyntax(txt As String) As Object
     Dim result As Object
     Set result = CreateObject("Scripting.Dictionary")
 
+    ' Remove paragraph endings
     txt = Replace(txt, vbCrLf, "")
     txt = Replace(txt, vbLf, "")
     txt = Replace(txt, vbCr, "")
@@ -78,6 +84,7 @@ Function ParseIncludeSyntax(txt As String) As Object
     Else
         Set ParseIncludeSyntax = Nothing
     End If
+
     Exit Function
 
 Fail:
@@ -97,11 +104,13 @@ Function ParseJsonFields(json As String) As Object
     Dim matches As Object
     Dim m As Object
     Dim value As String
+
     Set matches = re.Execute(json)
 
     For Each m In matches
         value = m.SubMatches(1)
 
+        ' Unescape simple JSON string escapes
         If InStr(value, "\") > 0 Then
             value = Replace(value, "\""", """")
             value = Replace(value, "\\", "\")
@@ -127,7 +136,7 @@ Function SkipTrailingSectionBreaks(doc As Document, pos As Long) As Long
         If r.MoveEnd(wdCharacter, 1) = 0 Then Exit Do
 
         If r.Text = Chr(12) Then
-            ' To make range contain only one char
+            ' Move past section/page break
             r.Collapse wdCollapseEnd
             pos = r.End
         Else
@@ -141,6 +150,8 @@ Function SkipTrailingSectionBreaks(doc As Document, pos As Long) As Long
 End Function
 Function ExportPagesAsPDF(srcDoc As Document, startPos As Long, endPos As Long, _
                           outDir As String, index As Long) As Boolean
+    On Error GoTo ErrorHandler
+
     If endPos >= srcDoc.Content.End Then
         endPos = srcDoc.Content.End - 1
     End If
@@ -150,13 +161,19 @@ Function ExportPagesAsPDF(srcDoc As Document, startPos As Long, endPos As Long, 
         Exit Function
     End If
 
-    Dim fromPage As Long, toPage As Long
-    fromPage = srcDoc.Range(startPos, startPos).Information(wdActiveEndPageNumber)
-    toPage   = srcDoc.Range(endPos, endPos).Information(wdActiveEndPageNumber)
+    Dim fromPage As Long
+    Dim toPage As Long
 
+    fromPage = srcDoc.Range(startPos,startPos).Information(wdActiveEndPageNumber)
+    toPage = srcDoc.Range(endPos,endPos).Information(wdActiveEndPageNumber)
 
+    Dim fso As Object
     Dim pdfPath As String
-    pdfPath = outDir & Format(index, "000") & "-main.pdf"
+
+    Set fso = CreateObject("Scripting.FileSystemObject")
+
+    ' Unicode-safe PDF path
+    pdfPath = fso.BuildPath(outDir, Format(index, "000") & "-main.pdf")
 
     srcDoc.ExportAsFixedFormat _
         OutputFileName:=pdfPath, _
@@ -168,30 +185,46 @@ Function ExportPagesAsPDF(srcDoc As Document, startPos As Long, endPos As Long, 
         To:=toPage
 
     ExportPagesAsPDF = True
+    Exit Function
+
+ErrorHandler:
+    ExportPagesAsPDF = False
+
+    LogError _
+        "Error #" & Err.Number & _
+        " exporting main document: " & _
+        Err.Description
 End Function
 Sub RenderIncludeToPDF(info As Object, outDir As String, index As Long)
+    On Error GoTo Cleanup
+
+    Dim fso As Object
     Dim pdfPath As String
     Dim sourcePath As String
-    sourcePath = info("path")
 
-    If LCase(Right(sourcePath, 4)) = ".pdf" Then
-        pdfPath = outDir & Format(index, "000") & "-pdf.pdf"
+    Set fso = CreateObject("Scripting.FileSystemObject")
 
-        Dim fso As Object
-        Set fso = CreateObject("Scripting.FileSystemObject")
+    sourcePath = CStr(info("path"))
+
+    ' Include path is expected to be absolute
+    If LCase$(Right$(sourcePath, 4)) = ".pdf" Then
+        pdfPath = fso.BuildPath(outDir, Format(index, "000") & "-pdf.pdf")
 
         If fso.FileExists(sourcePath) Then
-            fso.CopyFile sourcePath, pdfPath, True ' True allows overwriting
+            ' Copy source PDF into output directory (True allows overwriting)
+            fso.CopyFile sourcePath, pdfPath, True
+        Else
+            LogError "Include PDF not found: " & sourcePath
         End If
     Else
-        pdfPath = outDir & Format(index, "000") & "-include.pdf"
+        pdfPath = fso.BuildPath(outDir, Format(index, "000") & "-include.pdf")
+
         Dim doc As Document
-        On Error GoTo Cleanup
-        Set doc = Documents.Open(sourcePath, ReadOnly:=True, Visible:=False)
+        Set doc = Documents.Open(FileName:=sourcePath, ReadOnly:=True, Visible:=False)
 
         Dim k As Variant
         For Each k In info("fields").Keys
-            ReplaceAll doc, "{{" & k & "}}", info("fields")(k)
+            ReplaceAll doc, "{{" & CStr(k) & "}}", CStr(info("fields")(k))
         Next k
 
         doc.ExportAsFixedFormat _
@@ -199,24 +232,44 @@ Sub RenderIncludeToPDF(info As Object, outDir As String, index As Long)
             ExportFormat:=wdExportFormatPDF, _
             OptimizeFor:=wdExportOptimizeForPrint, _
             CreateBookmarks:=wdExportCreateHeadingBookmarks
-        doc.Close False
+
+        doc.Close SaveChanges:=False
+        Set doc = Nothing
+
     End If
     Exit Sub
 Cleanup:
+    Dim errNum As Long
+    Dim errDesc As String
+
+    errNum = Err.Number
+    errDesc = Err.Description
+
+    On Error Resume Next
+
     If Not doc Is Nothing Then
-        doc.Close False
+        doc.Close SaveChanges:=False
     End If
 
-    If Err.Number <> 0 Then
-        LogError "Error #" & Err.Number & ": " & Err.Description
+    On Error GoTo 0
+
+    If errNum <> 0 Then
+        LogError "Error #" & errNum & " rendering include '" & sourcePath & "': " & errDesc
     End If
 End Sub
 Sub ReplaceAll(doc As Document, findText As String, ByVal replaceText As String)
     With doc.Content.Find
+        .ClearFormatting
+        .Replacement.ClearFormatting
+
         .Text = findText
         .Replacement.Text = replaceText
+
         .Forward = True
         .Wrap = wdFindContinue
+        .Format = False
+        .MatchWildcards = False
+
         .Execute Replace:=wdReplaceAll
     End With
 End Sub

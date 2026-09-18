@@ -110,7 +110,12 @@ Function ExtractTableNumber(text As String) As String
     Dim re As Object
     Set re = CreateObject("VBScript.RegExp")
 
-    re.Pattern = "Таблиц[аы]\s+(.?[\d\.]+)"
+    Dim sTable As String
+    ' "Таблиц" in Unicode-safe form
+    sTable = ChrW(&H422) & ChrW(&H430) & ChrW(&H431) & ChrW(&H43B) & ChrW(&H438) & ChrW(&H446)
+
+    ' Match: "Таблица/Таблицы <number>"
+    re.Pattern = sTable & "[" & ChrW(&H430) & ChrW(&H44B) & "]\s+(.?[\d\.]+)"
     re.IgnoreCase = True
 
     If re.Test(text) Then

@@ -13,6 +13,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
+## [1.5.1] - 2026-09-18
+### Fixed
+* expand tables to fill the width of landscape sections
+* fix macros for paths containing UTF-8 characters
+* switch Word to Print Layout view before processing pagination
+
 ## [1.5.0] - 2026-09-11
 ### Added
 - support docx/pdf file drop into editor (`editor.dropIntoEditor.enabled` user setting must be set to `true`)

@@ -194,7 +194,10 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						] : []),
 						new Table({
 							// width: { type: "pct", size: 100 },
-							width: { type: "dxa", size: 9572 },
+							width: {
+								type: "dxa",
+								size: convertMillimetersToTwip(section.orientation === "landscape" ? 255.8 : 168.8),
+							},
 							rows: node.rows.map((row, rowI) => new TableRow({
 								tableHeader: rowI == 0,
 								cantSplit: true,

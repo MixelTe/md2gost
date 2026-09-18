@@ -74,7 +74,12 @@ Function ExtractListingNumber(text As String) As String
     Dim re As Object
     Set re = CreateObject("VBScript.RegExp")
 
-    re.Pattern = "Листинг\s+(.?[\d\.]+)"
+    Dim sListing As String
+    ' "Листинг" in Unicode-safe form
+    sListing = ChrW(&H41B) & ChrW(&H438) & ChrW(&H441) & ChrW(&H442) & ChrW(&H438) & ChrW(&H43D) & ChrW(&H433)
+
+    ' Match: "Листинг <number>"
+    re.Pattern = sListing & "\s+(.?[\d\.]+)"
     re.IgnoreCase = True
 
     If re.Test(text) Then
