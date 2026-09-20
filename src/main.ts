@@ -154,7 +154,7 @@ export async function render({
 			try
 			{
 				const files = (await fs.readdir(tmpfolder)).sort().map(f => path.join(tmpfolder, f));
-				const pdf = pout ? path.join(pout.dir, pout.base) : path.join(fdir, fname + ".pdf");
+				const pdf = pout ? path.join(pout.dir, pout.name + ".pdf") : path.join(fdir, fname + ".pdf");
 				await mergePDFs(files, pdf, doc, signal || undefined);
 				await fs.rm(tmpfolder, { recursive: true, force: true });
 				if (removeIntermediateDocx && existsSync(fout)) await fs.unlink(fout);

@@ -45,8 +45,8 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 		const html = fs.readFileSync(filePath, "utf8");
 		panel.webview.html = html
 			.replaceAll("{{root}}", rootUri.toString())
-			.replaceAll("{{data}}", JSON.stringify(data))
-			.replaceAll("{{settings}}", JSON.stringify({
+			.replaceAll("{{data}}", serializeWebviewData(data))
+			.replaceAll("{{settings}}", serializeWebviewData({
 				wide: context.globalState.get("tableEditor_wide", false),
 				autosave: context.globalState.get("tableEditor_autosave", true),
 			}));
@@ -135,6 +135,16 @@ export function onEditTableCommand(context: vscode.ExtensionContext)
 			context.subscriptions,
 		);
 	};
+}
+
+function serializeWebviewData(value: unknown)
+{
+	return JSON.stringify(value)
+		.replaceAll("<", "\\u003c")
+		.replaceAll(">", "\\u003e")
+		.replaceAll("&", "\\u0026")
+		.replaceAll("\u2028", "\\u2028")
+		.replaceAll("\u2029", "\\u2029");
 }
 
 interface Table

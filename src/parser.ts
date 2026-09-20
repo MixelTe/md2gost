@@ -91,14 +91,14 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 		const header = text.split(" ");
 		const title = header.slice(1).join(" ").trim() || undefined;
 		const node: DocNode = { type: "code", lang: header[0]!, title, code: "" };
-		text = "";
+		const code: string[] = [];
 		while (lineI < lines.length)
 		{
 			const ln = lines[lineI++]!;
 			if (ln.startsWith("```")) break;
-			text += "\n" + ln;
+			code.push(ln);
 		}
-		node.code = text.trim();
+		node.code = code.join("\n");
 		return node;
 	}
 	function parseSection(text: string): DocNode

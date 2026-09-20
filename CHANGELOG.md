@@ -8,10 +8,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 ### Changed
+- reject output file extensions that do not match the selected render format
 ### Deprecated
 ### Removed
 ### Fixed
+- fix the ESM package entry point and asset directory resolution
+- fix test compilation producing declarations instead of executable JavaScript
+- prevent conflicting output paths from overwriting or deleting rendered PDF files
+- escape document metadata before writing it to DOCX XML
+- preserve leading and trailing whitespace in fenced code blocks
+- align code highlighting with the VS Code Light+ palette and cover nested Prism tokens
+- preserve disabled page numbering across section breaks
+- report successful completion only after render errors have been checked
+- avoid showing a successful render notification after PowerShell, VBA, or PDF errors
 ### Security
+- escape serialized table data embedded into the table editor webview
+- open rendered files without passing their paths through a command shell
+- update `image-size`, `docx`, and the transitive `nanoid` dependency to patched versions
 
 ## [1.5.1] - 2026-09-18
 ### Fixed

@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import fss from "fs";
-import { exec } from "child_process";
+import { spawn } from "child_process";
 import * as path from "node:path";
 
 export type JSONValue = string | number | boolean | null | { [x: string]: JSONValue } | Array<JSONValue>;
@@ -93,22 +93,13 @@ export async function checkIfFileIsBlocked(path: string)
 	}
 }
 
-export function openFile(path: string)
+export function openFile(filepath: string)
 {
-	const command =
-		process.platform === "win32" ? `start "" "${path}"` // Windows
-			: process.platform === "darwin" ? `open "${path}"` // macOS
-				: `xdg-open "${path}"`; // Linux
-
-	exec(command, (err, stdout, stderr) =>
-	{
-		if (err)
-		{
-			console.error(`exec error: ${err}`);
-			return;
-		}
-	});
-
+	const command = process.platform === "win32" ? "explorer.exe"
+		: process.platform === "darwin" ? "open" : "xdg-open";
+	const child = spawn(command, [filepath], { detached: true, stdio: "ignore" });
+	child.on("error", err => console.error(`open error: ${err}`));
+	child.unref();
 }
 
 /**

@@ -1,7 +1,8 @@
 import path from "path";
-import { fileURLToPath } from "url";
 import { render } from "./main";
 import { UserInputError } from "./errors";
+
+declare const __MD2GOST_DIRNAME__: string;
 
 /**
  * Configuration options for the Markdown rendering process.
@@ -178,13 +179,18 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 		);
 	}
 
-	const renderPDF = config.format === "pdf" || (!config.format && !!config.output?.endsWith(".pdf"));
+	const outputExtension = config.output && path.extname(config.output).toLowerCase();
+	const renderPDF = config.format === "pdf" || (!config.format && outputExtension === ".pdf");
 	const removeIntermediateDocx = !config.keepIntermediateDocx;
 	const disableMacros = !!config.disableMacros;
 	const useLibreOffice = !!config.useLibreOffice;
 	const checkFilesIsInsidePath = config.checkFilesIsInsidePath === undefined ? "" : config.checkFilesIsInsidePath;
 
 	assert(!(disableMacros && renderPDF), "Macros must be enabled to render PDF output.");
+	if (outputExtension && outputExtension !== ".docx" && outputExtension !== ".pdf")
+		throw new TypeError("Output file extension must be either '.docx' or '.pdf'.");
+	if (outputExtension && outputExtension !== (renderPDF ? ".pdf" : ".docx"))
+		throw new TypeError(`Output file extension must match the selected '${renderPDF ? "pdf" : "docx"}' format.`);
 
 	const pin = path.parse(path.resolve(config.input));
 	const fname = pin.name.endsWith(".g") ? pin.name.slice(0, -2) : pin.name;
@@ -227,7 +233,6 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 			logPSError: msg => { logger?.error(msg); logPS.push(msg); },
 			signal: config.abortSignal,
 		});
-		config.progress?.(100, "Done!");
 		function throwMDE(code: MDRenderErrorCode, msg: string)
 		{
 			throw new MDRenderError(code, msg, fout, warnings, logPS, errS ? { cause: errS } : undefined);
@@ -245,6 +250,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 		if (err == "vba") throwMDE("vba", `Microsoft Word VBA Macro execution failed: ${errS}`);
 		if (err == "pdf") throwMDE("pdf", `Failed to export document to PDF.`);
 		if (err == "noWin") throwMDE("noWin", `Platform restriction: Extended formatting macros and PDF rendering are only supported natively on Windows systems.`);
+		config.progress?.(100, "Done!");
 
 		let intermediateDocxPath: string | undefined;
 		if (renderPDF && !removeIntermediateDocx)
@@ -332,10 +338,7 @@ export class MDRenderError extends Error
  */
 function getAssetsDir()
 {
-	if (typeof __dirname !== "undefined")
-		return path.resolve(__dirname, "../assets");
-	const metaUrl = new Function("return import.meta.url")();
-	return path.resolve(path.dirname(fileURLToPath(metaUrl)), "../assets");
+	return path.resolve(__MD2GOST_DIRNAME__, "../assets");
 }
 
 /**

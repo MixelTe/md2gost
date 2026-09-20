@@ -47,7 +47,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 			if (node.type == "sectionBreak")
 				sections.push({
 					displayPageNum: node.pageStart == null
-						? sections.at(-1)?.displayPageNum || true
+						? sections.at(-1)?.displayPageNum ?? true
 						: node.pageStart >= 0,
 					orientation: node.orientation || sections.at(-1)?.orientation || "portrait",
 					pageStart: node.pageStart,
@@ -225,7 +225,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						new Paragraph({ children: [new PageBreak()] }),
 					];
 				case "image":
-					const type = node.src.split(".").at(-1) || "";
+					const type = (node.src.split(".").at(-1) || "").toLowerCase();
 					if (!["jpg", "png", "gif", "bmp", "svg"].includes(type))
 						throw new UserInputError(`Unsupported image format: "${type}", file: ${node.src}`);
 					const img_path = getPath(node.src);
@@ -582,82 +582,118 @@ class RawXml extends XmlComponent
 // });
 
 import Prism from "prismjs";
-import "prismjs/components/prism-clike";
+import "prismjs/components/prism-clike.js";
 
-import "prismjs/components/prism-markup"; // html, xml
-import "prismjs/components/prism-css";
-import "prismjs/components/prism-javascript";
-import "prismjs/components/prism-typescript";
-import "prismjs/components/prism-jsx";
-import "prismjs/components/prism-tsx";
-import "prismjs/components/prism-json";
-import "prismjs/components/prism-bash";
-import "prismjs/components/prism-powershell";
-import "prismjs/components/prism-python";
-import "prismjs/components/prism-java";
-import "prismjs/components/prism-c";
-import "prismjs/components/prism-cpp";
-import "prismjs/components/prism-csharp";
-import "prismjs/components/prism-go";
-import "prismjs/components/prism-rust";
-import "prismjs/components/prism-php";
-import "prismjs/components/prism-ruby";
-import "prismjs/components/prism-swift";
-import "prismjs/components/prism-kotlin";
-import "prismjs/components/prism-sql";
-import "prismjs/components/prism-yaml";
-import "prismjs/components/prism-markdown";
-import "prismjs/components/prism-docker";
-import "prismjs/components/prism-nginx";
+import "prismjs/components/prism-markup.js"; // html, xml
+import "prismjs/components/prism-css.js";
+import "prismjs/components/prism-javascript.js";
+import "prismjs/components/prism-typescript.js";
+import "prismjs/components/prism-jsx.js";
+import "prismjs/components/prism-tsx.js";
+import "prismjs/components/prism-json.js";
+import "prismjs/components/prism-bash.js";
+import "prismjs/components/prism-powershell.js";
+import "prismjs/components/prism-python.js";
+import "prismjs/components/prism-java.js";
+import "prismjs/components/prism-c.js";
+import "prismjs/components/prism-cpp.js";
+import "prismjs/components/prism-csharp.js";
+import "prismjs/components/prism-go.js";
+import "prismjs/components/prism-rust.js";
+import "prismjs/components/prism-php.js";
+import "prismjs/components/prism-ruby.js";
+import "prismjs/components/prism-swift.js";
+import "prismjs/components/prism-kotlin.js";
+import "prismjs/components/prism-sql.js";
+import "prismjs/components/prism-yaml.js";
+import "prismjs/components/prism-markdown.js";
+import "prismjs/components/prism-docker.js";
+import "prismjs/components/prism-nginx.js";
 import { UserInputError } from "./errors";
 
 
 function renderCodeHighlighting(code: string, lang: string)
 {
-	const grammar = Prism.languages[lang.trim().toLowerCase()];
+	const language = lang.trim().toLowerCase();
+	const grammar = Prism.languages[language];
 	if (!grammar) return null;
 
-	const themeColors = {
+	const themeColors: Record<string, string> = {
 		// shared
 		"plain": "000000",
 		"comment": "008000",
+		"hashbang": "008000",
+		"shebang": "008000",
 		"punctuation": "000000",
 		"operator": "000000",
+		"script": "000000",
+		"script-punctuation": "000000",
+		"expression": "000000",
+		"interpolation": "000000",
 
 		// keywords & control flow
 		"keyword": "0000ff",
+		"control-flow": "af00db",
 		"boolean": "0000ff",
-		"builtin": "0000ff",
+		"null": "0000ff",
+		"builtin": "267f99",
 		"important": "0000ff",
+		// "instruction": "0000ff",
+		// "directive": "0000ff",
+		"directive-hash": "0000ff",
+		"macro": "0000ff",
+		"macro-name": "0000ff",
+		"rule": "0000ff",
 
 		// literals
-		"string": lang === "css" ? "0451a5" // CSS values/constants
-			: lang === "json" ? "a31515" : "a31515",
-		"number": "098658",
-		"constant": "0000ff",
-		"symbol": "0000ff",
+		"string": "a31515",
+		"template-string": "a31515",
+		"template-punctuation": "a31515",
+		"string-literal": "a31515",
 		"char": "a31515",
+		"number": "098658",
+		"datetime": "098658",
+		"constant": "0070c1",
+		"symbol": "0070c1",
+		"scalar": "0000ff",
+		"conversion-option": "0000ff",
 
 		// identifiers
-		"class-name": lang === "js" || lang === "ts"
-			? "267f99"      // types / classes
-			: "0451a5",
-		"function": "0451a5",
-		"variable": "000000",
-		"namespace": "000000",
-		"property": lang === "css"
-			? "e50000"
-			: "0451a5",
+		"class-name": "267f99",
+		"class-name-definition": "267f99",
+		"type-definition": "267f99",
+		"return-type": "267f99",
+		"attribute": "267f99",
+		"attribute-class-name": "267f99",
+		"annotation": "267f99",
+		"decorator": "267f99",
+		"namespace": "267f99",
+		"double-colon": "267f99",
+		"function": "795e26",
+		"function-definition": "795e26",
+		"method-definition": "795e26",
+		"variable": "001080",
+		"parameter": "001080",
+		"environment": "001080",
+		"assign-left": "001080",
+		"property": language === "css" ? "e50000"
+			: language === "json" ? "0451a5" : "001080",
+		"key": "0451a5",
+		"package": "000000",
+		"lifetime-annotation": "0000ff",
 
 		// markup / HTML / XML
-		"tag": lang === "html" || lang === "xml" ? "800000" : "0000ff",
+		"tag": "800000",
 		"selector": "800000",
 		"attr-name": "e50000",
-		"attr-value": "a31515",
+		"attr-value": "0000ff",
 		"entity": "800000",
 		"doctype": "808080",
+		"doctype-tag": "808080",
+		"name": "808080",
 		"cdata": "808080",
 		"prolog": "808080",
+		"delimiter": language === "php" ? "800000" : "a31515",
 
 		// CSS specific
 		"atrule": "0000ff",
@@ -665,9 +701,34 @@ function renderCodeHighlighting(code: string, lang: string)
 
 		// regex
 		"regex": "811f3f",
-	} as any;
+		"regex-delimiter": "811f3f",
+		"regex-source": "811f3f",
+		"regex-flags": "0000ff",
+		"interpolation-punctuation": "0000ff",
 
-	// const themeColors = {
+		// Markdown
+		"title": "800000",
+		"blockquote": "0451a5",
+		"list": "0451a5",
+		"bold": "000080",
+		"italic": "800080",
+		"code": "800000",
+		"code-snippet": "800000",
+		"code-block": "800000",
+		"code-language": "0000ff",
+		"inserted": "098658",
+		"deleted": "a31515",
+		"strike": "000000",
+		"hr": "800000",
+	};
+	const controlFlowKeywords = new Set([
+		"if", "else", "elif", "elseif", "unless", "then", "switch", "case", "default", "when", "match",
+		"for", "foreach", "while", "do", "until", "loop", "break", "continue", "return", "goto",
+		"throw", "throws", "try", "catch", "except", "finally", "rescue", "ensure",
+		"await", "yield", "new", "delete", "in", "of", "instanceof",
+	]);
+
+	// const themeColors: Record<string, string> = {
 	// 	"atrule": "07a07a",
 	// 	"attr-name": "690690",
 	// 	"attr-value": "07a07a",
@@ -697,7 +758,7 @@ function renderCodeHighlighting(code: string, lang: string)
 	// 	"url": "9a6e3a",
 	// 	"variable": "e90e90",
 	// 	"plain": "000000"
-	// } as any;
+	// }
 
 	const tokens = Prism.tokenize(code, grammar);
 	return tokensToParagraphs(tokens);
@@ -706,8 +767,10 @@ function renderCodeHighlighting(code: string, lang: string)
 	{
 		const paragraphs: Paragraph[] = [];
 		let currentRuns: ParagraphChild[] = [];
+		type TokenStyle = { color: string, bold: boolean, italics: boolean, strike: boolean };
+		const plainStyle: TokenStyle = { color: themeColors.plain, bold: false, italics: false, strike: false };
 
-		function addText(text: string, type: string)
+		function addText(text: string, style: TokenStyle)
 		{
 			const lines = text.split("\n");
 
@@ -716,9 +779,10 @@ function renderCodeHighlighting(code: string, lang: string)
 				currentRuns.push(
 					new TextRun({
 						text: line,
-						color: themeColors[type] || themeColors["plain"],
-						bold: type === "bold",
-						italics: type === "italic",
+						color: style.color,
+						bold: style.bold,
+						italics: style.italics,
+						strike: style.strike,
 					}),
 				);
 
@@ -730,16 +794,34 @@ function renderCodeHighlighting(code: string, lang: string)
 			});
 		}
 
-		function process(token: string | Prism.Token, parentType = "plain")
+		function process(token: string | Prism.Token, parentStyle = plainStyle)
 		{
 			if (typeof token === "string")
-				addText(token, parentType);
-			else if (Array.isArray(token.content))
-				token.content.forEach(t => process(t, token.type));
-			else if (typeof token.content === "string")
-				addText(token.content, token.type);
+				addText(token, parentStyle);
 			else
-				process(token.content, token.type);
+			{
+				const aliases = typeof token.alias == "string" ? [token.alias] : token.alias || [];
+				const types = [token.type, ...aliases];
+				const colorType = types.find(type => themeColors[type]);
+				const isControlFlow = token.type == "keyword" && typeof token.content == "string"
+					&& controlFlowKeywords.has(token.content);
+				const inheritPunctuation = token.type == "punctuation" && parentStyle.color != themeColors.plain;
+				const style: TokenStyle = {
+					color: isControlFlow ? themeColors["control-flow"]
+						: inheritPunctuation ? parentStyle.color
+							: colorType ? themeColors[colorType] : parentStyle.color,
+					bold: parentStyle.bold || types.includes("bold") || types.includes("important") || types.includes("title"),
+					italics: parentStyle.italics || types.includes("italic"),
+					strike: parentStyle.strike || types.includes("strike"),
+				};
+
+				if (Array.isArray(token.content))
+					token.content.forEach(t => process(t, style));
+				else if (typeof token.content === "string")
+					addText(token.content, style);
+				else
+					process(token.content, style);
+			}
 		}
 
 		tokens.forEach(t => process(t));
@@ -762,15 +844,25 @@ function genXml_app({ totalTime }: { totalTime?: number })
 </Properties>
 	`;
 }
+function escapeXml(value: string)
+{
+	return value.replaceAll(/[<>&"']/g, ch => ({
+		"<": "&lt;",
+		">": "&gt;",
+		"&": "&amp;",
+		'"': "&quot;",
+		"'": "&apos;",
+	}[ch]!));
+}
 function genXml_core({ title, creator, createdAt, modifiedAt }: { title?: string, creator?: string, createdAt?: Date, modifiedAt?: Date })
 {
 	if (!createdAt) createdAt = new Date();
 	if (!modifiedAt) modifiedAt = new Date();
 	return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-<dc:title>${title || "Document"}</dc:title>
-<dc:creator>${creator || "Student"}</dc:creator>
-<cp:lastModifiedBy>${creator || "Student"}</cp:lastModifiedBy>
+<dc:title>${escapeXml(title || "Document")}</dc:title>
+<dc:creator>${escapeXml(creator || "Student")}</dc:creator>
+<cp:lastModifiedBy>${escapeXml(creator || "Student")}</cp:lastModifiedBy>
 <dcterms:created xsi:type="dcterms:W3CDTF">${createdAt.toISOString()}</dcterms:created>
 <dcterms:modified xsi:type="dcterms:W3CDTF">${modifiedAt.toISOString()}</dcterms:modified>
 </cp:coreProperties>`;

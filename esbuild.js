@@ -90,8 +90,12 @@ function runMain(entryPoint, outfile, format, banner, extraExternals)
 
 if (npmPackage)
 {
-	runMain("src/index.ts", "dist/index.mjs", "esm");
-	runMain("src/index.ts", "dist/index.js", "cjs");
+	runMain("src/index.ts", "dist/index.mjs", "esm", {
+		js: `import { fileURLToPath as __md2gostFileURLToPath } from "node:url";
+import { dirname as __md2gostPathDirname } from "node:path";
+const __MD2GOST_DIRNAME__ = __md2gostPathDirname(__md2gostFileURLToPath(import.meta.url));`,
+	});
+	runMain("src/index.ts", "dist/index.js", "cjs", { js: "const __MD2GOST_DIRNAME__ = __dirname;" });
 	runMain("src/cli.ts", "dist/cli.js", "cjs", { js: "#!/usr/bin/env node" }, ["./index"]);
 }
 else

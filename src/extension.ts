@@ -161,6 +161,7 @@ function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, uri: v
 			if (err == "vba") vscode.window.showErrorMessage(`VBA error: ${errS}`);
 			if (err == "pdf") vscode.window.showErrorMessage(`PDF render error` + (errS ? `: ${errS}` : ""));
 			if (err == "noWin") vscode.window.showWarningMessage("Функционал ограничен, полный функционал только на Windows (more info in readme)");
+			if (err && err != "noWin") return;
 			progress.report({ increment: 100, message: "Done!" });
 			vscode.window.showInformationMessage(`File rendered to ${fname}`, "Open").then(v =>
 			{
