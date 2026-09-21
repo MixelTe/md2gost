@@ -23,7 +23,7 @@ export function randomInt(min: number, max: number, rnd?: () => number): number;
 export function randomInt(maxmin: number, max?: number, rnd = Math.random)
 {
 	if (max != undefined)
-		return Math.floor(rnd() * (maxmin - max)) + max;
+		return Math.floor(rnd() * (max - maxmin)) + maxmin;
 	return Math.floor(rnd() * maxmin);
 }
 

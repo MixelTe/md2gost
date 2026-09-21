@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- unit and integration tests for Markdown parsing, enrichment, numbering, DOCX serialization, and utility functions
 ### Changed
 - reject output file extensions that do not match the selected render format
 ### Deprecated

@@ -190,7 +190,9 @@
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "vscode-test",
+    "test": "npm run test:unit",
+    "test:unit": "npm run compile-tests && mocha --ui tdd \"out/test/**/*.test.js\" --exclude \"out/test/extension.test.js\"",
+    "test:vscode": "vscode-test",
     "test:artifacts": "node check-package-files.js"
   },
   "devDependencies": {
