@@ -22,6 +22,31 @@
 			}
 		},
 		{
+			"comment": ":::note[title]{attributes}",
+			"name": "meta.admonition.markdown",
+			"begin": "^(\\s*)(:{3,})(note|info|tip|warning|danger)(\\[[^\\]]*\\])?(\\{[^}]*\\})?\\s*$",
+			"beginCaptures": {
+				"2": {
+					"name": "punctuation.definition.admonition.markdown"
+				},
+				"3": {
+					"name": "keyword.control.admonition.markdown"
+				},
+				"4": {
+					"name": "string.other.admonition.title.markdown"
+				},
+				"5": {
+					"name": "meta.mapping.admonition.markdown"
+				}
+			},
+			"end": "^(\\s*)(:{3,})\\s*$",
+			"endCaptures": {
+				"2": {
+					"name": "punctuation.definition.admonition.markdown"
+				}
+			}
+		},
+		{
 			"name": "keyword.control",
 			"match": "^#\\s+(?i:РЕФЕРАТ|ОГЛАВЛЕНИЕ|ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ|ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ|ВВЕДЕНИЕ|ЗАКЛЮЧЕНИЕ|СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ|ПРИЛОЖЕНИЯ)\\s*$"
 		},

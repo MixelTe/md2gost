@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import { AlignmentType, Document, Footer, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark, XmlComponent, LineRuleType, PageOrientation } from "docx";
-import type { DocPageOrientation, NodeList, NodeListMark, Rune, RunicDoc, RunicNode, Runify } from "./doc";
+import type { AdmonitionType, DocPageOrientation, NodeList, NodeListMark, Rune, RunicDoc, RunicNode, Runify } from "./doc";
 import { randomInt, realpathAllowMissing, type DeepWriteable } from "./utils";
 import { imageSize } from "image-size";
 import path from "path";
@@ -304,6 +304,36 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						indent: { firstLine: 0 },
 						alignment: "left",
 					});
+				case "admonition":
+					const style = `xAdmonition${node.admonitionType == "note" ? "" : node.admonitionType}`;
+					const admonition = doc.admonition[node.admonitionType];
+					const color = "#" + admonition.color;
+					const icon = admonition.icon ? [new ImageRun({
+						type: "svg",
+						data: Buffer.from(admonitionIcons[node.admonitionType](admonition.title_color ? color : "#000000")),
+						transformation: { width: admonition.icon_size, height: admonition.icon_size },
+						fallback: { data: "", type: "png" },
+					}), new TextRun(" ")] : [];
+					const prevIsSameType = prevNode?.type == "admonition" && prevNode.admonitionType == node.admonitionType;
+					const showTitle = node.title.map(r => r.text).join("") != "";  // "empty" title with space allows showing only icon
+					return [
+						...(prevIsSameType ? [
+							new Paragraph({ spacing: { line: 20, before: 0, after: 0 } }),
+						] : []),
+						...(showTitle ? [
+							new Paragraph({
+								style,
+								children: [...icon, ...renderText(admonition.title_color ? node.title.map(r =>  ({ ...r, color })) : node.title)],
+								keepNext: true,
+								...(prevIsSameType ? { spacing: { before: 0 } } : {}),
+							}),
+						] : []),
+						new Paragraph({
+							style,
+							children: renderText(node.text),
+							...(prevIsSameType && !showTitle ? { spacing: { before: 0 } } : {}),
+						}),
+					];
 				case "sectionBreak":
 					return [];
 				default:
@@ -481,6 +511,14 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 		}
 	}
 }
+
+const admonitionIcons: Record<AdmonitionType, (color: string) => string> = {
+	note: c => `<svg version="1.2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><style>.a{fill:${c}}</style><path class="a" d="m13 12q0-0.4-0.3-0.7-0.3-0.3-0.7-0.3-0.4 0-0.7 0.3-0.3 0.3-0.3 0.7v4q0 0.4 0.3 0.7 0.3 0.3 0.7 0.3 0.4 0 0.7-0.3 0.3-0.3 0.3-0.7zm-1-2.5c0.3 0 0.6-0.1 0.9-0.4 0.2-0.2 0.3-0.5 0.3-0.8q0-0.6-0.3-0.9c-0.3-0.3-0.6-0.4-0.9-0.4-0.3 0-0.6 0.1-0.9 0.4q-0.3 0.3-0.3 0.9c0 0.3 0.1 0.6 0.3 0.8 0.3 0.3 0.6 0.4 0.9 0.4z"/><path fill-rule="evenodd" class="a" d="m22 12c0 5.5-4.5 10-10 10-5.5 0-10-4.5-10-10 0-5.5 4.5-10 10-10 5.5 0 10 4.5 10 10zm-15.7 5.7c1.5 1.5 3.6 2.3 5.7 2.3 2.1 0 4.2-0.8 5.7-2.3 1.5-1.5 2.3-3.6 2.3-5.7 0-2.1-0.8-4.2-2.3-5.7-1.5-1.5-3.6-2.3-5.7-2.3-2.1 0-4.2 0.8-5.7 2.3-1.5 1.5-2.3 3.6-2.3 5.7 0 2.1 0.8 4.2 2.3 5.7z"/></svg>`,
+	info: c => `<svg version="1.2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><style>.a{fill:${c}}</style><path class="a" d="m13 12q0-0.4-0.3-0.7-0.3-0.3-0.7-0.3-0.4 0-0.7 0.3-0.3 0.3-0.3 0.7v4q0 0.4 0.3 0.7 0.3 0.3 0.7 0.3 0.4 0 0.7-0.3 0.3-0.3 0.3-0.7zm-1-2.5c0.3 0 0.6-0.1 0.9-0.4 0.2-0.2 0.3-0.5 0.3-0.8q0-0.6-0.3-0.9c-0.3-0.3-0.6-0.4-0.9-0.4-0.3 0-0.6 0.1-0.9 0.4-0.2 0.2-0.3 0.5-0.3 0.9 0 0.3 0.1 0.6 0.3 0.8 0.3 0.3 0.6 0.4 0.9 0.4z"/><path fill-rule="evenodd" class="a" d="m22 12c0 5.5-4.5 10-10 10-5.5 0-10-4.5-10-10 0-5.5 4.5-10 10-10 5.5 0 10 4.5 10 10zm-15.7 5.7c1.5 1.5 3.6 2.3 5.7 2.3 2.1 0 4.2-0.8 5.7-2.3 1.5-1.5 2.3-3.6 2.3-5.7 0-2.1-0.8-4.2-2.3-5.7-1.5-1.5-3.6-2.3-5.7-2.3-2.1 0-4.2 0.8-5.7 2.3-1.5 1.5-2.3 3.6-2.3 5.7 0 2.1 0.8 4.2 2.3 5.7z"/></svg>`,
+	tip: c => `<svg version="1.2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><style>.a{fill:${c}}</style><path class="a" d="m8.1 20c0.2 0.9 0.7 1.6 1.5 2.2 0.7 0.5 1.5 0.8 2.4 0.8 0.9 0 1.7-0.3 2.4-0.8 0.8-0.6 1.3-1.3 1.5-2.2q0.2 0 0.4-0.1 0.1-0.1 0.3-0.2 0.1-0.1 0.2-0.3 0.1-0.2 0.1-0.4v-2.5q0.8-0.6 1.5-1.3 0.7-0.8 1.1-1.7 0.5-0.9 0.8-1.9 0.2-1 0.2-2.1c0-4.7-3.8-8.5-8.5-8.5-4.7 0-8.5 3.8-8.5 8.5q0 1.1 0.2 2.1 0.3 1 0.8 1.9 0.4 0.9 1.1 1.7 0.7 0.7 1.5 1.3v2.5q0 0.2 0.1 0.4 0.1 0.2 0.2 0.3 0.2 0.1 0.3 0.2 0.2 0.1 0.4 0.1zm6.8-3v1h-5.8v-1zm-1.1 3q-0.3 0.5-0.7 0.7-0.5 0.3-1 0.3-0.6 0-1-0.3-0.5-0.2-0.8-0.7zm-1.7-17c3.6 0 6.5 2.9 6.5 6.5q0 0.8-0.2 1.6-0.2 0.8-0.6 1.5-0.4 0.8-0.9 1.4-0.5 0.6-1.2 1h-7.2q-0.6-0.4-1.2-1-0.5-0.6-0.9-1.4-0.4-0.7-0.6-1.5-0.2-0.8-0.2-1.6c0-3.6 2.9-6.5 6.5-6.5z"/></svg>`,
+	warning: c => `<svg version="1.2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><style>.a{fill:${c}}</style><path class="a" d="m9.4 4.3c1.2-1.9 4-1.9 5.2 0l7.4 12.1c1.2 2-0.2 4.6-2.6 4.6h-14.8c-2.4 0-3.8-2.6-2.6-4.6zm3.4 1.1c-0.4-0.7-1.3-0.7-1.7 0l-7.4 12.1c-0.4 0.7 0.1 1.6 0.8 1.6h14.9c0.8 0 1.3-0.9 0.9-1.6zm-0.9 3.7c0.6 0 1 0.5 1 1v3c0 0.6-0.4 1-1 1-0.6 0-1-0.4-1-1v-3c0-0.5 0.4-1 1-1zm-1.1 7.5c0-0.6 0.5-1.1 1.1-1.1 0.6 0 1.2 0.5 1.2 1.1 0 0.7-0.6 1.2-1.2 1.2-0.6 0-1.1-0.5-1.1-1.2z"/></svg>`,
+	danger: c => `<svg version="1.2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><style>.a{fill:${c}}.b{fill:none;stroke:${c};stroke-linecap:round;stroke-linejoin:round;stroke-width:2}</style><path class="a" d="m12 14.5c-0.3 0-0.6 0.1-0.9 0.4-0.2 0.2-0.3 0.5-0.3 0.8q0 0.6 0.3 0.9c0.3 0.3 0.6 0.4 0.9 0.4 0.3 0 0.6-0.1 0.9-0.4q0.3-0.3 0.3-0.9c0-0.3-0.1-0.6-0.3-0.8-0.3-0.3-0.6-0.4-0.9-0.4z"/><path fill-rule="evenodd" class="b" d="m12 8v4"/><path class="b" d="m15.3 2q0.2 0 0.4 0 0.2 0.1 0.4 0.2 0.2 0 0.3 0.1 0.2 0.1 0.3 0.3l4.7 4.7q0.2 0.1 0.3 0.3 0.1 0.1 0.1 0.3 0.1 0.2 0.2 0.4 0 0.2 0 0.4v6.6q0 0.2 0 0.4-0.1 0.2-0.2 0.4 0 0.2-0.1 0.3-0.1 0.2-0.3 0.3l-4.7 4.7q-0.1 0.2-0.3 0.3-0.1 0.1-0.3 0.1-0.2 0.1-0.4 0.2-0.2 0-0.4 0h-6.6q-0.2 0-0.4 0-0.2-0.1-0.4-0.2-0.2 0-0.3-0.1-0.2-0.1-0.3-0.3l-4.7-4.7q-0.2-0.1-0.3-0.3-0.1-0.1-0.1-0.3-0.1-0.2-0.2-0.4 0-0.2 0-0.4v-6.6q0-0.2 0-0.4 0.1-0.2 0.2-0.4 0-0.2 0.1-0.3 0.1-0.2 0.3-0.3l4.7-4.7q0.1-0.2 0.3-0.3 0.1-0.1 0.3-0.1 0.2-0.1 0.4-0.2 0.2 0 0.4 0z"/></svg>`,
+};
 
 function addListItemLevel(levels: IListItemLevel[], level: number, startIndex: number, itemCount: number, ordered: boolean, alternativeStyle: boolean, mark: NodeListMark)
 {
@@ -903,8 +941,39 @@ function genXml_style(assets: string, doc: RunicDoc): string
 		return xml;
 	});
 
+	const admonitionTypes: AdmonitionType[] = ["note", "info", "tip", "warning", "danger"];
+	for (const type of admonitionTypes)
+	{
+		const suffix = type == "note" ? "" : type;
+		const styleId = `xAdmonition${suffix}`;
+		const styleTag = `<w:style w:type="paragraph" w:customStyle="1" w:styleId="${styleId}">`;
+		const style = doc.admonition[type];
+		xml = editStyle(styleTag, xml =>
+		{
+			xml = replaceTagOrInsertAfter(xml, "<w:pPr>", `<w:spacing w:before="${style.spacing.before * 20}" w:after="${style.spacing.after * 20}"/>`);
+			xml = replaceTagOrInsertAfter(xml, "<w:pPr>", `<w:ind w:left="${convertMillimetersToTwip(style.indent * 10)}" w:firstLine="0"/>`);
+			xml = replaceBorder(xml, "top", style.padding.top, "FFFFFF", 2);
+			xml = replaceBorder(xml, "right", style.padding.right, "FFFFFF", 2);
+			xml = replaceBorder(xml, "bottom", style.padding.bottom, "FFFFFF", 2);
+			xml = replaceBorder(xml, "left", style.padding.left, style.color, Math.max(1, Math.round(style.bar_width * 8)));
+			xml = replaceTagOrInsertAfter(xml, "<w:pPr>", `<w:shd w:val="clear" w:color="auto" w:fill="${style.background}"/>`);
+			return xml;
+		});
+	}
+
 	return xml;
 
+	function replaceBorder(xml: string, side: "top" | "right" | "bottom" | "left", space: number, color: string, size: number)
+	{
+		return replaceTagOrInsertAfter(xml, "<w:pBdr>", `<w:${side} w:val="single" w:sz="${size}" w:space="${space}" w:color="${color}"/>`);
+	}
+	function replaceTagOrInsertAfter(xml: string, insertAfter: string, tag: string)
+	{
+		const tagName = /<([^\s>]+)/.exec(tag)?.[1];
+		if (!tagName) throw err();
+		const regex = new RegExp(`<${tagName}\\b[^>]*/>`);
+		return regex.test(xml) ? xml.replace(regex, tag) : xml.replace(insertAfter, `${insertAfter}${tag}`);
+	}
 	function replaceTag(xml: string, tag: string): string
 	{
 		const tagName = /<([^\s]+)\b/.exec(tag)?.[1];

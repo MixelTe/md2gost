@@ -1,4 +1,4 @@
-import { Doc, tableRow, type DocNode, type NodeListItem, type NodeTable, type Rune, type RunicDoc } from "./doc";
+import { Doc, tableRow, type AdmonitionType, type DocNode, type NodeListItem, type NodeTable, type Rune, type RunicDoc } from "./doc";
 import fs from "fs/promises";
 import { hslToHex, toCapitalCase, trimEnd, trimStart, type JSONValue } from "./utils";
 import path from "path";
@@ -115,6 +115,28 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			orientation: portrait ? "portrait" : landscape ? "landscape" : null,
 		};
 	}
+	function parseAdmonition(parts: string[]): DocNode
+	{
+		const marker = parts[0]!;
+		const type = parts[1]! as AdmonitionType;
+		const title = parts[2]!;
+		const attributes = parts[3]!;
+		const content: string[] = [];
+		const close = new RegExp(`^${marker}\\s*$`);
+		let closed = false;
+		while (lineI < lines.length)
+		{
+			const line = lines[lineI++]!;
+			if (close.test(line))
+			{
+				closed = true;
+				break;
+			}
+			content.push(line);
+		}
+		if (!closed) logwarn(`Admonition "${type}" is not closed`);
+		return { type: "admonition", admonitionType: type, title, text: content.join("\n").trim(), attributes };
+	}
 	class RuleError extends Error { };
 	function apllyRule(text: string)
 	{
@@ -172,6 +194,37 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			"img spacing after": v => doc.img.spacing.after = tryParseInt(v),
 		};
 		const reRules: { re: RegExp, n: (m: RegExpExecArray) => { rule: string, value: string }, f: (m: RegExpExecArray) => void }[] = [
+			{
+				re: /^(admonition (all|note|info|tip|warning|danger) (spacing (before|after)|padding|indent|background|color|bar_width|icon size|icon|title_color|title))(.*)/,
+				n: m => ({ rule: m[1], value: (m.at(-1) || "").trim() }), f(m)
+				{
+					const type = m[2] as AdmonitionType | "all";
+					const property = m[3];
+					const value = (m.at(-1) || "").trim();
+					const valueKeepCase = text.slice(m[1]!.length).trim();
+					const types: AdmonitionType[] = type == "all" ? ["note", "info", "tip", "warning", "danger"] : [type];
+					for (const type of types)
+					{
+						const style = doc.admonition[type];
+						if (property == "spacing before") style.spacing.before = tryParseInt(value);
+						else if (property == "spacing after") style.spacing.after = tryParseInt(value);
+						else if (property == "indent") style.indent = tryParseFloat(value);
+						else if (property == "padding")
+						{
+							const padding = value.split(" ").map(tryParseInt);
+							if (padding.length != 2) throw new RuleError("Two values are required: horizontal vertical");
+							style.padding = { top: padding[1]!, right: padding[0]!, bottom: padding[1]!, left: padding[0]! };
+						}
+						else if (property == "background") style.background = tryParseColor(value);
+						else if (property == "color") style.color = tryParseColor(value);
+						else if (property == "bar_width") style.bar_width = tryParseFloat(value);
+						else if (property == "icon size") style.icon_size = tryParseInt(value);
+						else if (property == "icon") { choices(value, "on", "off"); style.icon = value == "on"; }
+						else if (property == "title_color") { choices(value, "on", "off"); style.title_color = value == "on"; }
+						else if (property == "title") style.title = valueKeepCase;
+					}
+				},
+			},
 			{
 				re: /^(headings (h[1-6])(\+?) (size|spacing (before|after)|uppercase|indent))(.*)/,
 				n: m => ({ rule: m[1], value: (m.at(-1) || "").trim() }), f(m)
@@ -240,6 +293,12 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			if (!isFinite(date.valueOf())) throw new RuleError("Only ISO 8601 date is allowed");
 			return date;
 		}
+		function tryParseColor(v: string)
+		{
+			const color = /^#?([\da-f]{6})$/i.exec(v)?.[1];
+			if (!color) throw new RuleError("Only #RRGGBB colors are allowed");
+			return color;
+		}
 		function choices<V extends string>(v: string, ...vars: V[]): V
 		{
 			if (vars.includes(v as any)) return v as unknown as V;
@@ -269,6 +328,7 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			case "1)": doc.appendNode(parseList(text, parts, true)); break;
 			case "Img": doc.appendNode(parseImg(parts)); break;
 			case "Code": doc.appendNode(parseCode(text)); break;
+			case "Admonition": doc.appendNode(parseAdmonition(parts)); break;
 			case "Comment": skipComment(); break;
 			case "!!section": doc.appendNode(parseSection(text)); break;
 			case "!!rule": apllyRule(text); break;
@@ -291,15 +351,19 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 		}
 	}
 
+	doc.nodes.forEach(node =>
+	{
+		if (node.type == "admonition" && node.title == "\n")
+			node.title = doc.admonition[node.admonitionType].title;
+	});
 	doc.nodes = doc.nodes.filter(n => n.type != "text" || n.text != "");
 	findDocs(doc.nodes, logwarn);
 	findTables(doc.nodes);
-	findPageBreaks(doc.nodes);
 
 	return doc;
 }
 
-type Prefix = "" | "#" | "##" | "###" | "####" | "#####" | "######" | "*" | "1)" | "---" | "\t" | "Img" | "Code" | "Comment" | "!!section" | "!!rule";
+type Prefix = "" | "#" | "##" | "###" | "####" | "#####" | "######" | "*" | "1)" | "---" | "\t" | "Img" | "Code" | "Comment" | "Admonition" | "!!section" | "!!rule";
 export function parseLine(line: string): { prefix: Prefix, text: string, level: number, parts: string[] }
 {
 	let level = 0;
@@ -340,6 +404,13 @@ export function parseLine(line: string): { prefix: Prefix, text: string, level: 
 		}
 	}
 	if (prefix.startsWith("```")) return { prefix: "Code", text: line.trim().slice(3), level, parts };
+	const m_admonition = /^(:{3,})(note|info|tip|warning|danger)(?:\[([^\]]*)\])?(?:\{([^}]*)\})?\s*$/i.exec(line.trim());
+	if (m_admonition) return {
+		prefix: "Admonition",
+		text: "",
+		level,
+		parts: [m_admonition[1]!, m_admonition[2]!.toLowerCase(), m_admonition[3] ?? "\n", m_admonition[4] || ""],
+	};
 	if (prefix.startsWith("<!--")) return { prefix: "Comment", text: line.trim().slice("<!--".length).trim(), level, parts };
 	if (["#", "##", "###", "####", "#####", "######", "*", "1)", "!!section", "!!rule"].includes(prefix))
 		return { prefix: prefix as Prefix, text, level: 0, parts };
@@ -441,38 +512,13 @@ function findTables(nodes: DocNode[])
 	}
 }
 
-function findPageBreaks(nodes: DocNode[])
-{
-	const re_sep = /^\s*---+\s*$/;
-	for (let i = 0; i < nodes.length; i++)
-	{
-		const node = nodes[i]!;
-		if (node.type != "text") continue;
-		if (!node.text.includes("---")) continue;
-		const lines = node.text.split("\n");
-		const newNodes = [] as DocNode[];
-		for (const line of lines)
-		{
-			if (re_sep.test(line)) newNodes.push({ type: "pageBreak" });
-			else
-			{
-				const last = newNodes.at(-1);
-				if (last?.type == "text") last.text += "\n" + line;
-				else newNodes.push({ type: "text", text: line, noIndent: node.noIndent, noMargin: node.noMargin });
-			}
-		}
-		nodes.splice(i, 1, ...newNodes);
-		i += newNodes.length - 1;
-	}
-}
-
 export function runifyDoc(doc: Doc): RunicDoc
 {
 	function runifyNode(node: DocNode | NodeListItem)
 	{
-		if ("text" in node && node.text)
+		if ("text" in node && node.text !== undefined)
 			node.text = runifyText(node.text, doc.rainbow) as any;
-		if ("title" in node && node.title)
+		if ("title" in node && node.title !== undefined)
 			node.title = runifyText(node.title, doc.rainbow) as any;
 		if (node.type == "table")
 			node.rows.forEach(row => row.forEach(runifyNode));

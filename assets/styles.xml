@@ -1137,4 +1137,130 @@
 <w:link w:val="TableCaption"/>
 <w:rsid w:val="008D4793"/>
 </w:style>
+<w:style w:type="character" w:customStyle="1" w:styleId="w6asjqtextbase1">
+<w:name w:val="w6asjq_textbase1"/>
+<w:basedOn w:val="a3"/>
+<w:rsid w:val="00F13E8F"/>
+</w:style>
+<w:style w:type="paragraph" w:customStyle="1" w:styleId="xAdmonition">
+<w:name w:val="xAdmonition"/>
+<w:basedOn w:val="a2"/>
+<w:link w:val="xAdmonition0"/>
+<w:qFormat/>
+<w:rsid w:val="00581E5F"/>
+<w:pPr>
+<w:pBdr>
+<w:top w:val="single" w:sz="2" w:space="6" w:color="FFFFFF" w:themeColor="background1"/>
+<w:left w:val="single" w:sz="18" w:space="10" w:color="595959" w:themeColor="text1" w:themeTint="A6"/>
+<w:bottom w:val="single" w:sz="2" w:space="6" w:color="FFFFFF" w:themeColor="background1"/>
+<w:right w:val="single" w:sz="2" w:space="6" w:color="FFFFFF" w:themeColor="background1"/>
+</w:pBdr>
+<w:shd w:val="clear" w:color="auto" w:fill="F8F8F8"/>
+<w:ind w:left="709" w:firstLine="0"/>
+<w:contextualSpacing/>
+</w:pPr>
+<w:rPr>
+<w:kern w:val="0"/>
+</w:rPr>
+</w:style>
+<w:style w:type="character" w:customStyle="1" w:styleId="xAdmonition0">
+<w:name w:val="xAdmonition Знак"/>
+<w:basedOn w:val="a3"/>
+<w:link w:val="xAdmonition"/>
+<w:rsid w:val="00581E5F"/>
+<w:rPr>
+<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+<w:kern w:val="0"/>
+<w:sz w:val="28"/>
+<w:shd w:val="clear" w:color="auto" w:fill="F8F8F8"/>
+</w:rPr>
+</w:style>
+<w:style w:type="paragraph" w:customStyle="1" w:styleId="xAdmonitiontip">
+<w:name w:val="xAdmonition_tip"/>
+<w:basedOn w:val="xAdmonition"/>
+<w:link w:val="xAdmonitiontip0"/>
+<w:qFormat/>
+<w:rsid w:val="00F13E8F"/>
+<w:pPr>
+<w:pBdr>
+<w:left w:val="single" w:sz="18" w:space="10" w:color="326B46"/>
+</w:pBdr>
+<w:shd w:val="clear" w:color="auto" w:fill="F1F7F1"/>
+</w:pPr>
+</w:style>
+<w:style w:type="paragraph" w:customStyle="1" w:styleId="xAdmonitionwarning">
+<w:name w:val="xAdmonition_warning"/>
+<w:basedOn w:val="xAdmonition"/>
+<w:link w:val="xAdmonitionwarning0"/>
+<w:qFormat/>
+<w:rsid w:val="00F13E8F"/>
+<w:pPr>
+<w:pBdr>
+<w:left w:val="single" w:sz="18" w:space="10" w:color="92620F"/>
+</w:pBdr>
+<w:shd w:val="clear" w:color="auto" w:fill="FFF7E9"/>
+</w:pPr>
+</w:style>
+<w:style w:type="character" w:customStyle="1" w:styleId="xAdmonitiontip0">
+<w:name w:val="xAdmonition_tip Знак"/>
+<w:basedOn w:val="xAdmonition0"/>
+<w:link w:val="xAdmonitiontip"/>
+<w:rsid w:val="00F13E8F"/>
+<w:rPr>
+<w:shd w:val="clear" w:color="auto" w:fill="F1F7F1"/>
+</w:rPr>
+</w:style>
+<w:style w:type="paragraph" w:customStyle="1" w:styleId="xAdmonitiondanger">
+<w:name w:val="xAdmonition_danger"/>
+<w:basedOn w:val="xAdmonition"/>
+<w:link w:val="xAdmonitiondanger0"/>
+<w:qFormat/>
+<w:rsid w:val="00F13E8F"/>
+<w:pPr>
+<w:pBdr>
+<w:left w:val="single" w:sz="18" w:space="10" w:color="A53636"/>
+</w:pBdr>
+<w:shd w:val="clear" w:color="auto" w:fill="FBEFEF"/>
+</w:pPr>
+</w:style>
+<w:style w:type="character" w:customStyle="1" w:styleId="xAdmonitionwarning0">
+<w:name w:val="xAdmonition_warning Знак"/>
+<w:basedOn w:val="xAdmonition0"/>
+<w:link w:val="xAdmonitionwarning"/>
+<w:rsid w:val="00F13E8F"/>
+<w:rPr>
+<w:shd w:val="clear" w:color="auto" w:fill="FFF7E9"/>
+</w:rPr>
+</w:style>
+<w:style w:type="paragraph" w:customStyle="1" w:styleId="xAdmonitioninfo">
+<w:name w:val="xAdmonition_info"/>
+<w:basedOn w:val="xAdmonition"/>
+<w:link w:val="xAdmonitioninfo0"/>
+<w:qFormat/>
+<w:rsid w:val="00F13E8F"/>
+<w:pPr>
+<w:pBdr>
+<w:left w:val="single" w:sz="18" w:space="10" w:color="285A8A"/>
+</w:pBdr>
+<w:shd w:val="clear" w:color="auto" w:fill="F0F5FA"/>
+</w:pPr>
+</w:style>
+<w:style w:type="character" w:customStyle="1" w:styleId="xAdmonitiondanger0">
+<w:name w:val="xAdmonition_danger Знак"/>
+<w:basedOn w:val="xAdmonition0"/>
+<w:link w:val="xAdmonitiondanger"/>
+<w:rsid w:val="00F13E8F"/>
+<w:rPr>
+<w:shd w:val="clear" w:color="auto" w:fill="FBEFEF"/>
+</w:rPr>
+</w:style>
+<w:style w:type="character" w:customStyle="1" w:styleId="xAdmonitioninfo0">
+<w:name w:val="xAdmonition_info Знак"/>
+<w:basedOn w:val="xAdmonition0"/>
+<w:link w:val="xAdmonitioninfo"/>
+<w:rsid w:val="00F13E8F"/>
+<w:rPr>
+<w:shd w:val="clear" w:color="auto" w:fill="F0F5FA"/>
+</w:rPr>
+</w:style>
 </w:styles>

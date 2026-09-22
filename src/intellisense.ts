@@ -45,6 +45,31 @@ export function md_completion(document: TextDocument, position: Position): Compl
 		res.push(item);
 	}
 	const range = new Range(position, line.range.end);
+	const admonitionTypes = ["note", "info", "tip", "warning", "danger"] as const;
+	for (const type of admonitionTypes)
+	{
+		const marker = `:::${type}`;
+		const rem = { v: "" };
+		if (!completeWord(linePrefix, marker, rem)) continue;
+		const item = new CompletionItem({
+			label: `Блок ${type}`,
+			description: "Admonition",
+		}, CompletionItemKind.Snippet);
+		item.insertText = new SnippetString(`${rem.v}\n\${1:Текст блока}\n:::`);
+		item.range = range;
+		item.sortText = `admonition_${type}`;
+		item.documentation = new MarkdownString(
+			`Вставляет блок **${type}** для выделения важной информации.\n\n` +
+			`**Синтаксис:**\n\n` +
+			"```markdown\n" +
+			`${marker}[Заголовок]{атрибуты}\n` +
+			`Текст блока\n` +
+			`:::\n` +
+			"```\n\n" +
+			`Заголовок в квадратных скобках и атрибуты в фигурных скобках необязательны.`,
+		);
+		res.push(item);
+	}
 	function addHint(text: string, words: string | string[], detail: string, documentation?: string, deft?: string | (() => string), options?: string[], mod?: (item: CompletionItem) => void)
 	{
 		const rem = { v: "" };
@@ -55,7 +80,7 @@ export function md_completion(document: TextDocument, position: Position): Compl
 			for (const option of ["", ...(options || [])])
 			{
 				const w = option ? word + " " + option : word;
-				if (!completeWord(text, w, rem)) continue;
+				if (!completeWord(text, w, rem) || rem.v == "") continue;
 				f = true;
 
 				const i = text.lastIndexOf(" ");
@@ -104,14 +129,32 @@ export function md_completion(document: TextDocument, position: Position): Compl
 	if (linePrefix.startsWith("!!rule "))
 	{
 		const rule = linePrefix.slice("!!rule ".length);
-		Object.values(Rules).forEach(v =>
+		Object.values(Rules).forEach(addHintByRule);
+		function addHintByRule(r: RuleBlock | Rule) 
 		{
-			if (v.deprecated) return;
-			addHint(rule, v.keyword, v.short, v.doc, v.default, v.options, it =>
+			if (r.type == "block")
 			{
-				it.sortText = v.sortText;
+				let added = false;
+				addHint(rule, r.keyword, r.short, r.doc, undefined, r.options.map(o => o + " "), it =>
+				{
+					added = true;
+					it.sortText = r.sortText;
+					it.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+				});
+				if (added) return;
+				const option = r.options.find(o => rule.startsWith(`${r.keyword} ${o} `));
+				if (!option) return;
+				Object.values(r.rules).forEach(rl => addHintByRule({ ...rl, 
+					keyword: typeof rl.keyword == "string" ? `${r.keyword} ${option} ${rl.keyword}` : rl.keyword.map(k => `${option} ${k}`),
+				}));
+				return;
+			}
+			if (r.deprecated) return;
+			addHint(rule, r.keyword, r.short, r.doc, r.default, r.options, it =>
+			{
+				it.sortText = r.sortText;
 			});
-		});
+		}
 	}
 	if (linePrefix == "#" || linePrefix == "")
 	{
@@ -178,7 +221,7 @@ export function md_hover(document: TextDocument, position: Position): Hover | un
 	{
 		const lineNorm = line.replaceAll(/\s+/g, " ").trim().toLowerCase();
 
-		for (const { keyword, doc, hint } of Object.values(Rules))
+		for (const { keyword, doc, hint } of RulesFlat)
 		{
 			const keywords = typeof keyword == "string" ? [keyword] : keyword;
 			for (const keyword of keywords)
@@ -205,6 +248,16 @@ export function md_hover(document: TextDocument, position: Position): Hover | un
 !!section from 3
 Секция с нумерацией страниц начиная с 3
 `.trim());
+		return new Hover(content);
+	}
+	const admonition = /^\s*:::(note|info|tip|warning|danger)(?:\[([^\]]*)\])?(?:\{([^}]*)\})?\s*$/i.exec(line);
+	if (admonition)
+	{
+		const type = admonition[1]!.toLowerCase();
+		const content = new MarkdownString();
+		content.appendMarkdown(`### Admonition: \`${type}\`\n\n`);
+		content.appendMarkdown("Блок не относится к требованиям ГОСТ, но помогает оформить заметку, рекомендацию, предупреждение или важное сообщение.\n\n");
+		content.appendCodeblock(`:::${type}[Необязательный заголовок]{атрибуты}\nТекст блока\n:::`, "markdown");
 		return new Hover(content);
 	}
 	if (line.startsWith("#"))
@@ -370,9 +423,9 @@ export function addDiagnostic(context: ExtensionContext)
 
 			const text = line.text.replaceAll(/\s+/g, " ").trim().toLowerCase();
 
-			let rule = null as null | typeof Rules[string];
+			let rule = null as null | Rule;
 			let value = "";
-			for (const r of Object.values(Rules))
+			for (const r of RulesFlat)
 			{
 				const keywords = typeof r.keyword == "string" ? [r.keyword] : r.keyword;
 				for (const keyword of keywords)
@@ -517,7 +570,7 @@ function headingSelectorsHint(ln: string)
 	) + (plus ? " и последующих уровней*" : " уровня*");
 }
 
-const Rules: Record<string, {
+interface Rule {
 	keyword: string | string[],
 	type: "bool" | "int" | "float" | "string" | "toggle",
 	short: string,
@@ -528,7 +581,19 @@ const Rules: Record<string, {
 	hint?: (line: string) => string,
 	checker?: (line: string) => null | string,
 	deprecated?: boolean,
-}> = {
+}
+
+interface RuleBlock {
+	keyword: string,
+	type: "block",
+	options: string[],
+	short: string,
+	doc: string,
+	sortText?: string,
+	rules: Record<string, Rule>,
+}
+
+const Rules: Record<string, RuleBlock | Rule> = {
 	numbering_lazy: {
 		keyword: "numbering lazy",
 		type: "bool",
@@ -631,6 +696,96 @@ const Rules: Record<string, {
 		type: "bool",
 		short: "Автонумерация в формате 1.1",
 		doc: "Автонумерация в формате 1.1",
+	},
+	admonition: {
+		keyword: "admonition",
+		type: "block",
+		options: ["all", "note", "info", "tip", "warning", "danger"],
+		sortText: "xAdmonition",
+		short: "Оформление блоков Admonition",
+		doc: "Настроить оформление информационных блоков Admonition: отступы, фон, акцентный цвет, иконку и заголовок.\n\n- Синтаксис: `!!rule admonition <all|note|info|tip|warning|danger> <параметр> <значение>`\n- Пример: `!!rule admonition warning background #FFF3E0`\n- `all` — применить правило ко всем типам блоков.\n- `note`, `info`, `tip`, `warning`, `danger` — применить правило к указанному типу блока.",
+		rules: {
+			admonition_spacing_before: {
+				keyword: "spacing before",
+				type: "int",
+				short: "Отступ перед Admonition",
+				doc: "Установить интервал перед блоком Admonition.\n\n- Синтаксис: `!!rule admonition <all|note|info|tip|warning|danger> spacing before <int>`\n- Пример: `!!rule admonition warning spacing before 12`\n- Значение задаётся в пунктах.",
+				default: "8",
+			},
+			admonition_spacing_after: {
+				keyword: "spacing after",
+				type: "int",
+				short: "Отступ после Admonition",
+				doc: "Установить интервал после блока Admonition.\n\n- Синтаксис: `!!rule admonition <all|note|info|tip|warning|danger> spacing after <int>`\n- Пример: `!!rule admonition all spacing after 12`\n- Значение задаётся в пунктах.",
+				default: "8",
+			},
+			admonition_indent: {
+				keyword: "indent",
+				type: "float",
+				short: "Левый отступ Admonition",
+				doc: "Установить левый отступ блока Admonition.\n\n- Синтаксис: `!!rule admonition <all|note|info|tip|warning|danger> indent <float>`\n- Пример: `!!rule admonition note indent 1.25`\n- Значение задаётся в сантиметрах.",
+				default: "1.25",
+			},
+			admonition_padding: {
+				keyword: "padding",
+				type: "string",
+				short: "Внутренние отступы Admonition",
+				doc: "Установить внутренние отступы блока.\n\n- Синтаксис: `!!rule admonition <all|note|info|tip|warning|danger> padding <horizontal> <vertical>`\n- Пример: `!!rule admonition info padding 10 6`\n- Значения задаются в пунктах.",
+				default: "10 6",
+				checker: value => /^\d+\s+\d+$/.test(value) ? null : "два целых числа: горизонтальный и вертикальный отступ",
+			},
+			admonition_background: {
+				keyword: "background",
+				type: "string",
+				short: "Фон Admonition",
+				doc: "Установить цвет фона блока.\n\n- Синтаксис: `!!rule admonition <all|note|info|tip|warning|danger> background #RRGGBB`\n- Пример: `!!rule admonition tip background #F2F8F2`",
+				default: "#ffffff",
+				checker: value => /^#[\da-f]{6}$/i.test(value) ? null : "цвет в формате #RRGGBB",
+			},
+			admonition_color: {
+				keyword: "color",
+				type: "string",
+				short: "Акцентный цвет Admonition",
+				doc: "Установить цвет полосы, иконки и, при включённом `title_color`, заголовка.\n\n- Синтаксис: `!!rule admonition <all|note|info|tip|warning|danger> color #RRGGBB`\n- Пример: `!!rule admonition danger color #C62828`",
+				default: "#000000",
+				checker: value => /^#[\da-f]{6}$/i.test(value) ? null : "цвет в формате #RRGGBB",
+			},
+			admonition_bar_width: {
+				keyword: "bar_width",
+				type: "float",
+				short: "Толщина полосы Admonition",
+				doc: "Установить толщину цветной полосы слева.\n\n- Синтаксис: `!!rule admonition <all|note|info|tip|warning|danger> bar_width <float>`\n- Пример: `!!rule admonition warning bar_width 3`\n- Значение задаётся в пунктах.",
+				default: "2.25",
+			},
+			admonition_icon_size: {
+				keyword: "icon size",
+				type: "int",
+				short: "Размер иконки Admonition",
+				doc: "Установить размер иконки в заголовке блока.\n\n- Синтаксис: `!!rule admonition <all|note|info|tip|warning|danger> icon size <int>`\n- Пример: `!!rule admonition info icon size 14`\n- Значение задаётся в пунктах.",
+				default: "16",
+			},
+			admonition_icon: {
+				keyword: "icon",
+				type: "bool",
+				short: "Иконка Admonition",
+				doc: "Включить или выключить иконку в заголовке блока.\n\n- Синтаксис: `!!rule admonition <all|note|info|tip|warning|danger> icon <on|off>`\n- Пример: `!!rule admonition note icon off`",
+				default: "off",
+			},
+			admonition_title_color: {
+				keyword: "title_color",
+				type: "bool",
+				short: "Окрашивание заголовка Admonition",
+				doc: "Включить или выключить окрашивание заголовка акцентным цветом.\n\n- Синтаксис: `!!rule admonition <all|note|info|tip|warning|danger> title_color <on|off>`\n- Пример: `!!rule admonition info title_color off`",
+				default: "off",
+			}, 
+			admonition_title: {
+				keyword: "title",
+				type: "string",
+				short: "Заголовок Admonition по умолчанию",
+				doc: "Изменить заголовок по умолчанию для блоков указанного типа. Явный заголовок в квадратных скобках имеет приоритет. Поддерживается синтаксис Markdown.\n\nПустой заголовок скрывает заголовок вместе с иконкой. Чтобы скрыть текст заголовка, но сохранить иконку, укажите невидимый символ `&nbsp;`.\n\n- Синтаксис: `!!rule admonition <all|note|info|tip|warning|danger> title <text>`\n- Пример: `!!rule admonition note title Важно`\n- Пример с Markdown: `!!rule admonition note title **Важно**`\n- Только иконка: `!!rule admonition note title &nbsp;`",
+				default: "Заголовок *курсивом*",
+			},
+		},
 	},
 	rainbow: {
 		keyword: "rainbow",
@@ -870,6 +1025,12 @@ const Rules: Record<string, {
 		default: "off",
 	},
 };
+const RulesFlat = Object.values(Rules).map(rule => rule.type != "block" ? rule : rule.options.map(o =>
+	Object.values(rule.rules).map(r => ({
+		...r,
+		keyword: typeof r.keyword == "string" ? `${rule.keyword} ${o} ${r.keyword}` : r.keyword.map(k => o + " " + k),
+	}) as Rule),
+)).flat(2);
 const Headings: {
 	keyword: string,
 	text?: string,

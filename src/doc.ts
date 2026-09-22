@@ -60,6 +60,13 @@ export class Doc
 		spacing: { before: undefined as undefined | number, after: undefined as undefined | number },
 		text: { size: undefined as undefined | number },
 	};
+	public admonition: Record<AdmonitionType, DocAdmonitionStyle> = {
+		note: { title: "**Примечание**", indent: 1.25, spacing: { before: 8, after: 8 }, padding: { top: 6, right: 10, bottom: 6, left: 10 }, background: "f5f5f5", color: "666666", bar_width: 2.25, icon: true, icon_size: 16, title_color: true },
+		info: { title: "**Примечание**", indent: 1.25, spacing: { before: 8, after: 8 }, padding: { top: 6, right: 10, bottom: 6, left: 10 }, background: "f0f7ff", color: "1976d2", bar_width: 2.25, icon: true, icon_size: 16, title_color: true },
+		tip: { title: "**Рекомендация**", indent: 1.25, spacing: { before: 8, after: 8 }, padding: { top: 6, right: 10, bottom: 6, left: 10 }, background: "f2f8f2", color: "2e7d32", bar_width: 2.25, icon: true, icon_size: 16, title_color: true },
+		warning: { title: "**Внимание**", indent: 1.25, spacing: { before: 8, after: 8 }, padding: { top: 6, right: 10, bottom: 6, left: 10 }, background: "fff7ea", color: "b26a00", bar_width: 2.25, icon: true, icon_size: 16, title_color: true },
+		danger: { title: "**Критически важно**", indent: 1.25, spacing: { before: 8, after: 8 }, padding: { top: 6, right: 10, bottom: 6, left: 10 }, background: "fff0f0", color: "d32f2f", bar_width: 2.25, icon: true, icon_size: 16, title_color: true },
+	};
 
 	public appendText(text: string)
 	{
@@ -103,6 +110,7 @@ export function tableRow(...items: string[]): DocNode[]
 export type DocNode = (
 	NodeText | NodeTitle | NodePageBreak | NodeTableOfContents | NodeTable
 	| NodeList | NodeImage | NodeCode | NodeExternalDoc | NodeSectionBreak
+	| NodeAdmonition
 ) & { tags?: string[] };
 
 export interface Rune
@@ -212,4 +220,27 @@ export interface NodeSectionBreak
 	type: "sectionBreak",
 	pageStart: number | null,
 	orientation: DocPageOrientation | null,
+}
+
+export type AdmonitionType = "note" | "info" | "tip" | "warning" | "danger";
+export interface DocAdmonitionStyle
+{
+	title: string,
+	indent: number,
+	spacing: { before: number, after: number },
+	padding: { top: number, right: number, bottom: number, left: number },
+	background: string,
+	color: string,
+	bar_width: number,
+	icon: boolean,
+	icon_size: number,
+	title_color: boolean,
+}
+export interface NodeAdmonition
+{
+	type: "admonition",
+	admonitionType: AdmonitionType,
+	title: string,
+	text: string,
+	attributes: string,
 }

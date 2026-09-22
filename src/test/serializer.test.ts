@@ -73,6 +73,21 @@ suite("DOCX serializer", () =>
 		assert.ok(xml(zip, "word/numbering.xml").includes("w:start w:val=\"3\""));
 	}));
 
+	test("serializes admonitions as styled callout paragraphs", async () => withTempDir(async dir =>
+	{
+		const doc = fixedDoc();
+		doc.nodes = [{ type: "admonition", admonitionType: "warning", title: "Careful", text: "Keep **this** value.", attributes: ".compact" }];
+		const output = path.join(dir, "report.docx");
+		await serializeDocx(runifyDoc(doc), output, dir, assets, dir);
+		const zip = openDocx(output);
+		const document = xml(zip, "word/document.xml");
+		assert.ok(document.includes("Careful"));
+		assert.ok(document.includes("Keep"));
+		assert.ok(document.includes("xAdmonitionwarning"));
+		assert.equal(document.includes("<w:tbl>"), false);
+		assert.ok(xml(zip, "word/styles.xml").includes("xAdmonitionwarning"));
+	}));
+
 	test("rejects missing, unsupported, and path-escaping input files", async () => withTempDir(async dir =>
 	{
 		const outside = path.join(path.dirname(dir), "outside.png");

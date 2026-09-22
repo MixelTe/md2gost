@@ -34,6 +34,31 @@ suite("parser and runifier", () =>
 		assert.equal(warnings.length, 2);
 	}));
 
+	test("parses admonitions with optional titles and attributes", async () => withTempDir(async dir =>
+	{
+		const file = await writeMarkdown(dir, "!!rule admonition all padding 4 2\n!!rule admonition warning indent 0.5\n!!rule admonition warning color #B26A00\n!!rule admonition warning icon size 20\n!!rule admonition warning title_color off\n:::note\nDefault title\n:::\n\n:::warning[Careful]{.compact #warning}\n\nCustom title\n\n:::\n!!rule admonition note title Заметка");
+		const doc = await parseMD(file);
+		assert.deepEqual(doc.admonition.note.padding, { top: 2, right: 4, bottom: 2, left: 4 });
+		assert.equal(doc.admonition.warning.indent, 0.5);
+		assert.equal(doc.admonition.warning.color, "B26A00");
+		assert.equal(doc.admonition.warning.icon_size, 20);
+		assert.equal(doc.admonition.warning.title_color, false);
+		assert.deepEqual(doc.nodes[0], {
+			type: "admonition",
+			admonitionType: "note",
+			title: "Заметка",
+			text: "Default title",
+			attributes: "",
+		});
+		assert.deepEqual(doc.nodes[1], {
+			type: "admonition",
+			admonitionType: "warning",
+			title: "Careful",
+			text: "Custom title",
+			attributes: ".compact #warning",
+		});
+	}));
+
 	test("turns inline formatting, links, refs, entities and line breaks into runes", () =>
 	{
 		const doc: any = { rainbow: false, nodes: [{ type: "text", text: "**bold** *italic* `mono` [site](https://example.test) [id+1] <br> A&nbsp;&amp;" }] };
