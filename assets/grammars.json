@@ -11,7 +11,7 @@
 			"match": "\\[![a-zA-Zа-яА-ЯёЁ_\\d#]+\\s*[+\\-]?\\s*\\d*\\](?!\\()"
 		},
 		{
-			"match": "^(!!rule|!!section)(\\s+(.+))?\\s*$",
+			"match": "^(!!rule|!!section|!!header|!!footer|!!endheader|!!endfooter)(\\s+(.+))?\\s*$",
 			"captures": {
 				"1": {
 					"name": "keyword.control.magic.markdown"

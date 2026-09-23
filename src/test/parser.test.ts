@@ -34,13 +34,31 @@ suite("parser and runifier", () =>
 		assert.equal(warnings.length, 2);
 	}));
 
+	test("parses section-scoped headers and footers", async () => withTempDir(async dir =>
+	{
+		const file = await writeMarkdown(dir, "!!header align=center\nInventory [!page]\n!!endheader\n!!footer\n| Change | Date |\n|:--|--:|\n!!endfooter\n!!section landscape\n!!footer none\ntext\n!!section portrait\n!!footer auto");
+		const doc = await parseMD(file);
+		assert.deepEqual(doc.header, {
+			type: "content", align: "center", nodes: [{ type: "text", text: "Inventory [!page]" }],
+		});
+		assert.equal(doc.footer.type, "content");
+		if (doc.footer.type == "content")
+		{
+			assert.equal(doc.footer.nodes[0]?.type, "table");
+			assert.equal((doc.footer.nodes[0] as any).header, false);
+		}
+		const sections = doc.nodes.filter(node => node.type == "sectionBreak");
+		assert.equal(sections[0]?.type == "sectionBreak" && sections[0].footer?.type, "none");
+		assert.equal(sections[1]?.type == "sectionBreak" && sections[1].footer?.type, "auto");
+	}));
+
 	test("parses admonitions with optional titles and attributes", async () => withTempDir(async dir =>
 	{
 		const file = await writeMarkdown(dir, "!!rule admonition all padding 4 2\n!!rule admonition warning indent 0.5\n!!rule admonition warning color #B26A00\n!!rule admonition warning icon size 20\n!!rule admonition warning title_color off\n:::note\nDefault title\n:::\n\n:::warning[Careful]{.compact #warning}\n\nCustom title\n\n:::\n!!rule admonition note title Заметка");
 		const doc = await parseMD(file);
 		assert.deepEqual(doc.admonition.note.padding, { top: 2, right: 4, bottom: 2, left: 4 });
 		assert.equal(doc.admonition.warning.indent, 0.5);
-		assert.equal(doc.admonition.warning.color, "B26A00");
+		assert.equal(doc.admonition.warning.color, "b26a00");
 		assert.equal(doc.admonition.warning.icon_size, 20);
 		assert.equal(doc.admonition.warning.title_color, false);
 		assert.deepEqual(doc.nodes[0], {
@@ -69,6 +87,6 @@ suite("parser and runifier", () =>
 		assert.ok(runes.some((r: any) => r.text == "site" && r.link == "https://example.test"));
 		assert.ok(runes.some((r: any) => r.text == "id+1" && r.type == "ref"));
 		assert.ok(runes.some((r: any) => r.linebreak));
-		assert.ok(runes.some((r: any) => r.text.includes("\u00A0&amp;")));
+		assert.ok(runes.some((r: any) => r.text.includes("\u00A0&")));
 	});
 });

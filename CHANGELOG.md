@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- configurable `!!header` and `!!footer` blocks with text, Markdown tables, alignment, editor IntelliSense, and enhanced Markdown preview
+- text var `[!page]` for current page
 - unit and integration tests for Markdown parsing, enrichment, numbering, DOCX serialization, and utility functions
 - Admonition blocks (`:::note`, `:::info`, `:::tip`, `:::warning`, and `:::danger`) with optional titles and attributes
 - `!!rule admonition` directives to configure block spacing, indentation, padding, colours, left border, icons, and default titles

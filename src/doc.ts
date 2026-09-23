@@ -1,6 +1,8 @@
 export class Doc
 {
 	public nodes: DocNode[] = [];
+	public header: DocHeaderFooter = { type: "none" };
+	public footer: DocHeaderFooter = { type: "auto" };
 	public rainbow = false;
 	public numberingLazy = false;
 	public numberingSections = false;
@@ -132,7 +134,7 @@ export type Runify<T> = {
 };
 
 export type RunicDoc = {
-	[key in keyof Doc]: key extends "nodes" ? Runify<Doc[key]> : Doc[key];
+	[key in keyof Doc]: key extends "nodes" | "header" | "footer" ? Runify<Doc[key]> : Doc[key];
 };
 export type RunicNode = Runify<DocNode>;
 
@@ -170,6 +172,7 @@ export interface NodeTable
 	title?: string,
 	rows: DocNode[][],
 	align: NodeTableAlign[],
+	header?: boolean,
 	normalFontSize?: boolean,
 }
 
@@ -220,7 +223,13 @@ export interface NodeSectionBreak
 	type: "sectionBreak",
 	pageStart: number | null,
 	orientation: DocPageOrientation | null,
+	header?: DocHeaderFooter,
+	footer?: DocHeaderFooter,
 }
+
+export type DocHeaderFooter =
+	| { type: "auto" | "none" }
+	| { type: "content", align: "left" | "center" | "right", nodes: (NodeText | NodeTable)[] };
 
 export type AdmonitionType = "note" | "info" | "tip" | "warning" | "danger";
 export interface DocAdmonitionStyle

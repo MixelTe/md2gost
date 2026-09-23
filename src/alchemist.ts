@@ -99,6 +99,12 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 		}
 	});
 
+	for (const value of [doc.header, doc.footer, ...doc.nodes.filter(node => node.type == "sectionBreak").flatMap(node => [node.header, node.footer])])
+	{
+		if (value?.type != "content") continue;
+		value.nodes.forEach(materializeNode);
+	}
+
 	const sourcesCount = crystallizeSources();
 
 	vals["codes"]?.forEach(f => f(counter.codes));

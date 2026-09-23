@@ -32,7 +32,15 @@ export async function md_formatter(document: TextDocument, range: Range, options
 
 		if (gmd)
 		{
-			if ((text.startsWith("!!rule") || text.startsWith("!!section")))
+			const keywords = [
+				"!!rule",
+				"!!section",
+				"!!header",
+				"!!footer",
+				"!!endheader",
+				"!!endfooter",
+			];
+			if (keywords.some(kw => text.startsWith(kw)))
 			{
 				applyNewText(text.trim().split(/\s+/).join(" "));
 				continue;

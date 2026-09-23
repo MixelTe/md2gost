@@ -91,7 +91,7 @@ export function md_completion(document: TextDocument, position: Position): Compl
 				}, CompletionItemKind.Constant);
 				item.insertText = rem.v;
 				if (!option && deft) item.insertText += " " + (typeof deft == "function" ? deft() : deft);
-				item.sortText = item.insertText;
+				item.sortText = w;
 				item.range = range;
 				item.documentation = new MarkdownString(documentation || detail);
 				mod?.(item);
@@ -166,6 +166,38 @@ export function md_completion(document: TextDocument, position: Position): Compl
 				if (v.text) it.insertText += v.text;
 			});
 		});
+	}
+	
+	addHint(linePrefix, "!!header ", "Верхний колонтитул", undefined, undefined, undefined, item =>
+	{
+		item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+		item.sortText = "!header";
+	});
+	addHint(linePrefix, "!!footer ", "Нижний колонтитул", undefined, undefined, undefined, item =>
+	{
+		item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
+		item.sortText = "!footer";
+	});
+	if (linePrefix.startsWith("!!header")) addHeaderFooterHint("header");
+	if (linePrefix.startsWith("!!footer")) addHeaderFooterHint("footer");
+	if (linePrefix.startsWith("!!")) addHint(linePrefix, `!!endheader`, "Конец верхнего колонтитула", undefined, undefined, undefined, it => it.sortText = "!headerend");
+	if (linePrefix.startsWith("!!")) addHint(linePrefix, `!!endfooter`, "Конец нижнего колонтитула", undefined, undefined, undefined, it => it.sortText = "!footerend");
+	function addHeaderFooterHint(kind: "header" | "footer")
+	{
+		const label = kind == "header" ? "Верхний колонтитул" : "Нижний колонтитул";
+		addHint(linePrefix, `!!${kind} none`, `Отключить ${label.toLowerCase()}`, undefined);
+		if (kind == "footer")
+			addHint(linePrefix, `!!footer auto`, "Автоматический номер страницы", undefined);
+		const rem = { v: "" };
+		if (completeWord(linePrefix, `!!${kind} `, rem)) 
+		{
+			const item = new CompletionItem({ label, description: `!!${kind}` }, CompletionItemKind.Snippet);
+			item.insertText = new SnippetString(`${rem.v}align=\${1|left,center,right|}\n\${2:Текст колонтитула}\n!!end${kind}`);
+			item.range = range;
+			item.sortText = `!${kind}`;
+			item.documentation = new MarkdownString(`Настраивает ${kind == "header" ? "верхний" : "нижний"} колонтитул текущего раздела.`);
+			res.push(item);
+		}
 	}
 	return res;
 }
@@ -248,6 +280,15 @@ export function md_hover(document: TextDocument, position: Position): Hover | un
 !!section from 3
 Секция с нумерацией страниц начиная с 3
 `.trim());
+		return new Hover(content);
+	}
+	if (/^!!(header|footer|endheader|endfooter)\b/i.test(line.trim()))
+	{
+		const content = new MarkdownString();
+		content.appendMarkdown("### Колонтитулы\n\n");
+		content.appendMarkdown("Настраивают верхний или нижний колонтитул текущего раздела. Новый раздел создаётся только директивой `!!section`.\n\n");
+		content.appendCodeblock("!!header align=center\nИнвентарный номер:<br>567.0004653-03 98 01-07\n!!endheader\n\n!!footer\n| № изменения: ____ | Стр. [!page] из [!pages] |\n|:--|--:|\n!!endfooter", "markdown");
+		content.appendMarkdown("\n\nДля отключения используйте `!!header none` или `!!footer none`; `!!footer auto` возвращает автоматический номер страницы.");
 		return new Hover(content);
 	}
 	const admonition = /^\s*:::(note|info|tip|warning|danger)(?:\[([^\]]*)\])?(?:\{([^}]*)\})?\s*$/i.exec(line);

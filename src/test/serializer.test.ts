@@ -73,6 +73,35 @@ suite("DOCX serializer", () =>
 		assert.ok(xml(zip, "word/numbering.xml").includes("w:start w:val=\"3\""));
 	}));
 
+	test("serializes text and table headers and footers", async () => withTempDir(async dir =>
+	{
+		const doc = fixedDoc();
+		doc.header = { type: "content", align: "center", nodes: [{ type: "text", text: "Inventory [!page]" }] };
+		doc.footer = {
+			type: "content",
+			align: "left",
+			nodes: [{
+				type: "table",
+				header: false,
+				align: ["l", "r"],
+				rows: [[{ type: "text", text: "Change" }, { type: "text", text: "[!page] / [!pages]" }]],
+			}],
+		};
+		doc.nodes = [{ type: "text", text: "body" }, { type: "sectionBreak", pageStart: -1, orientation: null, footer: { type: "auto" } }, { type: "text", text: "unpaged" }];
+		const output = path.join(dir, "report.docx");
+		await serializeDocx(runifyDoc(doc), output, dir, assets, dir);
+		const zip = openDocx(output);
+		const headerName = Object.keys(zip.files).find(name => name.startsWith("word/header"))!;
+		const footerNames = Object.keys(zip.files).filter(name => name.startsWith("word/footer"));
+		assert.ok(xml(zip, headerName).includes("Inventory"));
+		const customFooter = footerNames.map(name => xml(zip, name)).find(content => content.includes("Change"))!;
+		assert.ok(customFooter.includes("w:tbl"));
+		assert.equal(customFooter.includes("w:tblHeader"), false);
+		assert.ok(customFooter.includes("PAGE"));
+		assert.ok(customFooter.includes("NUMPAGES"));
+		assert.ok(footerNames.map(name => xml(zip, name)).some(content => !content.includes("Change") && !content.includes("PAGE")));
+	}));
+
 	test("serializes admonitions as styled callout paragraphs", async () => withTempDir(async dir =>
 	{
 		const doc = fixedDoc();

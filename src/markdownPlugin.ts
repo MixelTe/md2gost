@@ -642,6 +642,67 @@ export function markdownItPlugin(md: MarkdownIt)
 					`<div class="md2gost_admonition_content">${md.render(token.content, env)}</div>` +
 				`</div>`;
 	};
+
+	md.block.ruler.before("fence", "md2gost_header_footer", (state, startLine, endLine, silent) =>
+	{
+		if (!isGostyMd(state.env) || state.sCount[startLine] - state.blkIndent >= 4) return false;
+
+		const start = state.bMarks[startLine] + state.tShift[startLine];
+		const opening = state.src.slice(start, state.eMarks[startLine]);
+		const match = /^!!(header|footer)(?:\s+(align=(left|center|right)))?\s*$/i.exec(opening);
+		const simple = /^!!(header|footer)\s+(none|auto)\s*$/i.exec(opening);
+		if (!match && !simple) return false;
+		if (simple && (simple[1]!.toLowerCase() != "footer" && simple[2]!.toLowerCase() == "auto")) return false;
+		if (silent) return true;
+
+		const kind = (match?.[1] || simple?.[1])!.toLowerCase() as "header" | "footer";
+		if (simple)
+		{
+			const token = state.push("md2gost_header_footer", "div", 0);
+			token.block = true;
+			token.map = [startLine, startLine + 1];
+			token.meta = { kind, state: simple[2]!.toLowerCase() };
+			state.line = startLine + 1;
+			return true;
+		}
+
+		const end = `!!end${kind}`;
+		let nextLine = startLine + 1;
+		while (nextLine < endLine)
+		{
+			const lineStart = state.bMarks[nextLine] + state.tShift[nextLine];
+			const line = state.src.slice(lineStart, state.eMarks[nextLine]);
+			if (line.trim().toLowerCase() == end) break;
+			nextLine++;
+		}
+		if (nextLine >= endLine) return false;
+		const token = state.push("md2gost_header_footer", "div", 0);
+		token.block = true;
+		token.map = [startLine, nextLine + 1];
+		token.meta = { kind, align: match?.[3] || "left" };
+		token.content = Array.from({ length: nextLine - startLine - 1 }, (_, index) =>
+			state.src.slice(state.bMarks[startLine + index + 1], state.eMarks[startLine + index + 1]),
+		).join("\n").trim();
+		state.line = nextLine + 1;
+		return true;
+	}, { alt: ["paragraph"] });
+
+	md.renderer.rules.md2gost_header_footer = (tokens, idx, options, env) =>
+	{
+		const token = tokens[idx]!;
+		const { kind, align, state } = token.meta as { kind: "header" | "footer", align?: "left" | "center" | "right", state?: "none" | "auto" };
+		const label = kind == "header" ? "Верхний колонтитул" : "Нижний колонтитул";
+		if (state)
+		{
+			const stateLabel = state == "auto" ? "автоматический" : "отключён";
+			return `<div class="md2gost_header_footer md2gost_header_footer_state"><span>${label}</span><span>${stateLabel}</span></div>`;
+		}
+		const alignLabel = align == "center" ? "по центру" : align == "right" ? "справа" : "слева";
+		return `<div class="md2gost_header_footer md2gost_${kind}">` +
+			`<div class="md2gost_header_footer_title"><span>${label}</span><span>${alignLabel}</span></div>` +
+			`<div class="md2gost_header_footer_content md2gost_align_${align}">${md.render(token.content, env)}</div>` +
+			`</div>`;
+	};
 }
 
 

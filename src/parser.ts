@@ -1,4 +1,4 @@
-import { Doc, tableRow, type AdmonitionType, type DocNode, type NodeListItem, type NodeTable, type Rune, type RunicDoc } from "./doc";
+import { Doc, tableRow, type AdmonitionType, type DocHeaderFooter, type DocNode, type NodeListItem, type NodeTable, type Rune, type RunicDoc } from "./doc";
 import fs from "fs/promises";
 import { hslToHex, toCapitalCase, trimEnd, trimStart, type JSONValue } from "./utils";
 import path from "path";
@@ -114,6 +114,65 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			pageStart: unpaged ? -1 : isFinite(num) ? num : null,
 			orientation: portrait ? "portrait" : landscape ? "landscape" : null,
 		};
+	}
+	function parseHeaderFooter(kind: "header" | "footer", options: string)
+	{
+		const value = options.trim().toLowerCase();
+		if (value == "none" || (kind == "footer" && value == "auto"))
+		{
+			setHeaderFooter(kind, { type: value });
+			return;
+		}
+		const align = (value == "" ? "left" : /^align=(left|center|right)$/.exec(value)?.[1]) as "left" | "center" | "right" | undefined;
+		if (!align)
+		{
+			logwarn(`Wrong ${kind} options: "${options}". Expected align=left, align=center, align=right${kind == "footer" ? ", none, or auto" : ", or none"}.`);
+			return;
+		}
+		const end = `!!end${kind}`;
+		const content: string[] = [];
+		const initialLineI = lineI;
+		let closed = false;
+		while (lineI < lines.length)
+		{
+			const line = lines[lineI++]!;
+			if (line.trim().toLowerCase() == end)
+			{
+				closed = true;
+				break;
+			}
+			content.push(line);
+		}
+		if (!closed)
+		{
+			lineI = initialLineI;
+			logwarn(`${kind} block is not closed`);
+			return;
+		}
+		const nodes: DocNode[] = [{ type: "text", text: content.join("\n").trim() }];
+		findTables(nodes, false);
+		const supported = nodes.filter((node): node is Extract<DocNode, { type: "text" | "table" }> => node.type == "text" || node.type == "table");
+		if (supported.length != 1 || supported[0]?.type == "text" && !supported[0].text)
+		{
+			logwarn(`${kind} must contain text or one table`);
+			return;
+		}
+		setHeaderFooter(kind, { type: "content", align, nodes: supported });
+
+		function setHeaderFooter(kind: "header" | "footer", value: DocHeaderFooter)
+		{
+			let section: DocNode | undefined;
+			for (let i = doc.nodes.length - 1; i >= 0; i--)
+			{
+				if (doc.nodes[i]?.type == "sectionBreak")
+				{
+					section = doc.nodes[i];
+					break;
+				}
+			}
+			if (section?.type == "sectionBreak") section[kind] = value;
+			else doc[kind] = value;
+		}
 	}
 	function parseAdmonition(parts: string[]): DocNode
 	{
@@ -331,6 +390,8 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			case "Admonition": doc.appendNode(parseAdmonition(parts)); break;
 			case "Comment": skipComment(); break;
 			case "!!section": doc.appendNode(parseSection(text)); break;
+			case "!!header": parseHeaderFooter("header", text); break;
+			case "!!footer": parseHeaderFooter("footer", text); break;
 			case "!!rule": apllyRule(text); break;
 			case "---": doc.appendNode({ type: "pageBreak" }); break;
 
@@ -363,7 +424,7 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 	return doc;
 }
 
-type Prefix = "" | "#" | "##" | "###" | "####" | "#####" | "######" | "*" | "1)" | "---" | "\t" | "Img" | "Code" | "Comment" | "Admonition" | "!!section" | "!!rule";
+type Prefix = "" | "#" | "##" | "###" | "####" | "#####" | "######" | "*" | "1)" | "---" | "\t" | "Img" | "Code" | "Comment" | "Admonition" | "!!section" | "!!header" | "!!footer" | "!!rule";
 export function parseLine(line: string): { prefix: Prefix, text: string, level: number, parts: string[] }
 {
 	let level = 0;
@@ -412,7 +473,7 @@ export function parseLine(line: string): { prefix: Prefix, text: string, level: 
 		parts: [m_admonition[1]!, m_admonition[2]!.toLowerCase(), m_admonition[3] ?? "\n", m_admonition[4] || ""],
 	};
 	if (prefix.startsWith("<!--")) return { prefix: "Comment", text: line.trim().slice("<!--".length).trim(), level, parts };
-	if (["#", "##", "###", "####", "#####", "######", "*", "1)", "!!section", "!!rule"].includes(prefix))
+	if (["#", "##", "###", "####", "#####", "######", "*", "1)", "!!section", "!!header", "!!footer", "!!rule"].includes(prefix))
 		return { prefix: prefix as Prefix, text, level: 0, parts };
 	return { prefix: "", text: line.trim(), level, parts };
 }
@@ -462,7 +523,7 @@ export function stringifyDict(dict: Record<string, JSONValue>)
 	return r;
 }
 
-function findTables(nodes: DocNode[])
+function findTables(nodes: DocNode[], hasHeader: boolean = true)
 {
 	const re_sep = /^(\s*:?-+:?\s*(?<!\\)\|)+\s*:?-+:?\s*$/;
 	const re_sep_oneCol = /^\|\s*:?-+:?\s*\|$/;
@@ -496,7 +557,7 @@ function findTables(nodes: DocNode[])
 			while (row.length < cols.length) row.push("");
 			rows.push(tableRow(...row));
 		}
-		const table: NodeTable = { type: "table", align, rows };
+		const table: NodeTable = { type: "table", align, rows, ...(hasHeader ? {} : { header: false }) };
 		nodes.splice(i, 1, table);
 		const prev = nodes[i - 1];
 		if (offset > 0)
@@ -524,9 +585,22 @@ export function runifyDoc(doc: Doc): RunicDoc
 			node.rows.forEach(row => row.forEach(runifyNode));
 		if (node.type == "list")
 			node.items.forEach(runifyNode);
+		if (node.type == "sectionBreak")
+		{
+			runifyHeaderFooter(node.header);
+			runifyHeaderFooter(node.footer);
+		}
 	}
 	doc.nodes.forEach(runifyNode);
+	runifyHeaderFooter(doc.header);
+	runifyHeaderFooter(doc.footer);
 	return doc as RunicDoc;
+
+	function runifyHeaderFooter(value: DocHeaderFooter | undefined)
+	{
+		if (value?.type != "content") return;
+		value.nodes.forEach(runifyNode);
+	}
 }
 
 let rainbowI = 0;
@@ -616,6 +690,7 @@ function replaceAmpCodes(text: string)
 {
 	const codes = {
 		"&#124;": "|",
+		"&amp;": "&",
 		"&shy;": "\u00AD",
 		"&laquo;": "«",
 		"&raquo;": "»",

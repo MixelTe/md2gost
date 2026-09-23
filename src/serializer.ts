@@ -1,6 +1,6 @@
 import * as fs from "fs";
-import { AlignmentType, Document, Footer, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark, XmlComponent, LineRuleType, PageOrientation } from "docx";
-import type { AdmonitionType, DocPageOrientation, NodeList, NodeListMark, Rune, RunicDoc, RunicNode, Runify } from "./doc";
+import { AlignmentType, BorderStyle, Document, Footer, Header, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark, XmlComponent, LineRuleType, PageOrientation } from "docx";
+import type { AdmonitionType, DocHeaderFooter, DocPageOrientation, NodeList, NodeListMark, NodeTable, Rune, RunicDoc, RunicNode, Runify } from "./doc";
 import { randomInt, realpathAllowMissing, type DeepWriteable } from "./utils";
 import { imageSize } from "image-size";
 import path from "path";
@@ -37,22 +37,37 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 	const sections: ISectionOptions[] = [];
 	const numbering: DeepWriteable<INumberingOptions>["config"] = [];
 
+	interface Section {
+		displayPageNum: boolean;
+		orientation: DocPageOrientation;
+		pageStart: number | null;
+		header: Runify<DocHeaderFooter>;
+		footer: Runify<DocHeaderFooter>;
+		nodes: RunicNode[];
+	}
 	const docSections = (function splitSections()
 	{
-		const sections: { displayPageNum: boolean, orientation: DocPageOrientation, pageStart: number | null, nodes: RunicNode[] }[]
-			= [{ displayPageNum: true, orientation: "portrait", pageStart: 1, nodes: [] }];
+		let header = doc.header;
+		let footer = doc.footer;
+		const sections: Section[] = [{ displayPageNum: true, orientation: "portrait", pageStart: 1, header, footer, nodes: [] }];
 		for (let j = 0; j < doc.nodes.length; j++)
 		{
 			const node = doc.nodes[j]!;
 			if (node.type == "sectionBreak")
+			{
+				header = node.header ?? header;
+				footer = node.footer ?? footer;
 				sections.push({
 					displayPageNum: node.pageStart == null
 						? sections.at(-1)?.displayPageNum ?? true
 						: node.pageStart >= 0,
 					orientation: node.orientation || sections.at(-1)?.orientation || "portrait",
 					pageStart: node.pageStart,
+					header,
+					footer,
 					nodes: [],
 				});
+			}
 			else
 				sections.at(-1)?.nodes.push(node);
 		}
@@ -62,6 +77,8 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 	for (const section of docSections)
 	{
 		const children: FileChild[] = [];
+		const header = renderHeaderFooter(section.header, false);
+		const footer = renderHeaderFooter(section.footer, true);
 		sections.push({
 			children,
 			properties: {
@@ -89,21 +106,62 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					},
 				},
 			},
-			footers: {
-				default: new Footer({
-					children: [
-						new Paragraph({
-							alignment: AlignmentType.CENTER,
-							children: [new TextRun({
-								children: section.displayPageNum ? [PageNumber.CURRENT] : [],
-							})],
-							indent: { firstLine: 0 },
-							spacing: { line: 240 },
-						}),
-					],
-				}),
-			},
+			...(header ? { headers: { default: header as Header } } : {}),
+			...(footer ? { footers: { default: footer as Footer } } : {}),
 		});
+
+		function renderHeaderFooter(value: Runify<DocHeaderFooter>, isFooter: boolean): Header | Footer | undefined
+		{
+			if (value.type == "none") return undefined;
+			if (value.type == "auto")
+			{
+				if (!isFooter) return undefined;
+				return new Footer({
+					children: [new Paragraph({
+						alignment: AlignmentType.CENTER,
+						children: [new TextRun({ children: section.displayPageNum ? [PageNumber.CURRENT] : [] })],
+						indent: { firstLine: 0 },
+						spacing: { after: 0, line: 240 },
+					})],
+				});
+			}
+			const contentValue = value as Runify<Extract<DocHeaderFooter, { type: "content" }>>;
+			const content = contentValue.nodes.flatMap(node =>
+			{
+				if (node.type == "text") return [new Paragraph({
+					children: renderText(node.text),
+					alignment: contentValue.align,
+					indent: { firstLine: 0 },
+					spacing: isFooter ? { after: 0, line: 240 } : { line: 240 },
+				})];
+				return [renderHeaderFooterTable(node)];
+			});
+			return isFooter ? new Footer({ children: content }) : new Header({ children: content });
+		}
+		function renderHeaderFooterTable(node: Runify<NodeTable>): Table
+		{
+			return new Table({
+				width: { type: "dxa", size: convertMillimetersToTwip(section.orientation == "landscape" ? 255.8 : 168.8) },
+				borders: {
+					top: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
+					bottom: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
+					left: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
+					right: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
+					insideHorizontal: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
+					insideVertical: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
+				},
+				rows: node.rows.map(row => new TableRow({
+					children: row.map((cell, colI) => new TableCell({
+						children: cell.type == "text" ? [new Paragraph({
+							children: renderText(cell.text),
+							alignment: node.align[colI] == "c" ? "center" : node.align[colI] == "r" ? "right" : "left",
+							indent: { firstLine: 0 },
+							spacing: { after: 0, line: 240 * 1.25 },
+						})] : [],
+					})),
+				})),
+			});
+		}
 
 		function renderNode(node: RunicNode, prevChild?: FileChild, prevNode?: RunicNode): FileChild | FileChild[]
 		{
@@ -175,8 +233,8 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					}
 					return items;
 				case "table":
-					if (node.rows[0] && doc.table.heading.style == "italic") node.rows[0].forEach(n => n.type == "text" ? n.text.forEach(r => r.italic = true) : 0);
-					if (node.rows[0] && doc.table.heading.style == "bold") node.rows[0].forEach(n => n.type == "text" ? n.text.forEach(r => r.bold = true) : 0);
+					if (node.header !== false && node.rows[0] && doc.table.heading.style == "italic") node.rows[0].forEach(n => n.type == "text" ? n.text.forEach(r => r.italic = true) : 0);
+					if (node.header !== false && node.rows[0] && doc.table.heading.style == "bold") node.rows[0].forEach(n => n.type == "text" ? n.text.forEach(r => r.bold = true) : 0);
 					const spacingInner = Math.max(doc.table.spacing.after ?? doc.text.spacing.after, doc.table.spacing.before ?? 0);
 					return [
 						...(node.title ? [
@@ -199,13 +257,13 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 								size: convertMillimetersToTwip(section.orientation === "landscape" ? 255.8 : 168.8),
 							},
 							rows: node.rows.map((row, rowI) => new TableRow({
-								tableHeader: rowI == 0,
+								tableHeader: node.header !== false && rowI == 0,
 								cantSplit: true,
 								children: row.map((item, colI) => new TableCell({
 									children: item.type != "text" ? renderNodeL(item) : [
 										new Paragraph({
 											children: renderText(item.text, node.normalFontSize ? undefined : doc.table.text.size),
-											alignment: rowI == 0 ? doc.table.heading.align :
+											alignment: node.header !== false && rowI == 0 ? doc.table.heading.align :
 												node.align[colI] == "c" ? "center"
 													: node.align[colI] == "r" ? "right" : "left",
 											indent: { firstLine: 0 },
@@ -400,7 +458,12 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					new ExternalHyperlink({ children, link: rune.link });
 			}
 			let children: null | (string | XmlComponent)[] = null;
-			if (rune.type == "val" && rune.text == "pages")
+			if (rune.type == "val" && rune.text == "page")
+			{
+				rune.type = "text";
+				children = [PageNumber.CURRENT];
+			}
+			else if (rune.type == "val" && rune.text == "pages")
 			{
 				rune.type = "text";
 				children = doc.totalPagesOffset == 0 ? [PageNumber.TOTAL_PAGES] : [
