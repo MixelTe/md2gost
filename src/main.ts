@@ -406,21 +406,61 @@ function runUnoScript(progress: (inc: number, msg: string) => void, log: (msg: s
 
 async function mergePDFs(files: string[], fout: string, doc?: Doc, signal?: AbortSignal)
 {
-	const mergedPdf = await PDFDocument.create();
+	const pdfFiles = files.filter(file => file.toLowerCase().endsWith(".pdf"));
+	let mainPdfIndex = -1;
+	for (let i = 0; i < pdfFiles.length; i++)
+	{
+		if (pdfFiles[i].toLowerCase().endsWith("-main.pdf"))
+			mainPdfIndex = i;
+	}
+
+	let mergedPdf: PDFDocument;
+	if (mainPdfIndex >= 0)
+	{
+		const bytes = await fs.readFile(pdfFiles[mainPdfIndex], { signal });
+		mergedPdf = await PDFDocument.load(bytes);
+		signal?.throwIfAborted();
+
+		let insertionIndex = 0;
+		for (const file of pdfFiles.slice(0, mainPdfIndex))
+		{
+			const sourceBytes = await fs.readFile(file, { signal });
+			const pdf = await PDFDocument.load(sourceBytes);
+			signal?.throwIfAborted();
+			const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+			for (const page of pages)
+				mergedPdf.insertPage(insertionIndex++, page);
+			signal?.throwIfAborted();
+		}
+
+		for (const file of pdfFiles.slice(mainPdfIndex + 1))
+		{
+			const sourceBytes = await fs.readFile(file, { signal });
+			const pdf = await PDFDocument.load(sourceBytes);
+			signal?.throwIfAborted();
+			const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+			pages.forEach(page => mergedPdf.addPage(page));
+			signal?.throwIfAborted();
+		}
+	}
+	else
+	{
+		mergedPdf = await PDFDocument.create();
+		for (const file of pdfFiles)
+		{
+			const bytes = await fs.readFile(file, { signal });
+			const pdf = await PDFDocument.load(bytes);
+			signal?.throwIfAborted();
+			const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+			pages.forEach(page => mergedPdf.addPage(page));
+			signal?.throwIfAborted();
+		}
+	}
+
 	if (doc?.title) mergedPdf.setTitle(doc.title, { showInWindowTitleBar: true });
 	if (doc?.author) mergedPdf.setAuthor(doc.author);
 	if (doc?.ctime) mergedPdf.setCreationDate(doc.ctime);
 	if (doc?.mtime) mergedPdf.setModificationDate(doc.mtime);
-	for (const file of files)
-	{
-		if (!file.endsWith(".pdf")) continue;
-		const bytes = await fs.readFile(file, { signal });
-		const pdf = await PDFDocument.load(bytes);
-		signal?.throwIfAborted();
-		const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-		pages.forEach(page => mergedPdf.addPage(page));
-		signal?.throwIfAborted();
-	}
 	const pdfBytes = await mergedPdf.save();
 	await fs.writeFile(fout, pdfBytes, { signal });
 }

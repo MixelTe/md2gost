@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Deprecated
 ### Removed
 ### Fixed
+- preserve table-of-contents links when PDF inserts precede the table of contents
 - fix the ESM package entry point and asset directory resolution
 - fix test compilation producing declarations instead of executable JavaScript
 - prevent conflicting output paths from overwriting or deleting rendered PDF files
