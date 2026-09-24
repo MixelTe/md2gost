@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- LaTeX formula support: inline `$…$` and display `$$…$$` formulas export as editable Office Math (OMML), with identifiers, automatic and manual numbering, formula references, `[!formulas]`, preview placeholders, and configurable `!!rule formula spacing before|after` offsets
 - configurable `!!header` and `!!footer` blocks with text, Markdown tables, alignment, editor IntelliSense, and enhanced Markdown preview
 - text var `[!page]` for current page
 - unit and integration tests for Markdown parsing, enrichment, numbering, DOCX serialization, and utility functions

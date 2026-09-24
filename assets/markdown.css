@@ -223,3 +223,21 @@ body.vscode-dark .md2gost_admonition_danger {
 	--md2gost-admonition-color: #ff8d8d;
 	--md2gost-admonition-background: #4a2020;
 }
+.md2gost_formula {
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
+	align-items: center;
+	margin: 0.5em 0;
+}
+.md2gost_formula_math {
+	grid-column: 2;
+}
+.md2gost_formula_math > :first-child,
+.md2gost_formula_math > :last-child {
+	margin-top: 0;
+	margin-bottom: 0;
+}
+.md2gost_formula_number {
+	grid-column: 3;
+	justify-self: end;
+}

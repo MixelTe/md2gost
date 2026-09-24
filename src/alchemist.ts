@@ -9,9 +9,11 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 		codesAll: 0,
 		imgsAll: 0,
 		tablesAll: 0,
+		formulasAll: 0,
 		codes: 0,
 		imgs: 0,
 		tables: 0,
+		formulas: 0,
 		titles: { l1: 0, l2: 0, l3: 0, l4: 0, l5: 0 },
 	};
 	type TtKeys = keyof typeof counter["titles"];
@@ -37,12 +39,14 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 			let codes = counter.codes;
 			let imgs = counter.imgs;
 			let tables = counter.tables;
+			let formulas = counter.formulas;
 			for (let j = i; j < doc.nodes.length && nextNum < 0; j++)
 			{
 				const n = doc.nodes[j];
 				if (n.type == "code") nextNum = codes + 1;
 				if (n.type == "image") nextNum = imgs + 1;
 				if (n.type == "table") nextNum = tables + 1;
+				if (n.type == "math") nextNum = formulas + 1;
 				if (n.type == "title" && n.level == 1 && doc.numberingSections)
 				{
 					const num = getTitleNum(n);
@@ -51,6 +55,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 					codes = 0;
 					imgs = 0;
 					tables = 0;
+					formulas = 0;
 				}
 			}
 			nextPrefix = l1 > 0 && doc.numberingSections ? `${l1}.` : "";
@@ -80,6 +85,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 					counter.codes = 0;
 					counter.imgs = 0;
 					counter.tables = 0;
+					counter.formulas = 0;
 				}
 				prefix = doc.numberingSections ? `${counter.titles.l1}.` : "";
 				if (appendix) prefix = APPENDIX_NAME[counter.titles.l1 - 1] + ".";
@@ -88,11 +94,12 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 
 		materializeNode(node);
 
-		if (node.type == "code" || node.type == "image" || node.type == "table")
+		if (node.type == "code" || node.type == "image" || node.type == "table" || node.type == "math")
 		{
 			if (node.type == "code") { counter.codes++; counter.codesAll++; }
 			if (node.type == "image") { counter.imgs++; counter.imgsAll++; }
 			if (node.type == "table" && !node.tags?.includes("definitions_table")) { counter.tables++; counter.tablesAll++; }
+			if (node.type == "math") { counter.formulas++; counter.formulasAll++; }
 			prevNum = nextNum;
 			prevPrefix = prefix;
 			nextNum = -1;
@@ -107,9 +114,10 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 
 	const sourcesCount = crystallizeSources();
 
-	vals["codes"]?.forEach(f => f(counter.codes));
-	vals["imgs"]?.forEach(f => f(counter.imgs));
-	vals["tables"]?.forEach(f => f(counter.tables));
+	vals["codes"]?.forEach(f => f(counter.codesAll));
+	vals["imgs"]?.forEach(f => f(counter.imgsAll));
+	vals["tables"]?.forEach(f => f(counter.tablesAll));
+	vals["formulas"]?.forEach(f => f(counter.formulasAll));
 	vals["sources"]?.forEach(f => f(sourcesCount));
 
 	Object.entries(named).forEach(([k, v]) =>
@@ -215,12 +223,13 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 				rune.text = repeat(node.level, i => counter.titles[`l${i + 1}` as TtKeys]).join(".");
 				return;
 			}
-			if (type == "code" || type == "image" || type == "table")
+			if (type == "code" || type == "image" || type == "table" || type == "math")
 			{
 				let { num, text } =
 					type == "code" ? { num: counter.codes, text: "Листинг" } :
 						type == "image" ? { num: counter.imgs, text: "Рисунок" } :
-							type == "table" ? { num: counter.tables, text: "Таблица" } : (() => { throw new Error("switch default"); })();
+							type == "table" ? { num: counter.tables, text: "Таблица" } :
+								type == "math" ? { num: counter.formulas, text: "" } : (() => { (type satisfies never); throw new Error("switch default"); })();
 				num++;
 				if (doc.numberingAutoprefix)
 				{
@@ -237,10 +246,11 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 						nextRune.text = toCapitalCase(nextRune.text);
 					}
 					text = `${text} ${prefix}${num} \u2013 `;
+					if (type == "math") text = `${prefix}${num}`;
 				}
 				else text = `${prefix}${num}`;
 				if (v instanceof Array) v.forEach(fn => fn.f(num, prefix));
-				else if (v && tag != "#") logwarn(`id [${tag}] ${type == "code" ? "листинга" : type == "image" ? "рисунка" : type == "table" ? "таблицы" : ""} уже занято чем-то другим`);
+				else if (v && tag != "#") logwarn(`id [${tag}] ${type == "code" ? "листинга" : type == "image" ? "рисунка" : type == "table" ? "таблицы" : type == "math" ? "формулы" : ""} уже занято чем-то другим`);
 				named[tag] = { n: num, prefix };
 				rune.type = "text";
 				rune.text = text;
@@ -322,6 +332,7 @@ function addLazyNumbering(doc: RunicDoc)
 {
 	doc.nodes.forEach(node =>
 	{
+		if (node.type == "math" && !node.title) node.title = [{ text: "(", type: "text" }, { text: "#", type: "ref" }, { text: ")", type: "text" }];
 		const runes = (node.type == "code" || node.type == "table") ? node.title
 			: node.type == "image" ? node.text : null;
 		if (!runes) return;

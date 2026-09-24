@@ -89,4 +89,32 @@ suite("parser and runifier", () =>
 		assert.ok(runes.some((r: any) => r.linebreak));
 		assert.ok(runes.some((r: any) => r.text.includes("\u00A0&")));
 	});
+
+	test("recognizes display formulas and preserves inline formulas outside code", async () => withTempDir(async dir =>
+	{
+		const warnings: string[] = [];
+		const file = await writeMarkdown(dir, "[energy]\n$$\nE = mc^2\n$$\n\nA $x_i$ and \\$ with `$code$`.\n\n```\n$literal$\n```\n\n$$\nunclosed");
+		const doc = await parseMD(file, warning => warnings.push(warning));
+		assert.deepEqual(doc.nodes.find(node => node.type == "math"), { type: "math", latex: "E = mc^2", title: "([energy])" });
+		const runic = runifyDoc(doc);
+		const text = runic.nodes.find(node => node.type == "text") as any;
+		assert.ok(text.text.some((r: any) => r.type == "math" && r.text == "x_i"));
+		assert.ok(text.text.some((r: any) => r.mono && r.text == "$code$"));
+		assert.ok(text.text.some((r: any) => r.text.includes("$")));
+		assert.equal((runic.nodes.find(node => node.type == "code") as any).code, "$literal$");
+		assert.ok(warnings.some(warning => warning.includes("not closed")));
+	}));
+
+	test("parses a manual formula number without creating an id", async () => withTempDir(async dir =>
+	{
+		const formula = (await parseMD(await writeMarkdown(dir, "(А.1)\n$$\nE = mc^2\n$$"))).nodes[0] as any;
+		assert.equal(formula.type, "math");
+		assert.equal(formula.title, "(А.1)");
+	}));
+
+	test("applies formula spacing rules", async () => withTempDir(async dir =>
+	{
+		const doc = await parseMD(await writeMarkdown(dir, "!!rule formula spacing before 6\n!!rule formula spacing after 4"));
+		assert.deepEqual(doc.formula.spacing, { before: 6, after: 4 });
+	}));
 });

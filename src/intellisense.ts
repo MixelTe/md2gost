@@ -1042,6 +1042,20 @@ const Rules: Record<string, RuleBlock | Rule> = {
 		doc: "Установить отступ после абзаца подписи к рисунку\n\n- Синтаксис: `!!rule img spacing after <int>`\n- Пример: `!!rule img spacing after 6`\n- По умолчанию: наследуется от текста",
 		default: "6",
 	},
+	formula_spacing_before: {
+		keyword: "formula spacing before",
+		type: "int",
+		short: "Интервал перед формулой",
+		doc: "Установить отступ перед блочной формулой\n\n- Синтаксис: `!!rule formula spacing before <int>`\n- Пример: `!!rule formula spacing before 6`\n- По умолчанию: `8` пт",
+		default: "8",
+	},
+	formula_spacing_after: {
+		keyword: "formula spacing after",
+		type: "int",
+		short: "Интервал после формулы",
+		doc: "Установить отступ после блочной формулы\n\n- Синтаксис: `!!rule formula spacing after <int>`\n- Пример: `!!rule formula spacing after 6`\n- По умолчанию: `8` пт",
+		default: "8",
+	},
 	list_unordered_style: {
 		keyword: "list unordered style",
 		type: "string",

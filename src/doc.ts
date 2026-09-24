@@ -62,6 +62,9 @@ export class Doc
 		spacing: { before: undefined as undefined | number, after: undefined as undefined | number },
 		text: { size: undefined as undefined | number },
 	};
+	public formula = {
+		spacing: { before: 8, after: 8 },
+	};
 	public admonition: Record<AdmonitionType, DocAdmonitionStyle> = {
 		note: { title: "**Примечание**", indent: 1.25, spacing: { before: 8, after: 8 }, padding: { top: 6, right: 10, bottom: 6, left: 10 }, background: "f5f5f5", color: "666666", bar_width: 2.25, icon: true, icon_size: 16, title_color: true },
 		info: { title: "**Примечание**", indent: 1.25, spacing: { before: 8, after: 8 }, padding: { top: 6, right: 10, bottom: 6, left: 10 }, background: "f0f7ff", color: "1976d2", bar_width: 2.25, icon: true, icon_size: 16, title_color: true },
@@ -112,13 +115,13 @@ export function tableRow(...items: string[]): DocNode[]
 export type DocNode = (
 	NodeText | NodeTitle | NodePageBreak | NodeTableOfContents | NodeTable
 	| NodeList | NodeImage | NodeCode | NodeExternalDoc | NodeSectionBreak
-	| NodeAdmonition
+	| NodeAdmonition | NodeMath
 ) & { tags?: string[] };
 
 export interface Rune
 {
 	text: string,
-	type?: "text" | "ref" | "val",
+	type?: "text" | "ref" | "val" | "math",
 	anchor?: string,
 	link?: string,
 	color?: string,
@@ -208,6 +211,13 @@ export interface NodeCode
 	lang: string,
 	title?: string,
 	code: string,
+}
+
+export interface NodeMath
+{
+	type: "math",
+	latex: string,
+	title?: string,
 }
 
 export interface NodeExternalDoc

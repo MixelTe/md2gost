@@ -89,7 +89,7 @@ export async function render({
 	signal?.throwIfAborted();
 	progress(10, phrase_renderDocx());
 	loginfo("[!3] Serializing to docx");
-	await serializeDocx(runicDoc, ftmp, fdir, assets, checkFilesIsInsidePath);
+	await serializeDocx(runicDoc, ftmp, fdir, assets, checkFilesIsInsidePath, logwarn);
 
 	let willRunMacros = !disableMacros && (renderPDF || hasReasonForRunningMacros(runicDoc));
 

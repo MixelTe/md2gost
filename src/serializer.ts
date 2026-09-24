@@ -1,9 +1,10 @@
 import * as fs from "fs";
-import { AlignmentType, BorderStyle, Document, Footer, Header, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark, XmlComponent, LineRuleType, PageOrientation } from "docx";
+import { AlignmentType, BorderStyle, Document, Footer, Header, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark, XmlComponent, LineRuleType, PageOrientation, VerticalAlignTable } from "docx";
 import type { AdmonitionType, DocHeaderFooter, DocPageOrientation, NodeList, NodeListMark, NodeTable, Rune, RunicDoc, RunicNode, Runify } from "./doc";
 import { randomInt, realpathAllowMissing, type DeepWriteable } from "./utils";
 import { imageSize } from "image-size";
 import path from "path";
+import { latexToOmml } from "./math";
 
 const STYLE_list = "afc";
 const STYLE_table_title = "TableCaption";
@@ -12,7 +13,7 @@ const STYLE_code = "ListingCode";
 
 type IListItem = DeepWriteable<INumberingOptions>["config"][number];
 type IListItemLevel = IListItem["levels"][number];
-export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string, assets: string, checkFilesIsInsidePath: string | false)
+export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string, assets: string, checkFilesIsInsidePath: string | false, logwarn: (msg: string) => void = console.warn)
 {
 	const allowedRealPath = checkFilesIsInsidePath === false ? false
 		: realpathAllowMissing(checkFilesIsInsidePath === "" ? workdir : checkFilesIsInsidePath);
@@ -350,6 +351,35 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 								}))
 						),
 					];
+				case "math":
+					const formulaWidth = convertMillimetersToTwip(section.orientation == "landscape" ? 255.8 : 168.8);
+					const number = node.title?.map(rune => rune.text).join("") || "";
+					const sideWidth = Math.max(
+						convertMillimetersToTwip(5),
+						Math.ceil(estimateNumberWidthPt(number, doc.text.size) * 20 + convertMillimetersToTwip(3)),
+					);
+					return [
+						...(prevNode?.type != "math" ? [
+							new Paragraph({ indent: { firstLine: 0 }, spacing: { line: 20, after: doc.formula.spacing.before * 20 } }),
+						] : []),
+						new Table({
+							width: { type: "dxa", size: formulaWidth },
+							borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } },
+							rows: [new TableRow({
+								children: [
+									new TableCell({ width: { type: "dxa", size: sideWidth }, children: [new Paragraph({ indent: { firstLine: 0 }, spacing: { after: 0 } })] }),
+									new TableCell({ children: [
+										new Paragraph({ alignment: AlignmentType.CENTER, indent: { firstLine: 0 }, spacing: { after: 0 }, children: [renderMath(node.latex, true)] })],
+									}),
+									new TableCell({ width: { type: "dxa", size: sideWidth }, children: [new Paragraph({ indent: { firstLine: 0 }, spacing: { line: 240, after: 0 },
+										alignment: AlignmentType.RIGHT,
+										children: renderText(node.title || []),
+									})], verticalAlign: VerticalAlignTable.CENTER }),
+								],
+							})],
+						}),
+						new Paragraph({ indent: { firstLine: 0 }, spacing: { line: 20, after: doc.formula.spacing.after * 20 } }),
+					];
 				case "externalDoc":
 					const doc_path = getPath(node.path);
 					if (!fs.existsSync(doc_path))
@@ -457,6 +487,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					new InternalHyperlink({ children, anchor: rune.link.slice(1) }) :
 					new ExternalHyperlink({ children, link: rune.link });
 			}
+			if (rune.type == "math") return renderMath(rune.text, false) as ParagraphChild;
 			let children: null | (string | XmlComponent)[] = null;
 			if (rune.type == "val" && rune.text == "page")
 			{
@@ -571,6 +602,15 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					lang: type == 1 ? "en" : type == 2 ? "ru" : undefined,
 				};
 			}
+		}
+	}
+	function renderMath(latex: string, para: boolean): XmlComponent
+	{
+		try { return latexToOmml(latex, para); }
+		catch (error)
+		{
+			logwarn(`Formula was not converted: ${error instanceof Error ? error.message : String(error)}`);
+			return new TextRun(latex) as unknown as XmlComponent;
 		}
 	}
 }
@@ -935,6 +975,18 @@ function renderCodeHighlighting(code: string, lang: string)
 		return paragraphs;
 	}
 
+}
+
+function estimateNumberWidthPt(text: string, fontSizePt: number): number
+{
+	const charWidths: Record<string, number> = {
+		".": 0.25, ",": 0.25, "-": 0.333, "(": 0.333, ")": 0.333, " ": 0.25,
+		"a": 0.444, "b": 0.5, "c": 0.444, "d": 0.5, "e": 0.444,
+		"A": 0.722, "B": 0.667, "C": 0.667, "D": 0.722, "E": 0.611,
+		"а": 0.5, "б": 0.5, "в": 0.5, "г": 0.5, "д": 0.5,
+		"А": 0.722, "Б": 0.667, "В": 0.667, "Г": 0.611, "Д": 0.722,
+	};
+	return [...text].reduce((width, char) => width + (charWidths[char] ?? 0.5) * fontSizePt, 0);
 }
 
 function genXml_app({ totalTime }: { totalTime?: number })

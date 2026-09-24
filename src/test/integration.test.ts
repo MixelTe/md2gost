@@ -28,4 +28,34 @@ suite("main logic integration", () =>
 		assert.ok(xml(zip, "word/document.xml").includes("Рисунок 1"));
 		assert.ok(xml(zip, "docProps/core.xml").includes("Integration"));
 	}));
+
+	test("numbers formulas and writes native OMML", async () => withTempDir(async dir =>
+	{
+		const input = await writeMarkdown(dir, "!!rule numbering sections\n# One\nSee [energy]. [!formulas]\n[energy]\n$$\n\\frac{a_1}{\\sqrt{b}} = \\sum_{i=1}^{n} x_i\n$$");
+		const runic = runifyDoc(await parseMD(input));
+		alchemist(runic);
+		assert.equal((runic.nodes.find(node => node.type == "math") as any).title.map((r: any) => r.text).join(""), "(1.1)");
+		assert.ok((runic.nodes.find(node => node.type == "text") as any).text.some((r: any) => r.text == "1.1"));
+		assert.ok((runic.nodes.find(node => node.type == "text") as any).text.some((r: any) => r.text == "1"));
+		const output = path.join(dir, "formulas.docx");
+		await serializeDocx(runic, output, dir, path.resolve(process.cwd(), "assets"), dir);
+		const document = xml(openDocx(output), "word/document.xml");
+		assert.ok(document.includes("m:oMath"));
+		assert.ok(document.includes("m:f"));
+		assert.ok(document.includes("m:rad"));
+		assert.ok(document.includes("1.1"));
+	}));
+
+	test("uses a manually supplied formula number without changing counter behavior", async () => withTempDir(async dir =>
+	{
+		const input = await writeMarkdown(dir, "(А.1)\n$$\nE = mc^2\n$$\n[id]\n$$\nx = 1\n$$");
+		const runic = runifyDoc(await parseMD(input));
+		alchemist(runic);
+		const formulas = runic.nodes.filter(node => node.type == "math") as any[];
+		assert.equal(formulas[0].title.map((r: any) => r.text).join(""), "(А.1)");
+		assert.equal(formulas[1].title.map((r: any) => r.text).join(""), "(2)");
+		const output = path.join(dir, "manual-formula-number.docx");
+		await serializeDocx(runic, output, dir, path.resolve(process.cwd(), "assets"), dir);
+		assert.ok(xml(openDocx(output), "word/document.xml").includes("(А.1)"));
+	}));
 });

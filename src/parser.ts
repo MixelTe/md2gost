@@ -251,6 +251,8 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			"img text size": v => doc.img.text.size = tryParseInt(v),
 			"img spacing before": v => doc.img.spacing.before = tryParseInt(v),
 			"img spacing after": v => doc.img.spacing.after = tryParseInt(v),
+			"formula spacing before": v => doc.formula.spacing.before = tryParseInt(v),
+			"formula spacing after": v => doc.formula.spacing.after = tryParseInt(v),
 		};
 		const reRules: { re: RegExp, n: (m: RegExpExecArray) => { rule: string, value: string }, f: (m: RegExpExecArray) => void }[] = [
 			{
@@ -419,6 +421,7 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 	});
 	doc.nodes = doc.nodes.filter(n => n.type != "text" || n.text != "");
 	findDocs(doc.nodes, logwarn);
+	findMath(doc.nodes, logwarn); // keep before table recognition so `|` inside LaTex is inert.
 	findTables(doc.nodes);
 
 	return doc;
@@ -573,6 +576,47 @@ function findTables(nodes: DocNode[], hasHeader: boolean = true)
 	}
 }
 
+function findMath(nodes: DocNode[], logwarn: (msg: string) => void = console.warn)
+{
+	for (let i = 0; i < nodes.length; i++)
+	{
+		const node = nodes[i];
+		if (node?.type != "text") continue;
+		const lines = node.text.split("\n");
+		const replacement: DocNode[] = [];
+		let text: string[] = [];
+		const flush = () => { if (text.length) replacement.push({ type: "text", text: text.join("\n") }); text = []; };
+		for (let line = 0; line < lines.length; line++)
+		{
+			if (lines[line]?.trim() != "$$") { text.push(lines[line]!); continue; }
+			const start = line;
+			let end = line + 1;
+			while (end < lines.length && lines[end]?.trim() != "$$") end++;
+			if (end >= lines.length)
+			{
+				logwarn("Formula is not closed");
+				text.push(lines[line]!);
+				continue;
+			}
+			let id: string | undefined;
+			let manualNumber: string | undefined;
+			const idMatch = /^\s*(\[[a-zA-Zа-яА-ЯёЁ_\d#]+\])\s*$/.exec(text.at(-1) || "");
+			const numberMatch = /^\s*(\(.*\))\s*$/.exec(text.at(-1) || "");
+			if (idMatch) { id = `(${idMatch[1]})`; text.pop(); }
+			else if (numberMatch) { manualNumber = numberMatch[1]; text.pop(); }
+			flush();
+			replacement.push({
+				type: "math",
+				latex: lines.slice(start + 1, end).join("\n").trim(),
+				title: id ?? manualNumber,
+			});
+			line = end;
+		}
+		flush();
+		if (replacement.some(n => n.type == "math")) { nodes.splice(i, 1, ...replacement); i += replacement.length - 1; }
+	}
+}
+
 export function runifyDoc(doc: Doc): RunicDoc
 {
 	function runifyNode(node: DocNode | NodeListItem)
@@ -606,6 +650,30 @@ export function runifyDoc(doc: Doc): RunicDoc
 let rainbowI = 0;
 function runifyText(text: string, rainbow = false): Rune[]
 {
+	const formulas: string[] = [];
+	let preprocessedText = "";
+	for (let i = 0; i < text.length;)
+	{
+		const fence = text.startsWith("```", i) ? "```" : text[i] == "`" ? "`" : "";
+		if (fence)
+		{
+			const end = text.indexOf(fence, i + fence.length);
+			const next = end < 0 ? text.length : end + fence.length;
+			preprocessedText += text.slice(i, next); i = next; continue;
+		}
+		if (text[i] == "$" && text[i - 1] != "\\" && text[i + 1] != "$")
+		{
+			let end = i + 1;
+			while (end < text.length && text[end] != "\n" && (text[end] != "$" || text[end - 1] == "\\")) end++;
+			if (end < text.length && text[end] == "$")
+			{
+				formulas.push(text.slice(i + 1, end));
+				preprocessedText += `\uE000${formulas.length - 1}\uE001`; i = end + 1; continue;
+			}
+		}
+		preprocessedText += text[i++];
+	}
+	text = preprocessedText.replaceAll("\\$", "$");
 	return replaceAmpCodes(text).replaceAll("\n", "&Tab;\n").replaceAll(/\s*<br>\s*/g, "\n")
 		.replaceAll("—", "-").replaceAll(" - ", " \u2013 ")
 		.replaceAll(/(?<=[\p{L}\p{N}])-(?=[\p{L}\p{N}])/gu, "\u2011")
@@ -657,6 +725,11 @@ function runifyText(text: string, rainbow = false): Rune[]
 			linebreak: i == 0 && rune.linebreak,
 			mono: (i % 2 == 1 && i != arr.length - 1),
 		}) as Rune)).flat()
+		.map(rune => rune.mono ? [rune] : rune.text.split(/(\uE000\d+\uE001)/).map((p, i) =>
+		{
+			const m = /^\uE000(\d+)\uE001$/.exec(p);
+			return { ...rune, text: m ? formulas[parseInt(m[1]!)]! : p, type: m ? "math" : rune.type, linebreak: i == 0 && rune.linebreak } as Rune;
+		})).flat()
 		.map(rune => rune.link ? [rune] : rune.text.split(/(\[!?[a-zA-Zа-яА-ЯёЁ_\d#]+\s*[+-]?\s*\d*\])/g).map((p, i) =>
 		{
 			const m = /\[(!?([a-zA-Zа-яА-ЯёЁ_\d]+|#)(\s*[-+]\s*\d+)?)\]/.exec(p);

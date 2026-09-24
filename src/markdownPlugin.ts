@@ -421,8 +421,11 @@ export function markdownItPlugin(md: MarkdownIt)
 			md2gost_sections: sections && sections[1].trim().toLowerCase() != "off",
 		};
 
-		state.tokens.forEach((token, i) =>
+		const formulaLabel = /^\s*\[(?:[a-zA-Zа-яА-ЯёЁ_\d]+|#)\]\s*$/;
+		const formulaManualNumber = /^\s*\((.*)\)\s*$/;
+		for (let i = 0; i < state.tokens.length; i++)
 		{
+			const token = state.tokens[i];
 			if (token.type == "inline")
 				token.children?.forEach(child =>
 				{
@@ -448,7 +451,27 @@ export function markdownItPlugin(md: MarkdownIt)
 					}
 				}
 			}
-		});
+			if (token.type == "math_block")
+			{
+				const open = state.tokens[i - 3];
+				const inline = state.tokens[i - 2];
+				const close = state.tokens[i - 1];
+				const prevTokensArePara = open?.type == "paragraph_open" && inline?.type == "inline" && close?.type == "paragraph_close";
+				const hasId = prevTokensArePara && formulaLabel.test(inline.content);
+				const manualNumber = prevTokensArePara ? formulaManualNumber.exec(inline.content)?.[1] : undefined;
+				if (hasId || manualNumber !== undefined)
+				{
+					i -= 3;
+					state.tokens.splice(i, 3);
+				}
+				token.type = "md2gost_formula_block";
+				token.meta = {
+					...token.meta,
+					...settings,
+					md2gost_formula_number: manualNumber !== undefined ? `(${manualNumber})` : settings.md2gost_lazy || hasId ? (settings.md2gost_sections ? "(#.#)" : "(#)") : "",
+				};
+			}
+		};
 
 		return true;
 	});
@@ -510,6 +533,14 @@ export function markdownItPlugin(md: MarkdownIt)
 		if (titleStart > 0) token.info = info.slice(0, titleStart);
 		const code = defaultFenceRender(tokens, idx, options, env, self);
 		return `<div><div>${title}</div>${code}</div>`;
+	};
+
+	md.renderer.rules.md2gost_formula_block = (tokens, idx, options, env, self) =>
+	{
+		const renderMath = md.renderer.rules.math_block;
+		const formula = renderMath ? renderMath(tokens, idx, options, env, self) : md.utils.escapeHtml(tokens[idx]?.content || "");
+		const number = md.utils.escapeHtml(tokens[idx]?.meta?.md2gost_formula_number || "");
+		return `<div class="md2gost_formula"><div class="md2gost_formula_math">${formula}</div><span class="md2gost_formula_number">${number}</span></div>\n`;
 	};
 
 	function addNumberToTitle(meta: any, type: "image" | "fence" | "table", title: string | false | undefined, html = true)
