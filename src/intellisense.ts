@@ -548,6 +548,58 @@ export function addDiagnostic(context: ExtensionContext)
 	);
 }
 
+export class RenderDiagnosticCollection
+{
+	private readonly collection = languages.createDiagnosticCollection("md2gost-render");
+
+	constructor(context: ExtensionContext)
+	{
+		context.subscriptions.push(this.collection, workspace.onDidChangeTextDocument(event => this.handleDocumentChange(event)));
+	}
+
+	public clear(document: TextDocument)
+	{
+		this.collection.delete(document.uri);
+	}
+
+	public addWarning(document: TextDocument, warning: string)
+	{
+		const match = /^Line (\d+):\s*(.*)$/i.exec(warning);
+		if (!match) return;
+		const line = parseInt(match[1]!) - 1;
+		if (line < 0 || line >= document.lineCount) return;
+		const diagnostic = new Diagnostic(document.lineAt(line).range, match[2]!, DiagnosticSeverity.Warning);
+		diagnostic.source = "md2gost render";
+		this.collection.set(document.uri, [...(this.collection.get(document.uri) || []), diagnostic]);
+	}
+
+	private handleDocumentChange(event: { document: TextDocument, contentChanges: readonly { range: Range, text: string }[] })
+	{
+		let diagnostics = this.collection.get(event.document.uri);
+		if (!diagnostics?.length) return;
+
+		for (const change of event.contentChanges)
+		{
+			const startLine = change.range.start.line;
+			const endLine = change.range.end.line;
+			const lineDelta = change.text.split("\n").length - 1 - (endLine - startLine);
+			diagnostics = diagnostics.flatMap(diagnostic =>
+			{
+				const line = diagnostic.range.start.line;
+				const isUnclosedBlock = /(?:Formula|Admonition|header|footer).*not closed/i.test(diagnostic.message);
+				if (line >= startLine && line <= endLine || isUnclosedBlock && line <= startLine)
+					return [];
+				if (line <= endLine || lineDelta == 0) return [diagnostic];
+				const range = new Range(line + lineDelta, diagnostic.range.start.character, diagnostic.range.end.line + lineDelta, diagnostic.range.end.character);
+				const shifted = new Diagnostic(range, diagnostic.message, diagnostic.severity);
+				shifted.source = diagnostic.source;
+				return [shifted];
+			});
+		}
+		this.collection.set(event.document.uri, diagnostics);
+	}
+}
+
 export class FileDropProvider implements DocumentDropEditProvider
 {
 	async provideDocumentDropEdits(

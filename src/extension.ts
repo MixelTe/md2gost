@@ -5,7 +5,7 @@ import { openFile, trimStart } from "./utils";
 import fs from "fs";
 import path from "path";
 import { md_formatter } from "./formatter";
-import { addDiagnostic, FileDropProvider, md_completion, md_hover, md_inlineCompletion, md_inlineHints, TableCodeLensProvider } from "./intellisense";
+import { addDiagnostic, FileDropProvider, md_completion, md_hover, md_inlineCompletion, md_inlineHints, RenderDiagnosticCollection, TableCodeLensProvider } from "./intellisense";
 import { onEditTableCommand } from "./tableEditor";
 import { markdownItPlugin } from "./markdownPlugin";
 
@@ -13,23 +13,24 @@ export function activate(context: vscode.ExtensionContext)
 {
 	const logger = vscode.window.createOutputChannel("md2gost", { log: true });
 	const assets = context.asAbsolutePath("assets");
+	const renderDiagnostics = new RenderDiagnosticCollection(context);
 	showChangelogOnUpdate(context);
 	showFormatterSuggest();
 	addDiagnostic(context);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("md2gost.render_pdf",
-			(uri: vscode.Uri) => onRenderCommand(assets, logger, uri, true),
+			(uri: vscode.Uri) => onRenderCommand(assets, logger, renderDiagnostics, uri, true),
 		),
 	);
 	context.subscriptions.push(
 		vscode.commands.registerCommand("md2gost.render_docx",
-			(uri: vscode.Uri) => onRenderCommand(assets, logger, uri, false),
+			(uri: vscode.Uri) => onRenderCommand(assets, logger, renderDiagnostics, uri, false),
 		),
 	);
 	context.subscriptions.push(
 		vscode.commands.registerCommand("md2gost.render_docx_fast",
-			(uri: vscode.Uri) => onRenderCommand(assets, logger, uri, false, true),
+			(uri: vscode.Uri) => onRenderCommand(assets, logger, renderDiagnostics, uri, false, true),
 		),
 	);
 	const _onEditTableCommand = onEditTableCommand(context);
@@ -112,7 +113,7 @@ export function activate(context: vscode.ExtensionContext)
 export function deactivate() { }
 
 let rendering = false;
-function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, uri: vscode.Uri, renderPDF: boolean, disableMacros = false)
+function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, renderDiagnostics: RenderDiagnosticCollection, uri: vscode.Uri | undefined, renderPDF: boolean, disableMacros = false)
 {
 	if (rendering)
 	{
@@ -128,6 +129,8 @@ function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, uri: v
 
 	const config = vscode.workspace.getConfiguration("md2gost");
 	const removeIntermediateDocx = config.get<boolean>("render.removeIntermediateDocx", false);
+	const sourceDocument = vscode.workspace.textDocuments.find(document => document.uri.fsPath == file);
+	if (sourceDocument) renderDiagnostics.clear(sourceDocument);
 
 	vscode.window.withProgress({
 		location: vscode.ProgressLocation.Notification,
@@ -150,7 +153,11 @@ function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, uri: v
 				disableMacros,
 				checkFilesIsInsidePath: false,
 				loginfo: logger.info,
-				logwarn: msg => vscode.window.showWarningMessage(msg),
+				logwarn: msg =>
+				{
+					vscode.window.showWarningMessage(msg);
+					if (sourceDocument) renderDiagnostics.addWarning(sourceDocument, msg);
+				},
 				logPS: msg => logger.info(`PS: ${msg.trimEnd()}`),
 				logPSError: msg => logger.error(`PS ERROR: ${msg.trimEnd()}`),
 				signal: controller.signal,

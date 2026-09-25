@@ -14,6 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Admonition blocks (`:::note`, `:::info`, `:::tip`, `:::warning`, and `:::danger`) with optional titles and attributes
 - `!!rule admonition` directives to configure block spacing, indentation, padding, colours, left border, icons, and default titles
 - Admonition support in editor completion, diagnostics, hover help, syntax highlighting, and enhanced Markdown preview
+- source-line tracking for parsed Markdown nodes, so parser and conversion warnings and errors identify their originating line
+- render warnings with a `Line N:` prefix are highlighted in the editor and shown in the Problems panel; affected diagnostics are cleared as the document is edited
 ### Changed
 - reject output file extensions that do not match the selected render format
 ### Deprecated
