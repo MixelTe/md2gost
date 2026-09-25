@@ -130,7 +130,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 			const content = contentValue.nodes.flatMap(node =>
 			{
 				if (node.type == "text") return [new Paragraph({
-					children: renderText(node.text),
+					children: renderText(node.text, node.sourceLine),
 					alignment: contentValue.align,
 					indent: { firstLine: 0 },
 					spacing: isFooter ? { after: 0, line: 240 } : { line: 240 },
@@ -154,7 +154,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 				rows: node.rows.map(row => new TableRow({
 					children: row.map((cell, colI) => new TableCell({
 						children: cell.type == "text" ? [new Paragraph({
-							children: renderText(cell.text),
+							children: renderText(cell.text, node.sourceLine),
 							alignment: node.align[colI] == "c" ? "center" : node.align[colI] == "r" ? "right" : "left",
 							indent: { firstLine: 0 },
 							spacing: { after: 0, line: 240 * 1.25 },
@@ -170,7 +170,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 			{
 				case "text":
 					return new Paragraph({
-						children: renderText(node.text),
+						children: renderText(node.text, node.sourceLine),
 						indent: node.noIndent ? { firstLine: 0 } : {},
 						...(node.center ? { alignment: "center", indent: { firstLine: 0 } } : {}),
 						spacing: {
@@ -184,7 +184,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					const styles = doc.headings[`h${level}`];
 					if (styles.uppercase) node.text.forEach(r => r.text = r.text.toUpperCase());
 					return new Paragraph({
-						children: renderText(node.text, styles.size),
+						children: renderText(node.text, node.sourceLine, styles.size),
 						style: `${node.level}`,
 						...(node.center ? { alignment: "center", indent: { firstLine: 0 } } : {}),
 						...(!node.center && node.level != 0 && styles.indent_full ? { indent: { firstLine: 0, left: convertMillimetersToTwip(12.5) } } : {}),
@@ -221,7 +221,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 							else
 							{
 								items.push(new Paragraph({
-									children: renderText(item.text),
+									children: renderText(item.text, item.sourceLine ?? node.sourceLine),
 									style: STYLE_list,
 									numbering: { reference: id, level },
 									spacing: {
@@ -240,7 +240,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					return [
 						...(node.title ? [
 							new Paragraph({
-								children: renderText(node.title, doc.table.title.size),
+								children: renderText(node.title, node.sourceLine, doc.table.title.size),
 								style: STYLE_table_title,
 								...(prevChild instanceof Table ? { spacing: { before: spacingInner * 20 } } :
 									doc.table.spacing.before ? { spacing: { before: doc.table.spacing.before * 20 } } : {}
@@ -263,7 +263,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 								children: row.map((item, colI) => new TableCell({
 									children: item.type != "text" ? renderNodeL(item) : [
 										new Paragraph({
-											children: renderText(item.text, node.normalFontSize ? undefined : doc.table.text.size),
+											children: renderText(item.text, node.sourceLine, node.normalFontSize ? undefined : doc.table.text.size),
 											alignment: node.header !== false && rowI == 0 ? doc.table.heading.align :
 												node.align[colI] == "c" ? "center"
 													: node.align[colI] == "r" ? "right" : "left",
@@ -321,7 +321,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						}),
 						...(node.text ? [
 							new Paragraph({
-								children: renderText(node.text, doc.img.text.size),
+								children: renderText(node.text, node.sourceLine, doc.img.text.size),
 								alignment: "center",
 								indent: { firstLine: 0 },
 								spacing: {
@@ -336,7 +336,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					return [
 						...(node.title ? [
 							new Paragraph({
-								children: renderText(node.title, doc.code.title.size),
+								children: renderText(node.title, node.sourceLine, doc.code.title.size),
 								style: STYLE_code_title,
 							}),
 						] : prevNode?.type == "code" ? [
@@ -369,11 +369,11 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 								children: [
 									new TableCell({ width: { type: "dxa", size: sideWidth }, children: [new Paragraph({ indent: { firstLine: 0 }, spacing: { after: 0 } })] }),
 									new TableCell({ children: [
-										new Paragraph({ alignment: AlignmentType.CENTER, indent: { firstLine: 0 }, spacing: { after: 0 }, children: [renderMath(node.latex, true)] })],
+										new Paragraph({ alignment: AlignmentType.CENTER, indent: { firstLine: 0 }, spacing: { after: 0 }, children: [renderMath(node.latex, true, node.sourceLine)] })],
 									}),
 									new TableCell({ width: { type: "dxa", size: sideWidth }, children: [new Paragraph({ indent: { firstLine: 0 }, spacing: { line: 240, after: 0 },
 										alignment: AlignmentType.RIGHT,
-										children: renderText(node.title || []),
+										children: renderText(node.title || [], node.sourceLine),
 									})], verticalAlign: VerticalAlignTable.CENTER }),
 								],
 							})],
@@ -411,14 +411,14 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						...(showTitle ? [
 							new Paragraph({
 								style,
-								children: [...icon, ...renderText(admonition.title_color ? node.title.map(r =>  ({ ...r, color })) : node.title)],
+								children: [...icon, ...renderText(admonition.title_color ? node.title.map(r =>  ({ ...r, color })) : node.title, node.sourceLine)],
 								keepNext: true,
 								...(prevIsSameType ? { spacing: { before: 0 } } : {}),
 							}),
 						] : []),
 						new Paragraph({
 							style,
-							children: renderText(node.text),
+							children: renderText(node.text, node.sourceLine),
 							...(prevIsSameType && !showTitle ? { spacing: { before: 0 } } : {}),
 						}),
 					];
@@ -431,9 +431,18 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 		}
 		function renderNodeL(node: RunicNode, prevChild?: FileChild, prevNode?: RunicNode)
 		{
-			const r = renderNode(node, prevChild, prevNode);
-			if (r instanceof Array) return r;
-			return [r];
+			try
+			{
+				const r = renderNode(node, prevChild, prevNode);
+				if (r instanceof Array) return r;
+				return [r];
+			}
+			catch (error)
+			{
+				const message = error instanceof Error ? error.message : String(error);
+				if (/^Line -?\d+:/.test(message)) throw error;
+				throw new Error(`${node.sourceLine ? `Line ${node.sourceLine}: ` : ""}${message}`, { cause: error });
+			}
 		}
 
 		for (let i = 0; i < section.nodes.length; i++)
@@ -472,7 +481,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 	]);
 	fs.writeFileSync(fout, buffer);
 
-	function renderText(text: string | Rune[], size?: number): ParagraphChild[]
+	function renderText(text: string | Rune[], sourceLine?: number, size?: number): ParagraphChild[]
 	{
 		function renderRune(rune: Rune, link: boolean = false): ParagraphChild
 		{
@@ -487,7 +496,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					new InternalHyperlink({ children, anchor: rune.link.slice(1) }) :
 					new ExternalHyperlink({ children, link: rune.link });
 			}
-			if (rune.type == "math") return renderMath(rune.text, false) as ParagraphChild;
+			if (rune.type == "math") return renderMath(rune.text, false, sourceLine) as ParagraphChild;
 			let children: null | (string | XmlComponent)[] = null;
 			if (rune.type == "val" && rune.text == "page")
 			{
@@ -604,12 +613,12 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 			}
 		}
 	}
-	function renderMath(latex: string, para: boolean): XmlComponent
+	function renderMath(latex: string, para: boolean, sourceLine?: number): XmlComponent
 	{
 		try { return latexToOmml(latex, para); }
 		catch (error)
 		{
-			logwarn(`Formula was not converted: ${error instanceof Error ? error.message : String(error)}`);
+			logwarn(`${sourceLine ? `Line ${sourceLine + 1}: ` : ""}Formula was not converted: ${error instanceof Error ? error.message : String(error)}`);
 			return new TextRun(latex) as unknown as XmlComponent;
 		}
 	}

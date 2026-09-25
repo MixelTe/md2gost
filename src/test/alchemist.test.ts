@@ -12,12 +12,12 @@ suite("alchemist", () =>
 		const doc = new Doc();
 		doc.numberingSections = true;
 		doc.nodes = [
-			{ type: "title", level: 1, text: "First" },
-			{ type: "text", text: "see [fig+1] and [#]" },
-			{ type: "image", src: "x", width: null, height: null, text: "Рисунок [fig] – first" },
-			{ type: "image", src: "x", width: null, height: null, text: "Рисунок [next] – second" },
-			{ type: "title", level: 1, text: "Second" },
-			{ type: "table", align: ["l"], rows: [], title: "Таблица [table] – data" },
+			{ type: "title", sourceLine: 1, level: 1, text: "First" },
+			{ type: "text", sourceLine: 1, text: "see [fig+1] and [#]" },
+			{ type: "image", sourceLine: 1, src: "x", width: null, height: null, text: "Рисунок [fig] – first" },
+			{ type: "image", sourceLine: 1, src: "x", width: null, height: null, text: "Рисунок [next] – second" },
+			{ type: "title", sourceLine: 1, level: 1, text: "Second" },
+			{ type: "table", sourceLine: 1, align: ["l"], rows: [], title: "Таблица [table] – data" },
 		];
 		const runic = runifyDoc(doc);
 		alchemist(runic);
@@ -31,10 +31,10 @@ suite("alchemist", () =>
 	{
 		const doc = new Doc();
 		doc.nodes = [
-			{ type: "text", tags: ["synopsis"], text: "ignored" },
-			{ type: "table", tags: ["definitions_table"], align: ["l"], rows: [] },
-			{ type: "table", align: ["l"], rows: [], title: "[t]" },
-			{ type: "image", src: "x", width: null, height: null, text: "[i]" },
+			{ type: "text", sourceLine: 1, tags: ["synopsis"], text: "ignored" },
+			{ type: "table", sourceLine: 1, tags: ["definitions_table"], align: ["l"], rows: [] },
+			{ type: "table", sourceLine: 1, align: ["l"], rows: [], title: "[t]" },
+			{ type: "image", sourceLine: 1, src: "x", width: null, height: null, text: "[i]" },
 		];
 		const runic = runifyDoc(doc);
 		alchemist(runic);
@@ -46,7 +46,7 @@ suite("alchemist", () =>
 		const warnings: string[] = [];
 		const doc = new Doc();
 		doc.numberingLazy = true;
-		doc.nodes = [{ type: "text", text: "[unknown]" }, { type: "image", src: "x", width: null, height: null, text: "caption" }];
+		doc.nodes = [{ type: "text", sourceLine: 1, text: "[unknown]" }, { type: "image", sourceLine: 1, src: "x", width: null, height: null, text: "caption" }];
 		const runic = runifyDoc(doc);
 		alchemist(runic, w => warnings.push(w));
 		assert.equal(text(runic.nodes[1]), "Рисунок 1 – Caption");

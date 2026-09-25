@@ -8,10 +8,10 @@ suite("enricher", () =>
 	{
 		const doc = new Doc();
 		doc.nodes = [
-			{ type: "title", text: "РЕФЕРАТ", level: 1 }, { type: "text", text: "summary." },
-			{ type: "title", text: "ОГЛАВЛЕНИЕ", level: 1 },
-			{ type: "title", text: "ВВЕДЕНИЕ", level: 1 }, { type: "text", text: "body" },
-			{ type: "title", text: "ЗАКЛЮЧЕНИЕ", level: 1 },
+			{ type: "title", sourceLine: 1, text: "РЕФЕРАТ", level: 1 }, { type: "text", sourceLine: 1, text: "summary." },
+			{ type: "title", sourceLine: 1, text: "ОГЛАВЛЕНИЕ", level: 1 },
+			{ type: "title", sourceLine: 1, text: "ВВЕДЕНИЕ", level: 1 }, { type: "text", sourceLine: 1, text: "body" },
+			{ type: "title", sourceLine: 1, text: "ЗАКЛЮЧЕНИЕ", level: 1 },
 		];
 		enrichDoc(doc);
 		assert.equal((doc.nodes[0] as any).level, 0);
@@ -27,10 +27,10 @@ suite("enricher", () =>
 		const warnings: string[] = [];
 		const doc = new Doc();
 		doc.nodes = [
-			{ type: "title", text: "ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ", level: 1 },
-			{ type: "list", mark: "-", startIndex: 1, items: [{ type: "listItem", text: "API: interface" }, { type: "listItem", text: "broken" }] },
-			{ type: "title", text: "ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ", level: 1 },
-			{ type: "list", mark: "-", startIndex: 1, items: [{ type: "listItem", text: "ГОСТ." }] },
+			{ type: "title", sourceLine: 1, text: "ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ", level: 1 },
+			{ type: "list", sourceLine: 1, mark: "-", startIndex: 1, items: [{ type: "listItem", sourceLine: 1, text: "API: interface" }, { type: "listItem", sourceLine: 1, text: "broken" }] },
+			{ type: "title", sourceLine: 1, text: "ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ", level: 1 },
+			{ type: "list", sourceLine: 1, mark: "-", startIndex: 1, items: [{ type: "listItem", sourceLine: 1, text: "ГОСТ." }] },
 		];
 		enrichDoc(doc, w => warnings.push(w));
 		const table = doc.nodes.find(n => n.type == "table") as any;
@@ -44,11 +44,11 @@ suite("enricher", () =>
 	{
 		const doc = new Doc();
 		doc.nodes = [
-			{ type: "image", src: "a.png", width: null, height: null, text: "Figure." },
-			{ type: "table", title: "Table!", align: ["l"], rows: [] },
-			{ type: "code", lang: "txt", title: "Code;", code: "x" },
-			{ type: "list", mark: "-", startIndex: 1, items: [{ type: "listItem", text: "first" }, { type: "listItem", text: "last" }] },
-			{ type: "externalDoc", path: "x.docx", dict: {} }, { type: "text", text: "after" },
+			{ type: "image", sourceLine: 1, src: "a.png", width: null, height: null, text: "Figure." },
+			{ type: "table", sourceLine: 1, title: "Table!", align: ["l"], rows: [] },
+			{ type: "code", sourceLine: 1, lang: "txt", title: "Code;", code: "x" },
+			{ type: "list", sourceLine: 1, mark: "-", startIndex: 1, items: [{ type: "listItem", sourceLine: 1, text: "first" }, { type: "listItem", sourceLine: 1, text: "last" }] },
+			{ type: "externalDoc", sourceLine: 1, path: "x.docx", dict: {} }, { type: "text", sourceLine: 1, text: "after" },
 		];
 		enrichDoc(doc);
 		assert.deepEqual(doc.nodes.slice(0, 3).map((n: any) => n.text || n.title), ["Figure", "Table", "Code"]);

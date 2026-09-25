@@ -3,13 +3,14 @@ import { trimEnd } from "./utils";
 
 export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.warn)
 {
+	const warnAt = (line: number, message: string) => logwarn(`Line ${line}: ${message}`);
 	for (let i = 0; i < doc.nodes.length; i++)
 	{
 		const node = doc.nodes[i]!;
 		if (node.type == "title" && node.text.toUpperCase().startsWith("ТИТУЛЬНИК"))
 		{
-			doc.nodes.splice(i, 1, { type: "text", text: node.text.toUpperCase() });
-			doc.nodes.splice(i + 1, 0, { type: "pageBreak" });
+			doc.nodes.splice(i, 1, { type: "text", text: node.text.toUpperCase(), sourceLine: node.sourceLine });
+			doc.nodes.splice(i + 1, 0, { type: "pageBreak", sourceLine: node.sourceLine });
 			i++;
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "РЕФЕРАТ")
@@ -22,51 +23,51 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 				nextNode.noIndent = true;
 				nextNode.text = trimEnd(nextNode.text, ".").toUpperCase();
 			}
-			doc.nodes.splice(i + 1, 0, { type: "text", tags: ["synopsis"], text: "Отчет [!pages] с., [!imgs] рис., [!tables] табл., [!codes] лист., [!sources] источн." });
+			doc.nodes.splice(i + 1, 0, { type: "text", tags: ["synopsis"], text: "Отчет [!pages] с., [!imgs] рис., [!tables] табл., [!codes] лист., [!sources] источн.", sourceLine: node.sourceLine });
 			while (i + 1 < doc.nodes.length && doc.nodes[i + 1]?.type != "title") i++;
-			doc.nodes.splice(i + 1, 0, { type: "pageBreak" });
+			doc.nodes.splice(i + 1, 0, { type: "pageBreak", sourceLine: node.sourceLine });
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "ОГЛАВЛЕНИЕ")
 		{
 			node.level = 0;
 			node.text = node.text.toUpperCase();
-			doc.nodes.splice(i + 1, 0, { type: "tableOfContents" });
+			doc.nodes.splice(i + 1, 0, { type: "tableOfContents", sourceLine: node.sourceLine });
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ")
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
-			const warn = () => logwarn("Wrong format of ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ");
+			const warn = (ln: number) => warnAt(ln, "Wrong format of ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ");
 			const list = doc.nodes[i + 1];
-			if (list?.type != "list") { warn(); continue; }
-			const rows: DocNode[][] = [tableRow("Термин", "Определение")];
+			if (list?.type != "list") { warn(node.sourceLine); continue; }
+			const rows: DocNode[][] = [tableRow(list.sourceLine, "Термин", "Определение")];
 			const align = ["l" as const, "l" as const];
 			for (const item of list.items)
 			{
-				if (item.type != "listItem") { warn(); continue; }
+				if (item.type != "listItem") { warn(item.sourceLine); continue; }
 				const i = item.text.indexOf(":");
-				if (i < 0) { warn(); continue; }
-				rows.push(tableRow(item.text.slice(0, i).trim(), item.text.slice(i + 1).trim()));
+				if (i < 0) { warn(item.sourceLine); continue; }
+				rows.push(tableRow(item.sourceLine, item.text.slice(0, i).trim(), item.text.slice(i + 1).trim()));
 			}
-			doc.nodes.splice(i + 1, 1, { type: "text", text: "В настоящем отчете применяются следующие термины с соответствующими определениями." });
-			doc.nodes.splice(i + 2, 0, { type: "table", align, rows, normalFontSize: true, tags: ["definitions_table"] });
-			doc.nodes.splice(i + 3, 0, { type: "pageBreak" });
+			doc.nodes.splice(i + 1, 1, { type: "text", text: "В настоящем отчете применяются следующие термины с соответствующими определениями.", sourceLine: node.sourceLine });
+			doc.nodes.splice(i + 2, 0, { type: "table", align, rows, normalFontSize: true, tags: ["definitions_table"], sourceLine: node.sourceLine });
+			doc.nodes.splice(i + 3, 0, { type: "pageBreak", sourceLine: node.sourceLine });
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ")
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
-			const warn = () => logwarn("Wrong format of ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ");
+			const warn = (ln: number) => warnAt(ln, "Wrong format of ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ");
 			const list = doc.nodes[i + 1];
-			if (list?.type != "list") { warn(); continue; }
+			if (list?.type != "list") { warn(node.sourceLine); continue; }
 			const items: DocNode[] = [];
 			for (const item of list.items)
 			{
-				if (item.type != "listItem") { warn(); continue; }
-				items.push({ type: "text", text: trimEnd(item.text, "."), noIndent: true, noMargin: true });
+				if (item.type != "listItem") { warn(item.sourceLine); continue; }
+				items.push({ type: "text", text: trimEnd(item.text, "."), noIndent: true, noMargin: true, sourceLine: item.sourceLine });
 			}
-			doc.nodes.splice(i + 1, 1, { type: "text", text: "В настоящем отчете применяют следующие сокращения и обозначения." });
-			doc.nodes.splice(i + 2, 0, { type: "pageBreak" });
+			doc.nodes.splice(i + 1, 1, { type: "text", text: "В настоящем отчете применяют следующие сокращения и обозначения.", sourceLine: node.sourceLine });
+			doc.nodes.splice(i + 2, 0, { type: "pageBreak", sourceLine: node.sourceLine });
 			doc.nodes.splice(i + 2, 0, ...items);
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "ВВЕДЕНИЕ")
@@ -78,7 +79,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 				const node = doc.nodes[j];
 				if (node?.type == "title")
 				{
-					doc.nodes.splice(j, 0, { type: "pageBreak" });
+					doc.nodes.splice(j, 0, { type: "pageBreak", sourceLine: -1 });
 					break;
 				}
 			}
@@ -87,30 +88,34 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
-			doc.nodes.splice(i, 0, { type: "pageBreak" });
+			doc.nodes.splice(i, 0, { type: "pageBreak", sourceLine: node.sourceLine });
 			i++;
 		}
 		else if (node.type == "title" && node.text.toUpperCase() == "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ")
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
-			doc.nodes.splice(i++, 0, { type: "pageBreak" });
+			doc.nodes.splice(i++, 0, { type: "pageBreak", sourceLine: node.sourceLine });
 
 			const nextNode = doc.nodes[i + 1];
 			if (nextNode?.type == "list")
 			{
 				nextNode.alternativeStyle = true;
+				nextNode.tags = nextNode.tags || [];
+				nextNode.tags.push("sources");
 				i++;
 				continue;
 			}
 
-			const list: NodeList = {
+			const list: Extract<DocNode, {type: "list"}> = {
 				type: "list",
 				mark: ".",
 				startIndex: 1,
 				alternativeStyle: true,
+				tags: ["sources"],
 				ordered: true,
 				items: [],
+				sourceLine: node.sourceLine + 1,
 			};
 			const startI = i + 1;
 			while (true)
@@ -118,8 +123,9 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 				const textNode = doc.nodes[i + 1];
 				if (textNode?.type != "text") break;
 				const items = textNode.text.split(/\n\s*(?=\[[a-zA-Zа-яА-ЯёЁ_\d]+\])/);
+				let sourceLine = textNode.sourceLine;
 				for (const item of items)
-					list.items.push({ type: "listItem", text: item });
+					list.items.push({ type: "listItem", text: item, sourceLine: sourceLine++ });
 				i++;
 			}
 			if (list.items.length > 0)
@@ -130,20 +136,20 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 			node.level = 0;
 			node.center = true;
 			node.text = node.text.toUpperCase();
-			doc.nodes.splice(i++, 0, { type: "pageBreak" });
+			doc.nodes.splice(i++, 0, { type: "pageBreak", sourceLine: node.sourceLine });
 			for (let j = i + 1; j < doc.nodes.length; j++)
 			{
 				const node = doc.nodes[j];
 				if (node.type == "title")
 				{
-					doc.nodes.splice(i++ + 1, 0, { type: "text", text: "Приложение " + node.text.replace("]", "].") });
+					doc.nodes.splice(i++ + 1, 0, { type: "text", text: "Приложение " + node.text.replace("]", "]."), sourceLine: node.sourceLine });
 					j++;
 					node.level = 1;
 					const splitI = node.text.indexOf("]");
-					doc.nodes.splice(j++, 0, { type: "pageBreak" });
+					doc.nodes.splice(j++, 0, { type: "pageBreak", sourceLine: node.sourceLine });
 					if (splitI >= 0)
 					{
-						doc.nodes.splice(j++ + 1, 0, { type: "text", text: node.text.slice(splitI + 1), center: true });
+						doc.nodes.splice(j++ + 1, 0, { type: "text", text: node.text.slice(splitI + 1), center: true, sourceLine: node.sourceLine });
 						node.text = "ПРИЛОЖЕНИЕ " + node.text.slice(0, splitI + 1);
 						node.center = true;
 					}
@@ -197,7 +203,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 				nextNode?.type != "sectionBreak"
 			)
 			{
-				doc.nodes.splice(i + 1, 0, { type: "pageBreak" });
+				doc.nodes.splice(i + 1, 0, { type: "pageBreak", sourceLine: node.sourceLine });
 			}
 			const prevNode = doc.nodes[i - 1];
 			if (
@@ -207,7 +213,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 				prevNode?.type != "sectionBreak"
 			)
 			{
-				doc.nodes.splice(i, 0, { type: "pageBreak" });
+				doc.nodes.splice(i, 0, { type: "pageBreak", sourceLine: node.sourceLine });
 				i++;
 			}
 		}

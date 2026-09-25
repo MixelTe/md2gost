@@ -17,7 +17,8 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 		titles: { l1: 0, l2: 0, l3: 0, l4: 0, l5: 0 },
 	};
 	type TtKeys = keyof typeof counter["titles"];
-	const named: { [name: string]: { n: number, prefix: string } | { f: (n: number, prefix: string) => void, i: number }[] } = {};
+	const named: { [name: string]: { n: number, prefix: string } | { f: (n: number, prefix: string) => void, i: number, sourceLine?: number }[] } = {};
+	const warnAt = (line: number | undefined, message: string) => logwarn(`${line ? `Line ${line}: ` : ""}${message}`);
 	const vals: { [name: string]: ((n: number) => void)[] } = {};
 	let lastRefI = 0;
 	let prevNum = -1;
@@ -122,7 +123,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 
 	Object.entries(named).forEach(([k, v]) =>
 	{
-		if (v instanceof Array) logwarn(`Неизвестная ссылка [${k}]`);
+		if (v instanceof Array) v.forEach(ref => warnAt(ref.sourceLine, `Неизвестная ссылка [${k}]`));
 	});
 
 	if (synopsis)
@@ -165,7 +166,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 		node.items.forEach(item =>
 		{
 			if (item.type == "list") materializeList(item);
-			else materializeRunes(item.text, node);
+			else materializeRunes(item.text, { ...node, sourceLine: item.sourceLine ?? node.sourceLine });
 		});
 	}
 	function materializeTable(node: Runify<NodeTable>)
@@ -250,7 +251,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 				}
 				else text = `${prefix}${num}`;
 				if (v instanceof Array) v.forEach(fn => fn.f(num, prefix));
-				else if (v && tag != "#") logwarn(`id [${tag}] ${type == "code" ? "листинга" : type == "image" ? "рисунка" : type == "table" ? "таблицы" : type == "math" ? "формулы" : ""} уже занято чем-то другим`);
+				else if (v && tag != "#") warnAt(node.sourceLine, `id [${tag}] ${type == "code" ? "листинга" : type == "image" ? "рисунка" : type == "table" ? "таблицы" : type == "math" ? "формулы" : ""} уже занято чем-то другим`);
 				named[tag] = { n: num, prefix };
 				rune.type = "text";
 				rune.text = text;
@@ -273,8 +274,8 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 					rune.type = "text";
 					rune.text = n < 0 ? prefix : `${prefix}${applyMath(n)}`;
 				};
-				if (v) v.push({ f, i: lastRefI++ });
-				else named[tag] = [{ f, i: lastRefI++ }];
+				if (v) v.push({ f, i: lastRefI++, sourceLine: node.sourceLine });
+				else named[tag] = [{ f, i: lastRefI++, sourceLine: node.sourceLine }];
 			}
 			else
 			{
@@ -286,28 +287,28 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 
 	function crystallizeSources()
 	{
-		const sourcesList = doc.nodes.find(node => node.type == "list" && node.alternativeStyle);
+		const sourcesList = doc.nodes.find(node => node.type == "list" && node.tags?.includes("sources"));
 		if (!sourcesList || sourcesList.type != "list") return 0;
 		const items = sourcesList.items
 			.filter(v => v.type == "listItem")
-			.map(v => v.text)
-			.map((item, i) =>
+			.map((v, i) =>
 			{
+				const item = v.text;
 				const refI = item[0]?.text ? 0 : 1;
 				const ref = item[refI];
 				if (ref?.type != "ref")
 				{
 					// logwarn(`Отсутствует id у источника: ${item.map(v => v.text).join("")}`);
-					return { text: item, ref: "", i: 99999 + i };
+					return { text: item, ref: "", i: 99999 + i, srcI: v.sourceLine };
 				}
 				const refs = named[ref.text];
 				if (refs && !(refs instanceof Array))
 				{
-					logwarn(`id [${ref.text}] источника уже занято чем-то другим`);
-					return { text: item.slice(refI + 1), ref: "", i: 99999 + i };
+					warnAt(sourcesList.sourceLine, `id [${ref.text}] источника уже занято чем-то другим`);
+					return { text: item.slice(refI + 1), ref: "", i: 99999 + i, srcI: v.sourceLine };
 				}
 				const firstOccurrenceI = Math.min(...refs.map(v => v.i));
-				return { text: item.slice(refI + 1), ref: ref.text, i: firstOccurrenceI };
+				return { text: item.slice(refI + 1), ref: ref.text, i: firstOccurrenceI, srcI: v.sourceLine };
 			});
 		items.sort((a, b) => a.i - b.i);
 		const hasIdAny = items.some(it => !!it.ref);
@@ -319,10 +320,10 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 			if (refs instanceof Array)
 			{
 				if (hasIdAny && refs.length <= 1)
-					logwarn(`В тексте отсутствуют ссылки на источник: ${item.ref}`);
+					warnAt(item.srcI, `В тексте отсутствуют ссылки на источник: ${item.ref}`);
 				refs.forEach(r => hasIdAny ? r.f(i + 1, "") : r.f(-1, `[${i + 1}]`));
 			}
-			return { type: "listItem", text: item.text };
+			return { type: "listItem", text: item.text, sourceLine: item.srcI };
 		});
 		return sourcesList.items.length;
 	}

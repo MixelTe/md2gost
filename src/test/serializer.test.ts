@@ -26,9 +26,9 @@ suite("DOCX serializer", () =>
 	{
 		const doc = fixedDoc();
 		doc.nodes = [
-			{ type: "title", level: 1, text: "Heading" },
-			{ type: "text", text: "**bold** *italic* `mono`<br>next" },
-			{ type: "pageBreak" },
+			{ type: "title", sourceLine: 1, level: 1, text: "Heading" },
+			{ type: "text", sourceLine: 1, text: "**bold** *italic* `mono`<br>next" },
+			{ type: "pageBreak", sourceLine: 1 },
 		];
 		const output = path.join(dir, "report.docx");
 		await serializeDocx(runifyDoc(doc), output, dir, assets, dir);
@@ -51,12 +51,12 @@ suite("DOCX serializer", () =>
 		await writePng(dir, "figure.PNG");
 		const doc = fixedDoc();
 		doc.nodes = [
-			{ type: "text", text: "[external](https://example.test) [internal](#mark)" },
-			{ type: "text", text: "target", noIndent: true },
-			{ type: "list", ordered: true, mark: ".", startIndex: 3, items: [{ type: "listItem", text: "item" }] },
-			{ type: "table", title: "Table", align: ["r"], rows: [[{ type: "text", text: "Head" }], [{ type: "text", text: "Value" }]] },
-			{ type: "image", src: "figure.PNG", width: 20, height: null, text: "Figure" },
-			{ type: "sectionBreak", pageStart: -1, orientation: "landscape" }, { type: "text", text: "last" },
+			{ type: "text", sourceLine: 1, text: "[external](https://example.test) [internal](#mark)" },
+			{ type: "text", sourceLine: 1, text: "target", noIndent: true },
+			{ type: "list", sourceLine: 1, ordered: true, mark: ".", startIndex: 3, items: [{ type: "listItem", sourceLine: 1, text: "item" }] },
+			{ type: "table", sourceLine: 1, title: "Table", align: ["r"], rows: [[{ type: "text", sourceLine: 1, text: "Head" }], [{ type: "text", sourceLine: 1, text: "Value" }]] },
+			{ type: "image", sourceLine: 1, src: "figure.PNG", width: 20, height: null, text: "Figure" },
+			{ type: "sectionBreak", sourceLine: 1, pageStart: -1, orientation: "landscape" }, { type: "text", sourceLine: 1, text: "last" },
 		];
 		const runic: any = runifyDoc(doc);
 		runic.nodes[1].text[0].anchor = "mark";
@@ -76,18 +76,19 @@ suite("DOCX serializer", () =>
 	test("serializes text and table headers and footers", async () => withTempDir(async dir =>
 	{
 		const doc = fixedDoc();
-		doc.header = { type: "content", align: "center", nodes: [{ type: "text", text: "Inventory [!page]" }] };
+		doc.header = { type: "content", align: "center", nodes: [{ type: "text", sourceLine: 1, text: "Inventory [!page]" }] };
 		doc.footer = {
 			type: "content",
 			align: "left",
 			nodes: [{
 				type: "table",
+				sourceLine: 1,
 				header: false,
 				align: ["l", "r"],
-				rows: [[{ type: "text", text: "Change" }, { type: "text", text: "[!page] / [!pages]" }]],
+				rows: [[{ type: "text", sourceLine: 1, text: "Change" }, { type: "text", sourceLine: 1, text: "[!page] / [!pages]" }]],
 			}],
 		};
-		doc.nodes = [{ type: "text", text: "body" }, { type: "sectionBreak", pageStart: -1, orientation: null, footer: { type: "auto" } }, { type: "text", text: "unpaged" }];
+		doc.nodes = [{ type: "text", sourceLine: 1, text: "body" }, { type: "sectionBreak", sourceLine: 1, pageStart: -1, orientation: null, footer: { type: "auto" } }, { type: "text", sourceLine: 1, text: "unpaged" }];
 		const output = path.join(dir, "report.docx");
 		await serializeDocx(runifyDoc(doc), output, dir, assets, dir);
 		const zip = openDocx(output);
@@ -105,7 +106,7 @@ suite("DOCX serializer", () =>
 	test("serializes admonitions as styled callout paragraphs", async () => withTempDir(async dir =>
 	{
 		const doc = fixedDoc();
-		doc.nodes = [{ type: "admonition", admonitionType: "warning", title: "Careful", text: "Keep **this** value.", attributes: ".compact" }];
+		doc.nodes = [{ type: "admonition", sourceLine: 1, admonitionType: "warning", title: "Careful", text: "Keep **this** value.", attributes: ".compact" }];
 		const output = path.join(dir, "report.docx");
 		await serializeDocx(runifyDoc(doc), output, dir, assets, dir);
 		const zip = openDocx(output);
@@ -124,7 +125,7 @@ suite("DOCX serializer", () =>
 		try
 		{
 			const doc = fixedDoc();
-			doc.nodes = [{ type: "image", src: "../outside.png", width: null, height: null }];
+			doc.nodes = [{ type: "image", sourceLine: 1, src: "../outside.png", width: null, height: null }];
 			await assert.rejects(() => serializeDocx(runifyDoc(doc), path.join(dir, "x.docx"), dir, assets, dir), /Access denied/);
 		}
 		finally { await fs.rm(outside, { force: true }); }

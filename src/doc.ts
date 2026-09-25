@@ -73,13 +73,13 @@ export class Doc
 		danger: { title: "**Критически важно**", indent: 1.25, spacing: { before: 8, after: 8 }, padding: { top: 6, right: 10, bottom: 6, left: 10 }, background: "fff0f0", color: "d32f2f", bar_width: 2.25, icon: true, icon_size: 16, title_color: true },
 	};
 
-	public appendText(text: string)
+	public appendText(text: string, sourceLine: number)
 	{
-		this.nodes.push({ type: "text", text });
+		this.nodes.push({ type: "text", text, sourceLine });
 	}
-	public appendTitle(text: string, level: number)
+	public appendTitle(text: string, level: number, sourceLine: number)
 	{
-		this.nodes.push({ type: "title", text, level });
+		this.nodes.push({ type: "title", text, level, sourceLine });
 	}
 	public appendNode(node: DocNode)
 	{
@@ -107,9 +107,9 @@ export interface DocHeadings
 	h6: DocHeadingStyle,
 }
 
-export function tableRow(...items: string[]): DocNode[]
+export function tableRow(sourceLine: number, ...items: string[]): DocNode[]
 {
-	return items.map(v => ({ type: "text", text: v }));
+	return items.map(v => ({ type: "text", text: v, sourceLine }));
 }
 
 export type DocNode = (
@@ -144,6 +144,7 @@ export type RunicNode = Runify<DocNode>;
 export interface NodeText
 {
 	type: "text",
+	sourceLine: number,
 	text: string,
 	noIndent?: boolean,
 	noMargin?: boolean,
@@ -153,6 +154,7 @@ export interface NodeText
 export interface NodeTitle
 {
 	type: "title",
+	sourceLine: number,
 	text: string,
 	level: number,
 	center?: boolean,
@@ -161,17 +163,20 @@ export interface NodeTitle
 export interface NodePageBreak
 {
 	type: "pageBreak",
+	sourceLine: number,
 }
 
 export interface NodeTableOfContents
 {
 	type: "tableOfContents",
+	sourceLine: number,
 }
 
 export type NodeTableAlign = "l" | "c" | "r";
 export interface NodeTable
 {
 	type: "table",
+	sourceLine: number,
 	title?: string,
 	rows: DocNode[][],
 	align: NodeTableAlign[],
@@ -183,6 +188,7 @@ export type NodeListMark = "-" | "*" | "." | ")";
 export interface NodeList
 {
 	type: "list",
+	sourceLine: number,
 	ordered?: boolean,
 	mark: NodeListMark,
 	startIndex: number,
@@ -193,12 +199,14 @@ export interface NodeList
 export interface NodeListItem
 {
 	type: "listItem",
+	sourceLine: number,
 	text: string,
 }
 
 export interface NodeImage
 {
 	type: "image",
+	sourceLine: number,
 	text?: string,
 	src: string,
 	width: number | null,
@@ -208,6 +216,7 @@ export interface NodeImage
 export interface NodeCode
 {
 	type: "code",
+	sourceLine: number,
 	lang: string,
 	title?: string,
 	code: string,
@@ -216,6 +225,7 @@ export interface NodeCode
 export interface NodeMath
 {
 	type: "math",
+	sourceLine: number,
 	latex: string,
 	title?: string,
 }
@@ -223,6 +233,7 @@ export interface NodeMath
 export interface NodeExternalDoc
 {
 	type: "externalDoc",
+	sourceLine: number,
 	path: string,
 	dict: { [key: string]: string };
 }
@@ -231,6 +242,7 @@ export type DocPageOrientation = "portrait" | "landscape";
 export interface NodeSectionBreak
 {
 	type: "sectionBreak",
+	sourceLine: number,
 	pageStart: number | null,
 	orientation: DocPageOrientation | null,
 	header?: DocHeaderFooter,
@@ -258,6 +270,7 @@ export interface DocAdmonitionStyle
 export interface NodeAdmonition
 {
 	type: "admonition",
+	sourceLine: number,
 	admonitionType: AdmonitionType,
 	title: string,
 	text: string,

@@ -7,6 +7,7 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 {
 	const lines = (await fs.readFile(file, { encoding: "utf8" })).split("\n");
 	const doc = new Doc();
+	const warnAt = (line: number, message: string) => logwarn(`Line ${line}: ${message}`);
 
 	try
 	{
@@ -20,7 +21,7 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 	{
 		const startIndex = isFinite(parseInt(parts[0])) ? parseInt(parts[0]) : 1;
 		const mark = ordered ? (parts[1] == "." ? "." : ")") : (parts[1] == "*" ? "*" : "-");
-		const node: DocNode = { type: "list", ordered, mark, startIndex, items: [{ type: "listItem", text }] };
+		const node: DocNode = { type: "list", ordered, mark, startIndex, sourceLine: lineI, items: [{ type: "listItem", text, sourceLine: lineI }] };
 		const P: Prefix = ordered ? "1)" : "*";
 		function skipEmptyLines()
 		{
@@ -48,7 +49,7 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 				if (ln.prefix == "" && last?.type == "listItem")
 					last.text += "\n" + ln.text;
 				else if (ln.prefix == P)
-					node.items.push({ type: "listItem", text: ln.text });
+					node.items.push({ type: "listItem", text: ln.text, sourceLine: lineI + 1 });
 				else break;
 			}
 			else if (ln.level > level)
@@ -84,13 +85,13 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			if (isFinite(h)) height = h;
 		}
 		const src = trimEnd(trimStart(parts[1]!, "<"), ">");
-		return { type: "image", text, src, width, height };
+		return { type: "image", text, src, width, height, sourceLine: lineI };
 	}
 	function parseCode(text: string)
 	{
 		const header = text.split(" ");
 		const title = header.slice(1).join(" ").trim() || undefined;
-		const node: DocNode = { type: "code", lang: header[0]!, title, code: "" };
+		const node: DocNode = { type: "code", lang: header[0]!, title, code: "", sourceLine: lineI };
 		const code: string[] = [];
 		while (lineI < lines.length)
 		{
@@ -113,6 +114,7 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			type: "sectionBreak",
 			pageStart: unpaged ? -1 : isFinite(num) ? num : null,
 			orientation: portrait ? "portrait" : landscape ? "landscape" : null,
+			sourceLine: lineI,
 		};
 	}
 	function parseHeaderFooter(kind: "header" | "footer", options: string)
@@ -126,7 +128,7 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 		const align = (value == "" ? "left" : /^align=(left|center|right)$/.exec(value)?.[1]) as "left" | "center" | "right" | undefined;
 		if (!align)
 		{
-			logwarn(`Wrong ${kind} options: "${options}". Expected align=left, align=center, align=right${kind == "footer" ? ", none, or auto" : ", or none"}.`);
+			warnAt(lineI, `Wrong ${kind} options: "${options}". Expected align=left, align=center, align=right${kind == "footer" ? ", none, or auto" : ", or none"}.`);
 			return;
 		}
 		const end = `!!end${kind}`;
@@ -146,15 +148,15 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 		if (!closed)
 		{
 			lineI = initialLineI;
-			logwarn(`${kind} block is not closed`);
+			warnAt(initialLineI, `${kind} block is not closed`);
 			return;
 		}
-		const nodes: DocNode[] = [{ type: "text", text: content.join("\n").trim() }];
+		const nodes: DocNode[] = [{ type: "text", text: content.join("\n").trim(), sourceLine: initialLineI + 1 }];
 		findTables(nodes, false);
 		const supported = nodes.filter((node): node is Extract<DocNode, { type: "text" | "table" }> => node.type == "text" || node.type == "table");
 		if (supported.length != 1 || supported[0]?.type == "text" && !supported[0].text)
 		{
-			logwarn(`${kind} must contain text or one table`);
+			warnAt(initialLineI, `${kind} must contain text or one table`);
 			return;
 		}
 		setHeaderFooter(kind, { type: "content", align, nodes: supported });
@@ -182,6 +184,7 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 		const attributes = parts[3]!;
 		const content: string[] = [];
 		const close = new RegExp(`^${marker}\\s*$`);
+		const initialLineI = lineI;
 		let closed = false;
 		while (lineI < lines.length)
 		{
@@ -193,8 +196,8 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			}
 			content.push(line);
 		}
-		if (!closed) logwarn(`Admonition "${type}" is not closed`);
-		return { type: "admonition", admonitionType: type, title, text: content.join("\n").trim(), attributes };
+		if (!closed) warnAt(initialLineI, `Admonition "${type}" is not closed`);
+		return { type: "admonition", admonitionType: type, title, text: content.join("\n").trim(), attributes, sourceLine: initialLineI };
 	}
 	class RuleError extends Error { };
 	function apllyRule(text: string)
@@ -327,13 +330,13 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 					rule = n.rule;
 					value = n.value;
 				}
-				if (e instanceof RuleError) logwarn(`Rule "${rule}" wrong value: "${value}". ${e.message}`);
+				if (e instanceof RuleError) warnAt(lineI, `Rule "${rule}" wrong value: "${value}". ${e.message}`);
 				else throw e;
 			}
 		}
 		else
 		{
-			logwarn(`Wrong rule: "${text}"`);
+			warnAt(lineI, `Wrong rule: "${text}"`);
 		}
 
 		function tryParseInt(v: string)
@@ -377,40 +380,49 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 	{
 		const line = lines[lineI++]!;
 		const { prefix, text, parts } = parseLine(line);
-		switch (prefix)
+		try
 		{
-			case "#": doc.appendTitle(text, 1); break;
-			case "##": doc.appendTitle(text, 2); break;
-			case "###": doc.appendTitle(text, 3); break;
-			case "####": doc.appendTitle(text, 4); break;
-			case "#####": doc.appendTitle(text, 5); break;
-			case "######": doc.appendTitle(text, 6); break;
-			case "*": doc.appendNode(parseList(text, parts, false)); break;
-			case "1)": doc.appendNode(parseList(text, parts, true)); break;
-			case "Img": doc.appendNode(parseImg(parts)); break;
-			case "Code": doc.appendNode(parseCode(text)); break;
-			case "Admonition": doc.appendNode(parseAdmonition(parts)); break;
-			case "Comment": skipComment(); break;
-			case "!!section": doc.appendNode(parseSection(text)); break;
-			case "!!header": parseHeaderFooter("header", text); break;
-			case "!!footer": parseHeaderFooter("footer", text); break;
-			case "!!rule": apllyRule(text); break;
-			case "---": doc.appendNode({ type: "pageBreak" }); break;
+			switch (prefix)
+			{
+				case "#": doc.appendTitle(text, 1, lineI); break;
+				case "##": doc.appendTitle(text, 2, lineI); break;
+				case "###": doc.appendTitle(text, 3, lineI); break;
+				case "####": doc.appendTitle(text, 4, lineI); break;
+				case "#####": doc.appendTitle(text, 5, lineI); break;
+				case "######": doc.appendTitle(text, 6, lineI); break;
+				case "*": doc.appendNode(parseList(text, parts, false)); break;
+				case "1)": doc.appendNode(parseList(text, parts, true)); break;
+				case "Img": doc.appendNode(parseImg(parts)); break;
+				case "Code": doc.appendNode(parseCode(text)); break;
+				case "Admonition": doc.appendNode(parseAdmonition(parts)); break;
+				case "Comment": skipComment(); break;
+				case "!!section": doc.appendNode(parseSection(text)); break;
+				case "!!header": parseHeaderFooter("header", text); break;
+				case "!!footer": parseHeaderFooter("footer", text); break;
+				case "!!rule": apllyRule(text); break;
+				case "---": doc.appendNode({ type: "pageBreak", sourceLine: lineI }); break;
 
-			case "":
-			case "\t":
-				const last = doc.nodes.at(-1);
-				if (line.trim() != "" && last?.type == "text")
-				{
-					if (last.text != "") last.text += "\n";
-					last.text += line.trim();
-				}
-				else doc.appendText(line.trim());
-				break;
+				case "":
+				case "\t":
+					const last = doc.nodes.at(-1);
+					if (line.trim() != "" && last?.type == "text")
+					{
+						if (last.text == "") last.sourceLine = lineI;
+						else last.text += "\n";
+						last.text += line.trim();
+					}
+					else doc.appendText(line.trim(), lineI);
+					break;
 
-			default:
-				prefix satisfies never;
-				throw new Error("switch default");
+				default:
+					prefix satisfies never;
+					throw new Error("switch default");
+			}
+		}
+		catch (error)
+		{
+			const message = error instanceof Error ? error.message : String(error);
+			throw new Error(`Line ${lineI}: ${message}`, { cause: error });
 		}
 	}
 
@@ -420,8 +432,8 @@ export async function parseMD(file: string, logwarn: (msg: string) => void = con
 			node.title = doc.admonition[node.admonitionType].title;
 	});
 	doc.nodes = doc.nodes.filter(n => n.type != "text" || n.text != "");
-	findDocs(doc.nodes, logwarn);
-	findMath(doc.nodes, logwarn); // keep before table recognition so `|` inside LaTex is inert.
+	findDocs(doc.nodes, warnAt);
+	findMath(doc.nodes, warnAt); // keep before table recognition so `|` inside LaTex is inert.
 	findTables(doc.nodes);
 
 	return doc;
@@ -481,7 +493,7 @@ export function parseLine(line: string): { prefix: Prefix, text: string, level: 
 	return { prefix: "", text: line.trim(), level, parts };
 }
 
-function findDocs(nodes: DocNode[], logwarn: (msg: string) => void = console.warn)
+function findDocs(nodes: DocNode[], warnAt: (line: number, message: string) => void)
 {
 	const re_doc = /^!!\(([^{}]*)\)\s*{(.*)}$/s;
 	const re_remTrailingComma = /,(\s*[}\]])/g;
@@ -493,11 +505,12 @@ function findDocs(nodes: DocNode[], logwarn: (msg: string) => void = console.war
 		if (!m_doc) continue;
 		let dict = {};
 		try { dict = JSON.parse(`{${m_doc[2]!}}`); }
-		catch { logwarn(`Cant parse doc dict: {${m_doc[2]!.replaceAll("\n", " ")}}`); }
+		catch { warnAt(node.sourceLine ?? -1, `Cant parse doc dict: {${m_doc[2]!.replaceAll("\n", " ")}}`); }
 		nodes.splice(i, 1, {
 			type: "externalDoc",
 			path: trimEnd(trimStart(m_doc[1]!, "<", '"'), ">", '"'),
 			dict: stringifyDict(dict),
+			sourceLine: node.sourceLine,
 		});
 	}
 }
@@ -553,14 +566,15 @@ function findTables(nodes: DocNode[], hasHeader: boolean = true)
 		const align = cols.map(v => v.trim()).map(v =>
 			v.startsWith(":") && v.endsWith(":") ? "c" :
 				v.endsWith(":") ? "r" : "l" as const);
-		const rows = [tableRow(...header)];
+		let sourceLine = node.sourceLine + offset;
+		const rows = [tableRow(sourceLine++, ...header)];
 		for (const line of lines.slice(2 + offset))
 		{
 			const row = trim(line).split(/(?<!\\)\|/).map(v => v.trim());
 			while (row.length < cols.length) row.push("");
-			rows.push(tableRow(...row));
+			rows.push(tableRow(++sourceLine, ...row));
 		}
-		const table: NodeTable = { type: "table", align, rows, ...(hasHeader ? {} : { header: false }) };
+		const table: NodeTable = { type: "table", align, rows, sourceLine: node.sourceLine, ...(hasHeader ? {} : { header: false }) };
 		nodes.splice(i, 1, table);
 		const prev = nodes[i - 1];
 		if (offset > 0)
@@ -576,7 +590,7 @@ function findTables(nodes: DocNode[], hasHeader: boolean = true)
 	}
 }
 
-function findMath(nodes: DocNode[], logwarn: (msg: string) => void = console.warn)
+function findMath(nodes: DocNode[], warnAt: (line: number, message: string) => void)
 {
 	for (let i = 0; i < nodes.length; i++)
 	{
@@ -585,16 +599,30 @@ function findMath(nodes: DocNode[], logwarn: (msg: string) => void = console.war
 		const lines = node.text.split("\n");
 		const replacement: DocNode[] = [];
 		let text: string[] = [];
-		const flush = () => { if (text.length) replacement.push({ type: "text", text: text.join("\n") }); text = []; };
+		let textStart = 0;
+		const flush = () =>
+		{
+			if (text.length)
+				replacement.push({ type: "text", text: text.join("\n"), sourceLine: (node.sourceLine ?? 0) + textStart });
+			text = [];
+		};
+
 		for (let line = 0; line < lines.length; line++)
 		{
-			if (lines[line]?.trim() != "$$") { text.push(lines[line]!); continue; }
+			if (lines[line]?.trim() != "$$")
+			{
+				if (!text.length) textStart = line;
+				text.push(lines[line]!);
+				continue;
+			}
+
 			const start = line;
 			let end = line + 1;
 			while (end < lines.length && lines[end]?.trim() != "$$") end++;
 			if (end >= lines.length)
 			{
-				logwarn("Formula is not closed");
+				warnAt((node.sourceLine ?? 0) + start, "Formula is not closed");
+				if (!text.length) textStart = line;
 				text.push(lines[line]!);
 				continue;
 			}
@@ -609,11 +637,17 @@ function findMath(nodes: DocNode[], logwarn: (msg: string) => void = console.war
 				type: "math",
 				latex: lines.slice(start + 1, end).join("\n").trim(),
 				title: id ?? manualNumber,
+				sourceLine: (node.sourceLine ?? 0) + start,
 			});
 			line = end;
+			textStart = end + 1;
 		}
 		flush();
-		if (replacement.some(n => n.type == "math")) { nodes.splice(i, 1, ...replacement); i += replacement.length - 1; }
+		if (replacement.some(n => n.type == "math"))
+		{
+			nodes.splice(i, 1, ...replacement);
+			i += replacement.length - 1;
+		}
 	}
 }
 
