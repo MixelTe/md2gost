@@ -55,6 +55,9 @@ export default tseslint.config(
 				catch: "always",
 			}],
 
+			// Space before the opening curly brace
+			"space-before-blocks": ["error", "always"],
+
 			// Spacing directly inside of parentheses
 			"space-in-parens": ["error", "never"],
 
@@ -72,6 +75,9 @@ export default tseslint.config(
 
 			// Spaces around operators
 			"@stylistic/space-infix-ops": "error",
+
+			// Space after a semicolon and no space before it
+			"@stylistic/semi-spacing": ["error", { "before": false, "after": true }],
 
 			// --- TypeScript Style & Leniency ---
 

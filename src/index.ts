@@ -1,6 +1,7 @@
 import path from "path";
 import { render } from "./main";
 import { UserInputError } from "./errors";
+import type { JSONDict } from "./utils";
 
 declare const __MD2GOST_DIRNAME__: string;
 
@@ -80,6 +81,12 @@ export interface MDRenderConfig
 	 */
 	checkFilesIsInsidePath?: string | false;
 
+	/**
+	 * Variables available to `{{name}}` substitutions in the root Markdown document.
+	 * Included Markdown files inherit these values and may override them with include parameters.
+	 * When omitted, the root document is not treated as a template.
+	 */
+	variables?: JSONDict;
 }
 
 /**
@@ -160,10 +167,11 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	assert(typeof config.useLibreOffice == "boolean" || typeof config.useLibreOffice == "undefined", "useLibreOffice must be a boolean or undefined.");
 	assert(typeof config.checkFilesIsInsidePath == "string" || config.checkFilesIsInsidePath === false || typeof config.checkFilesIsInsidePath == "undefined", "checkFilesIsInsidePath must be a string, false or undefined.");
 	assert(typeof config.progress == "function" || typeof config.progress == "undefined", "Progress callback must be a function or undefined.");
+	assert((typeof config.variables == "object" && config.variables !== null && !Array.isArray(config.variables)) || typeof config.variables == "undefined", "variables must be an object or undefined.");
 	assert(config.abortSignal instanceof AbortSignal || typeof config.abortSignal == "undefined", "abortSignal must be an AbortSignal or undefined.");
 	{
 		const extraProps = getExtraProperties(config,
-			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "useLibreOffice", "progress", "logger", "abortSignal", "checkFilesIsInsidePath"],
+			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "useLibreOffice", "progress", "logger", "abortSignal", "checkFilesIsInsidePath", "variables"],
 		);
 		assert(extraProps.length == 0, `Found unknown properties in config: ${extraProps.join(", ")}`);
 	}
@@ -227,6 +235,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 			disableMacros,
 			useLibreOffice,
 			checkFilesIsInsidePath,
+			variables: config.variables,
 			loginfo: logger?.info,
 			logwarn: msg => { logger?.warn(msg); warnings.push(msg); },
 			logPS: msg => { logger?.info(msg); logPS.push(msg); },

@@ -1,12 +1,14 @@
 {
-	"scopeName": "markdown.custom.injection",
-	"injectionSelector": "L:text.html.markdown -comment -markup.raw.block -source",
+	"scopeName": "md2gost.markdown.injection",
+	"injectionSelector": "L:text.html.markdown -comment -markup.raw.block -source -markup.fenced_code.block.markdown",
 	"patterns": [
 		{
+			"comment": "[ref]",
 			"name": "constant.numeric.integer.markdown",
 			"match": "\\[[a-zA-Zа-яА-ЯёЁ_\\d#]+\\s*[+\\-]?\\s*\\d*\\](?!\\()"
 		},
 		{
+			"comment": "[!var]",
 			"name": "constant.other.placeholder.markdown",
 			"match": "\\[![a-zA-Zа-яА-ЯёЁ_\\d#]+\\s*[+\\-]?\\s*\\d*\\](?!\\()"
 		},

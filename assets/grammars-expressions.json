@@ -1,0 +1,154 @@
+{
+	"scopeName": "md2gost.expression.injection",
+	"injectionSelector": "L:text.html.markdown -comment",
+	"patterns": [
+		{
+			"include": "#quoted-expression"
+		},
+		{
+			"include": "#expression"
+		}
+	],
+	"repository": {
+		"quoted-expression": {
+			"name": "meta.expression.quoted.md2gost",
+			"begin": "(?<!\\\\)(\")(\\{\\{)(?=.*?\\}\\}\")",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.operator.expression.begin.md2gost"
+				},
+				"2": {
+					"name": "keyword.operator.expression.begin.md2gost"
+				}
+			},
+			"end": "(\\}\\})(\")",
+			"endCaptures": {
+				"1": {
+					"name": "keyword.operator.expression.end.md2gost"
+				},
+				"2": {
+					"name": "keyword.operator.expression.end.md2gost"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#expression-content"
+				}
+			]
+		},
+		"expression": {
+			"name": "meta.expression.md2gost",
+			"begin": "(?<![\\\\])(\\{\\{)",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.operator.expression.begin.md2gost"
+				}
+			},
+			"end": "(\\}\\})",
+			"endCaptures": {
+				"1": {
+					"name": "keyword.operator.expression.end.md2gost"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#expression-content"
+				}
+			]
+		},
+		"expression-content": {
+			"patterns": [
+				{
+					"match": "(#)(if|for)\\b",
+					"captures": {
+						"1": {
+							"name": "keyword.control.md2gost"
+						},
+						"2": {
+							"name": "keyword.control.md2gost"
+						}
+					}
+				},
+				{
+					"match": "(:)(else)\\b",
+					"captures": {
+						"1": {
+							"name": "keyword.control.md2gost"
+						},
+						"2": {
+							"name": "keyword.control.md2gost"
+						}
+					}
+				},
+				{
+					"match": "(/)(if|for)\\b",
+					"captures": {
+						"1": {
+							"name": "keyword.control.md2gost"
+						},
+						"2": {
+							"name": "keyword.control.md2gost"
+						}
+					}
+				},
+				{
+					"name": "keyword.operator.expression.md2gost",
+					"match": "\\b(?:of|in|and|or|not)\\b"
+				},
+				{
+					"name": "entity.name.function.md2gost",
+					"match": "\\b[A-Za-z_$][A-Za-z0-9_$]*(?=\\s*\\()"
+				},
+				{
+					"name": "string.quoted.double.md2gost",
+					"begin": "\"",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.begin.md2gost"
+						}
+					},
+					"end": "\"",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.end.md2gost"
+						}
+					},
+					"patterns": [
+						{
+							"name": "constant.character.escape.md2gost",
+							"match": "\\\\."
+						}
+					]
+				},
+				{
+					"name": "constant.numeric.md2gost",
+					"match": "\\b(?:0[xX][0-9a-fA-F]+|\\d+(?:\\.\\d+)?)\\b"
+				},
+				{
+					"name": "constant.language.boolean.md2gost",
+					"match": "\\b(?:true|false|null|undefined)\\b"
+				},
+				{
+					"name": "keyword.operator.md2gost",
+					"match": "(?:===|!==|==|!=|<=|>=|&&|\\|\\||\\?\\?|\\?\\.|=>|[+\\-*/%<>=!?:])"
+				},
+				{
+					"name": "punctuation.separator.comma.md2gost",
+					"match": ","
+				},
+				{
+					"name": "punctuation.section.group.begin.md2gost",
+					"match": "[\\(\\[\\{]"
+				},
+				{
+					"name": "punctuation.section.group.end.md2gost",
+					"match": "[\\)\\]\\}]"
+				},
+				{
+					"name": "variable.other.md2gost",
+					"match": "\\b[A-Za-z_$][A-Za-z0-9_$]*\\b"
+				}
+			]
+		}
+	}
+}

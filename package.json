@@ -93,7 +93,15 @@
     },
     "grammars": [
       {
-        "scopeName": "markdown.custom.injection",
+        "scopeName": "md2gost.expression.injection",
+        "path": "./assets/grammars-expressions.json",
+        "injectTo": [
+          "text.html.markdown"
+        ],
+        "injectionSelector": "L:text.html.markdown"
+      },
+      {
+        "scopeName": "md2gost.markdown.injection",
         "path": "./assets/grammars.json",
         "injectTo": [
           "text.html.markdown"

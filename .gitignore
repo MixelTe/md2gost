@@ -6,6 +6,7 @@ node_modules
 *.tgz
 esbuild-meta.json
 assets/grammars.copy.json
+assets/grammars-expressions.copy.json
 README-NPM.md
 bak_README.md
 git_sync.bat

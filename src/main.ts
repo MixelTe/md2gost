@@ -1,7 +1,7 @@
 import path from "path";
 import { parseMD, runifyDoc } from "./parser";
 import { serializeDocx } from "./serializer";
-import { checkIfFileIsBlocked, choice, randomInt, trimEnd, type SetProgressFn } from "./utils";
+import { checkIfFileIsBlocked, choice, randomInt, trimEnd, type JSONDict, type SetProgressFn } from "./utils";
 import { enrichDoc } from "./enricher";
 import { exec, spawn, type ChildProcess } from "child_process";
 import fs from "fs/promises";
@@ -24,6 +24,7 @@ export interface RenderOptions
 	disableMacros?: boolean;
 	useLibreOffice?: boolean;
 	checkFilesIsInsidePath?: string | false;
+	variables?: JSONDict;
 	logwarn?: (msg: string) => void;
 	loginfo?: (msg: string) => void;
 	logPS?: (msg: string) => void;
@@ -41,6 +42,7 @@ export async function render({
 	disableMacros = false,
 	useLibreOffice = false,
 	checkFilesIsInsidePath = "",
+	variables,
 	logwarn = console.warn,
 	loginfo = console.info,
 	logPS = msg => console.log(`PS: ${msg}`),
@@ -58,7 +60,7 @@ export async function render({
 	// progress(10, "Trying to understand your scribbles");
 	progress(10, "Пытаемся понять, что вы тут написали...");
 	loginfo(`[!1] Parsing file ${fin}`);
-	const doc = await parseMD(fin, logwarn);
+	const doc = await parseMD(fin, variables, checkFilesIsInsidePath, logwarn);
 	signal?.throwIfAborted();
 	// console.log(doc);
 

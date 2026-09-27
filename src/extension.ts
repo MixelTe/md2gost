@@ -181,7 +181,8 @@ function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, render
 			logger.error(x as any);
 			if (token.isCancellationRequested) return;
 			const e = trimStart(`${x}`, "Error: ");
-			vscode.window.showErrorMessage(`Error: ${e}`);
+			if (sourceDocument) renderDiagnostics.addError(sourceDocument, e);
+			vscode.window.showErrorMessage(e);
 		}
 		finally
 		{
@@ -332,24 +333,10 @@ function onEnhancedHighlighting(assets: string, logger: vscode.LogOutputChannel)
 	const config = vscode.workspace.getConfiguration("md2gost");
 	const isEnabled = config.get<boolean>("ui.enhancedHighlighting", true);
 
-	const grammarPath = path.join(assets, "grammars.json");
-	const grammarCopyPath = path.join(assets, "grammars.copy.json");
-
-	if (!fs.existsSync(grammarPath) || !fs.existsSync(grammarCopyPath))
-	{
-		vscode.window.showErrorMessage("md2gost: Cant update highlighting");
-		return;
-	}
-
-	const emptyGrammar = `{"scopeName":"markdown.custom.injection","injectionSelector":"L:text.html.markdown","patterns":[]}`;
-	const currentContent = fs.readFileSync(grammarPath, "utf8");
-	const targetContent = !isEnabled ? emptyGrammar : fs.readFileSync(grammarCopyPath, "utf8");
-
-	if (currentContent == targetContent) return;
-
 	try
 	{
-		fs.writeFileSync(grammarPath, targetContent);
+		update("grammars", "md2gost.markdown.injection");
+		update("grammars-expressions", "md2gost.expression.injection");
 
 		const action = "Reload Window";
 		vscode.window.showInformationMessage(
@@ -368,9 +355,29 @@ function onEnhancedHighlighting(assets: string, logger: vscode.LogOutputChannel)
 		).then(selectedAction =>
 		{
 			if (selectedAction != action) return;
-			vscode.env.clipboard.writeText(grammarPath);
+			vscode.env.clipboard.writeText(assets);
 			vscode.window.showInformationMessage("Path copied to clipboard!");
 		});
-		logger.error(`Manual fix: replace content of ${grammarPath} with: ${targetContent}`);
+		logger.error(`Manual fix: replace content of grammars.json and grammars-expressions.json`);
+	}
+
+	function update(name: string, scopeName: string)
+	{
+		const grammarPath = path.join(assets, name + ".json");
+		const grammarCopyPath = path.join(assets, name + ".copy.json");
+
+		if (!fs.existsSync(grammarPath) || !fs.existsSync(grammarCopyPath))
+		{
+			vscode.window.showErrorMessage("md2gost: Cant update highlighting");
+			return;
+		}
+
+		const emptyGrammar = `{"scopeName":"${scopeName}","injectionSelector":"L:text.html.markdown","patterns":[]}`;
+		const currentContent = fs.readFileSync(grammarPath, "utf8");
+		const targetContent = !isEnabled ? emptyGrammar : fs.readFileSync(grammarCopyPath, "utf8");
+
+		if (currentContent == targetContent) return;
+
+		fs.writeFileSync(grammarPath, targetContent);
 	}
 }

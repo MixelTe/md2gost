@@ -2,8 +2,10 @@ import fs from "fs/promises";
 import fss from "fs";
 import { spawn } from "child_process";
 import * as path from "node:path";
+import { UserInputError } from "./errors";
 
 export type JSONValue = string | number | boolean | null | { [x: string]: JSONValue } | Array<JSONValue>;
+export type JSONDict = Record<string, JSONValue>;
 export function lt<T, R>(v: T | null | undefined, fn: (v: T) => R)
 {
 	if (v) return fn(v);
@@ -191,4 +193,51 @@ function isMissingPathError(err: unknown): err is NodeJS.ErrnoException
 		"code" in err &&
 		(err.code === "ENOENT" || err.code === "ENOTDIR")
 	);
+}
+
+export function getSafePathResolver(workdir: string, checkFilesIsInsidePath: string | false)
+{
+	const allowedRealPath = checkFilesIsInsidePath === false ? false
+		: realpathAllowMissing(checkFilesIsInsidePath === "" ? workdir : checkFilesIsInsidePath);
+
+	return (fname: string): string =>
+	{
+		if (process.platform != "win32") fname = fname.replaceAll("\\", "/");
+		if (process.platform == "win32" && fname.startsWith("/")) fname = "." + fname;
+		const targetPath = path.isAbsolute(fname)
+			? path.resolve(fname)
+			: path.resolve(workdir, fname);
+		if (allowedRealPath !== false)
+		{
+			const targetRealPath = realpathAllowMissing(targetPath); // Resolve symlinks
+			const relative = path.relative(allowedRealPath, targetRealPath);
+
+			const isOutside = relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative);
+			if (isOutside) throw new UserInputError(`Access denied: "${fname}" resolves outside the working directory.`);
+		}
+		return targetPath;
+	};
+}
+
+
+export function deepOverwrite(target: JSONDict, source: JSONDict): JSONDict
+{
+	const result: JSONDict = { ...target };
+
+	for (const [key, sourceValue] of Object.entries(source))
+	{
+		if (key === "__proto__" || key === "prototype" || key === "constructor")
+			continue;
+		const targetValue = Object.hasOwn(result, key) ? result[key] : undefined;
+		result[key] = isJSONDict(targetValue) && isJSONDict(sourceValue) ?
+			deepOverwrite(targetValue, sourceValue) :
+			sourceValue;
+	}
+
+	return result;
+
+	function isJSONDict(value: JSONValue | undefined): value is JSONDict
+	{
+		return value !== null && typeof value === "object" && !Array.isArray(value);
+	}
 }

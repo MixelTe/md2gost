@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import { AlignmentType, BorderStyle, Document, Footer, Header, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark, XmlComponent, LineRuleType, PageOrientation, VerticalAlignTable } from "docx";
 import type { AdmonitionType, DocHeaderFooter, DocPageOrientation, NodeList, NodeListMark, NodeTable, Rune, RunicDoc, RunicNode, Runify } from "./doc";
-import { randomInt, realpathAllowMissing, type DeepWriteable } from "./utils";
+import { getSafePathResolver, randomInt, type DeepWriteable } from "./utils";
 import { imageSize } from "image-size";
 import path from "path";
 import { latexToOmml } from "./math";
@@ -15,26 +15,7 @@ type IListItem = DeepWriteable<INumberingOptions>["config"][number];
 type IListItemLevel = IListItem["levels"][number];
 export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string, assets: string, checkFilesIsInsidePath: string | false, logwarn: (msg: string) => void = console.warn)
 {
-	const allowedRealPath = checkFilesIsInsidePath === false ? false
-		: realpathAllowMissing(checkFilesIsInsidePath === "" ? workdir : checkFilesIsInsidePath);
-
-	const getPath = (fname: string): string =>
-	{
-		if (process.platform != "win32") fname = fname.replaceAll("\\", "/");
-		if (process.platform == "win32" && fname.startsWith("/")) fname = "." + fname;
-		const targetPath = path.isAbsolute(fname)
-			? path.resolve(fname)
-			: path.resolve(workdir, fname);
-		if (allowedRealPath !== false)
-		{
-			const targetRealPath = realpathAllowMissing(targetPath); // Resolve symlinks
-			const relative = path.relative(allowedRealPath, targetRealPath);
-
-			const isOutside = relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative);
-			if (isOutside) throw new UserInputError(`Access denied: "${fname}" resolves outside the working directory.`);
-		}
-		return targetPath;
-	};
+	const getPath = getSafePathResolver(workdir, checkFilesIsInsidePath);
 	const sections: ISectionOptions[] = [];
 	const numbering: DeepWriteable<INumberingOptions>["config"] = [];
 

@@ -16,9 +16,9 @@ export function md_completion(document: TextDocument, position: Position): Compl
 		}, CompletionItemKind.Snippet);
 		const p = linePrefix ? "" : "!";
 		item.insertText = new SnippetString(p + '!(${1:путькфайлу}){\n\t"${2:поле}": "${3:значение}",\n}\n!!section from 2');
-		item.sortText = "!doc";
+		item.sortText = "!doc1";
 		item.documentation = new MarkdownString("Вставляет блок для вставки docx");
-		item.documentation.appendCodeblock('!(путькфайлу){\n\t"поле": "значение",\n}\n!!section from 2');
+		item.documentation.appendCodeblock('!!(путькфайлу.docx){\n\t"поле": "значение",\n}\n!!section from 2', "markdown");
 		res.push(item);
 	}
 	if (linePrefix == "!" || linePrefix == "")
@@ -29,9 +29,22 @@ export function md_completion(document: TextDocument, position: Position): Compl
 		}, CompletionItemKind.Snippet);
 		const p = linePrefix ? "" : "!";
 		item.insertText = new SnippetString(p + "!(${1:путькфайлу}){}\n!!section from 2");
-		item.sortText = "!doc";
+		item.sortText = "!doc2";
 		item.documentation = new MarkdownString("Вставляет блок для вставки pdf");
-		item.documentation.appendCodeblock("!(путькфайлу){}\n!!section from 2");
+		item.documentation.appendCodeblock("!!(путькфайлу.pdf){}\n!!section from 2", "markdown");
+		res.push(item);
+	}
+	if (linePrefix == "!" || linePrefix == "")
+	{
+		const item = new CompletionItem({
+			label: "Вставить Markdown",
+			description: "!(файл.md){}",
+		}, CompletionItemKind.Snippet);
+		const p = linePrefix ? "" : "!";
+		item.insertText = new SnippetString(p + '!(${1:путькфайлу}){\n\t"${2:переменная}": "${3:значение}",\n}\n');
+		item.sortText = "!doc3";
+		item.documentation = new MarkdownString("Вставляет содержимое Markdown-файла перед рендером");
+		item.documentation.appendCodeblock('!!(путькфайлу.md){\n\t"переменная": "значение"\n}', "markdown");
 		res.push(item);
 	}
 	if (linePrefix == "")
@@ -130,7 +143,7 @@ export function md_completion(document: TextDocument, position: Position): Compl
 	{
 		const rule = linePrefix.slice("!!rule ".length);
 		Object.values(Rules).forEach(addHintByRule);
-		function addHintByRule(r: RuleBlock | Rule) 
+		function addHintByRule(r: RuleBlock | Rule)
 		{
 			if (r.type == "block")
 			{
@@ -144,7 +157,7 @@ export function md_completion(document: TextDocument, position: Position): Compl
 				if (added) return;
 				const option = r.options.find(o => rule.startsWith(`${r.keyword} ${o} `));
 				if (!option) return;
-				Object.values(r.rules).forEach(rl => addHintByRule({ ...rl, 
+				Object.values(r.rules).forEach(rl => addHintByRule({ ...rl,
 					keyword: typeof rl.keyword == "string" ? `${r.keyword} ${option} ${rl.keyword}` : rl.keyword.map(k => `${option} ${k}`),
 				}));
 				return;
@@ -167,7 +180,7 @@ export function md_completion(document: TextDocument, position: Position): Compl
 			});
 		});
 	}
-	
+
 	addHint(linePrefix, "!!header ", "Верхний колонтитул", undefined, undefined, undefined, item =>
 	{
 		item.command = { command: "editor.action.triggerSuggest", title: "Trigger Suggest" };
@@ -189,7 +202,7 @@ export function md_completion(document: TextDocument, position: Position): Compl
 		if (kind == "footer")
 			addHint(linePrefix, `!!footer auto`, "Автоматический номер страницы", undefined);
 		const rem = { v: "" };
-		if (completeWord(linePrefix, `!!${kind} `, rem)) 
+		if (completeWord(linePrefix, `!!${kind} `, rem))
 		{
 			const item = new CompletionItem({ label, description: `!!${kind}` }, CompletionItemKind.Snippet);
 			item.insertText = new SnippetString(`${rem.v}align=\${1|left,center,right|}\n\${2:Текст колонтитула}\n!!end${kind}`);
@@ -564,11 +577,21 @@ export class RenderDiagnosticCollection
 
 	public addWarning(document: TextDocument, warning: string)
 	{
-		const match = /^Line (\d+):\s*(.*)$/i.exec(warning);
+		this.addDiagnostic(document, warning, DiagnosticSeverity.Warning);
+	}
+
+	public addError(document: TextDocument, error: string)
+	{
+		this.addDiagnostic(document, error, DiagnosticSeverity.Error);
+	}
+
+	private addDiagnostic(document: TextDocument, text: string, severity: DiagnosticSeverity)
+	{
+		const match = /^Line (\d+):\s*(.*)$/i.exec(text);
 		if (!match) return;
 		const line = parseInt(match[1]!) - 1;
 		if (line < 0 || line >= document.lineCount) return;
-		const diagnostic = new Diagnostic(document.lineAt(line).range, match[2]!, DiagnosticSeverity.Warning);
+		const diagnostic = new Diagnostic(document.lineAt(line).range, match[2]!, severity);
 		diagnostic.source = "md2gost render";
 		this.collection.set(document.uri, [...(this.collection.get(document.uri) || []), diagnostic]);
 	}
@@ -623,14 +646,14 @@ export class FileDropProvider implements DocumentDropEditProvider
 		const targetPath = targetUri.fsPath;
 
 		const ext = path.extname(targetPath).toLowerCase();
-		if (ext !== ".pdf" && ext !== ".docx") return undefined;
+		if (ext !== ".pdf" && ext !== ".docx" && ext !== ".md") return undefined;
 
 		const mdDir = path.dirname(document.uri.fsPath);
 		let relativePath = path.relative(mdDir, targetPath);
 
 		relativePath = relativePath.replace(/\\/g, "/");
 
-		const insertText = `!!(${relativePath}){}`;
+		const insertText = `\n!!(${relativePath}){}\n`;
 
 		return new DocumentDropEdit(insertText);
 	}
@@ -870,7 +893,7 @@ const Rules: Record<string, RuleBlock | Rule> = {
 				short: "Окрашивание заголовка Admonition",
 				doc: "Включить или выключить окрашивание заголовка акцентным цветом.\n\n- Синтаксис: `!!rule admonition <all|note|info|tip|warning|danger> title_color <on|off>`\n- Пример: `!!rule admonition info title_color off`",
 				default: "off",
-			}, 
+			},
 			admonition_title: {
 				keyword: "title",
 				type: "string",

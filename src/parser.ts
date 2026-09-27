@@ -1,11 +1,13 @@
 import { Doc, tableRow, type AdmonitionType, type DocHeaderFooter, type DocNode, type NodeListItem, type NodeTable, type Rune, type RunicDoc } from "./doc";
 import fs from "fs/promises";
-import { hslToHex, toCapitalCase, trimEnd, trimStart, type JSONValue } from "./utils";
+import { hslToHex, toCapitalCase, trimEnd, trimStart, type JSONDict, type JSONValue } from "./utils";
 import path from "path";
+import { preprocess } from "./preprocessor";
 
-export async function parseMD(file: string, logwarn: (msg: string) => void = console.warn)
+export async function parseMD(file: string, variables?: JSONDict, checkFilesIsInsidePath: string | false = false, logwarn: (msg: string) => void = console.warn)
 {
-	const lines = (await fs.readFile(file, { encoding: "utf8" })).split("\n");
+	const preprocessed = await preprocess(file, variables, checkFilesIsInsidePath, logwarn);
+	const lines = preprocessed.split("\n");
 	const doc = new Doc();
 	const warnAt = (line: number, message: string) => logwarn(`Line ${line}: ${message}`);
 

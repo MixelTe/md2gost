@@ -63,6 +63,13 @@ async function main(entryPoint = "src/extension.ts", outfile = "dist/extension.j
 					to: ["./assets/grammars.copy.json"],
 				},
 			}),
+			copy({
+				resolveFrom: "cwd",
+				assets: {
+					from: ["./assets/grammars-expressions.json"],
+					to: ["./assets/grammars-expressions.copy.json"],
+				},
+			}),
 		],
 	});
 

@@ -59,7 +59,8 @@ Sub AutoTableContinuation()
                     Set sepPara = secondTbl.Range.Characters.First.Previous.Paragraphs(1)
 
                     ' Insert the continuation text into that safe paragraph
-                    sepPara.Range.InsertBefore "Продолжение таблицы " & tableNumber
+                    sepPara.Range.InsertBefore CAPTION & tableNumber
+                    ' sepPara.Range.InsertBefore "Продолжение таблицы " & tableNumber
 
                     ' Apply style safely
                     On Error Resume Next
