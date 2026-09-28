@@ -33,6 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - report successful completion only after render errors have been checked
 - avoid showing a successful render notification after PowerShell, VBA, or PDF errors
 - fix macros on non-Russian system locales
+- fix trailing commas parsing by using JSONC for parsing doc and include dictionary
 ### Security
 - escape serialized table data embedded into the table editor webview
 - open rendered files without passing their paths through a command shell

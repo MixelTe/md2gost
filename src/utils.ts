@@ -200,13 +200,13 @@ export function getSafePathResolver(workdir: string, checkFilesIsInsidePath: str
 	const allowedRealPath = checkFilesIsInsidePath === false ? false
 		: realpathAllowMissing(checkFilesIsInsidePath === "" ? workdir : checkFilesIsInsidePath);
 
-	return (fname: string): string =>
+	const resolvePath = (fname: string, origin?: string): string =>
 	{
 		if (process.platform != "win32") fname = fname.replaceAll("\\", "/");
 		if (process.platform == "win32" && fname.startsWith("/")) fname = "." + fname;
 		const targetPath = path.isAbsolute(fname)
 			? path.resolve(fname)
-			: path.resolve(workdir, fname);
+			: path.resolve(origin || workdir, fname);
 		if (allowedRealPath !== false)
 		{
 			const targetRealPath = realpathAllowMissing(targetPath); // Resolve symlinks
@@ -217,6 +217,26 @@ export function getSafePathResolver(workdir: string, checkFilesIsInsidePath: str
 		}
 		return targetPath;
 	};
+
+	const getRelative = (fname: string): string =>
+	{
+		const targetPath = resolvePath(fname);
+		if (allowedRealPath !== false)
+			return path.relative(allowedRealPath, targetPath);
+		return path.relative(workdir, targetPath);
+	};
+
+	return { resolvePath, getRelative };
+}
+
+export function isLocalFilePath(link: string): boolean
+{
+	const value = link.trim();
+	if (value.startsWith("//")) return false;
+	if (path.win32.isAbsolute(value)) return true;
+	if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value)) return false;
+	if (value.startsWith("#")) return false;
+	return true;
 }
 
 

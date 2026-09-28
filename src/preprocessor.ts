@@ -1,27 +1,31 @@
 import fs from "fs/promises";
-import { deepOverwrite, getSafePathResolver, trimEnd, trimStart, type JSONDict } from "./utils";
+import { deepOverwrite, getSafePathResolver, isLocalFilePath, trimEnd, trimStart, type JSONDict } from "./utils";
 import path from "path";
 import { UserInputError } from "./errors";
 
-/* TODO:
-- Доработать nested include: резолвить относительные пути относительно текущего подключаемого файла, а не корня.
-- Убрать regex-удаление trailing comma и заменить на безопасный парсинг, чтобы не портить строки внутри JSON.
-- Улучшить ошибки include: показывать цепочку файлов в безопасном относительном виде, без абсолютных путей.
-*/
-
-export async function preprocess(file: string, variables: JSONDict | undefined, checkFilesIsInsidePath: string | false, logwarn: (msg: string) => void = console.warn): Promise<string>
+export async function preprocess(file: string, variables: JSONDict | undefined, checkFilesIsInsidePath: string | false, signal?: AbortSignal | null, logwarn: (msg: string) => void = console.warn): Promise<string>
 {
 	// variables ||= { zero: "ZZZ", sds: [0], one: { one: 1 } };
-	const resolvePath = getSafePathResolver(path.parse(file).dir, checkFilesIsInsidePath);
-	return processInclude({ type:"include", path: file, dict: {} }, variables, resolvePath, [], logwarn);
+	const { resolvePath, getRelative } = getSafePathResolver(path.parse(file).dir, checkFilesIsInsidePath);
+	return processInclude({ type:"include", path: file, dict: {} }, variables, resolvePath, getRelative, [], signal, logwarn);
 }
 
-async function processInclude(node: INodeInclude, variables: JSONDict | undefined, resolvePath: (fname: string) => string, stack: string[], logwarn: (msg: string) => void): Promise<string>
+async function processInclude(node: INodeInclude, variables: JSONDict | undefined, resolvePath: (fname: string, origin?: string) => string, getRelative: (fname: string) => string, stack: string[], signal: AbortSignal | null | undefined, logwarn: (msg: string) => void): Promise<string>
 {
-	const path = resolvePath(node.path);
-	if (stack.length > 100) throw new UserInputError("Maximum include depth exceeded");
-	if (stack.includes(path)) throw new UserInputError("Circular include detected");
-	const rawContent = await fs.readFile(path, { encoding: "utf8" });
+	signal?.throwIfAborted();
+	const fpath = resolvePath(node.path);
+	const relativePath = getRelative(fpath);
+	const dir = path.dirname(fpath);
+	if (stack.length > 1000) throw new UserInputError(`Maximum include depth exceeded while including "${relativePath}":\n${stack.join(" -> ")}`);
+
+	let rawContent: string;
+	try { rawContent = await fs.readFile(fpath, { encoding: "utf8", signal: signal || undefined }); }
+	catch (err)
+	{
+		const reason = err instanceof Error ? err.message : String(err);
+		throw new UserInputError(`Failed to read included file "${relativePath}": ${reason}`);
+	}
+
 	let content = rawContent;
 	if (variables)
 	{
@@ -31,14 +35,21 @@ async function processInclude(node: INodeInclude, variables: JSONDict | undefine
 		content = processExpressions(nodes, variables || {}, logwarn);
 	}
 	else variables = {};
+	content = await fixLinks(content, fixLink);
 	const includes = await parseIncludes(content, logwarn);
 	let result = "";
 	for (const node of includes)
 	{
 		if (node.type == "text") result += node.value;
-		else result += await processInclude(node, variables, resolvePath, [...stack, path], logwarn);
+		else result += await processInclude(node, variables, resolvePath, getRelative, [...stack, relativePath], signal, logwarn);
 	}
 	return result;
+
+	function fixLink(oldpath: string)
+	{
+		if (!isLocalFilePath(oldpath)) return oldpath;
+		return getRelative(resolvePath(oldpath, dir));
+	}
 }
 
 type FNode = FNodeText | FNodeExpression;
@@ -173,27 +184,38 @@ function getPathValue(value: unknown, path: (string | number)[]): unknown
 
 function processExpressions(nodes: FNode[], variables: JSONDict, logwarn: (msg: string) => void): string
 {
-	const re = /^\s*([A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*|\.\d+|\[\d+\])*)(?:\s*(\?\?|\|\|)\s*"(?:\\.|[^"\\])*")?\s*$/;
+	const re = /^\s*([A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*|\.\d+|\[\d+\])*)(?:\s*(\?\?|\|\|)\s*("(?:\\.|[^"\\])*"))?\s*$/;
+	const re_str = /^\s*("(?:\\.|[^"\\])*")\s*$/;
 	const re_path = /[A-Za-z_$][A-Za-z0-9_$]*|\d+/g;
 	return nodes.map(node =>
 	{
 		if (node.type == "text") return node.value;
-		const m = re.exec(node.value);
 		const rawValue = node.hasQuotes ? `"{{${node.value}}}"` : `{{${node.value}}}`;
-		if (!m) { logwarn("Unsupported expression: " + rawValue); return rawValue; }
-		const name = m[1];
-		const operator = m[2];
-		const defval = m[3] === undefined ? undefined : JSON.parse(m[3]) as string;
-		const path = name.match(re_path)?.map(part => /^\d+$/.test(part) ? Number(part) : part);
-		const v = path ? getPathValue(variables, path) : undefined;
-		const value =
-			operator == "||" ? v || defval
-				: operator == "??" ? v ?? defval : v;
-		if (value === undefined) logwarn("Undefined variable: " + rawValue);
-		const result = value === undefined ? rawValue
-			: typeof value == "object" ? JSON.stringify(value) : `${value}`;
-		// console.log(`[${path}] [${operator}] [${defval}] => [${result}]`);
-		return result;
+		const m = re.exec(node.value);
+		if (m)
+		{
+			const name = m[1];
+			const operator = m[2];
+			const defval = m[3] === undefined ? undefined : JSON.parse(m[3]) as string;
+			const path = name.match(re_path)?.map(part => /^\d+$/.test(part) ? Number(part) : part);
+			const v = path ? getPathValue(variables, path) : undefined;
+			const value =
+				operator == "||" ? v || defval
+					: operator == "??" ? v ?? defval : v;
+			if (value === undefined) logwarn("Undefined variable: " + rawValue);
+			const result = value === undefined ? rawValue
+				: typeof value == "object" || node.hasQuotes ? JSON.stringify(value) : `${value}`;
+				// console.log(`[${path}] [${operator}] [${defval}] => [${result}]`);
+			return result;
+		}
+		const mstr = re_str.exec(node.value);
+		if (mstr)
+		{
+			const str = JSON.parse(node.value);
+			return node.hasQuotes ? JSON.stringify(str) : `${str}`;
+		}
+		logwarn("Unsupported expression: " + rawValue);
+		return rawValue;
 	}).join("");
 }
 
@@ -265,7 +287,7 @@ async function parseIncludes(content: string, logwarn: (msg: string) => void): P
 		catch { logwarn(`Can't parse include dict: {${m_doc[2]!.replaceAll("\n", " ")}}`); continue; }
 
 		pushText(textStart, i);
-		nodes.push({ type: "include", path, dict: stringifyDict(dict) });
+		nodes.push({ type: "include", path, dict });
 
 		textStart = endOfParagraph;
 		i = endOfParagraph - 1;
@@ -275,3 +297,68 @@ async function parseIncludes(content: string, logwarn: (msg: string) => void): P
 
 	return nodes;
 }
+
+async function fixLinks(content: string, fixLink: (oldpath: string) => string): Promise<string>
+{
+	const { default: JSONC } = await import("jsonc-simple-parser");
+	const re_codeFence = /^( {0,3})(`{3,})([^`]*)$/;
+	let result = "";
+
+	let textStart = 0;
+	function append(start: number, end: number)
+	{
+		if (start >= end) return;
+		result += content.slice(start, end);
+	}
+
+	let codeFence = 0;
+	for (let i = 0; i < content.length; i++)
+	{
+		if (i != 0 && content[i - 1] != "\n") continue;
+
+		const lineEnd = content.indexOf("\n", i);
+		const lineTextEnd = lineEnd < 0 ? content.length : lineEnd - (content[lineEnd - 1] == "\r" ? 1 : 0);
+		const line = content.slice(i, lineTextEnd);
+		const m_fence = re_codeFence.exec(line);
+		if (m_fence)
+		{
+			const ticks = m_fence[2]!.length;
+			const suffix = m_fence[3]!;
+			if (codeFence == 0) { codeFence = ticks; continue; }
+			if (ticks >= codeFence && suffix.trim() == "") { codeFence = 0; continue; }
+		}
+		if (codeFence != 0) continue;
+		if (content.at(i) != "!") continue;
+
+		const m_img = /^!\[(.*)\]\((.*)\)({(.*)})?$/.exec(line);
+		if (m_img)
+		{
+			append(textStart, i);
+			result += `![${m_img[1]}](${fixLink(m_img[2])})${m_img[3] || ""}`;
+			textStart = lineTextEnd;
+			i = lineEnd < 0 ? content.length : lineEnd;
+			continue;
+		}
+
+		const rest = content.slice(i);
+		const paragraphBreak = rest.search(/\r?\n[^\S\r\n]*\r?\n/);
+		const endOfParagraph = paragraphBreak < 0 ? content.length : i + paragraphBreak;
+		const paragraph = content.slice(i, endOfParagraph);
+
+		const m_doc = /^!!\(([^{}]*)\)(\s*{(.*)})$/s.exec(paragraph);
+		if (!m_doc) continue;
+
+		try { JSONC.parse(m_doc[2].trim()); }
+		catch { continue; }
+
+		append(textStart, i);
+		result += `!!(${fixLink(m_doc[1])})${m_doc[2]}`;
+		textStart = endOfParagraph;
+		i = endOfParagraph - 1;
+	}
+
+	append(textStart, content.length);
+
+	return result;
+}
+

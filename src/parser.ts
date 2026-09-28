@@ -4,9 +4,11 @@ import { hslToHex, toCapitalCase, trimEnd, trimStart, type JSONDict, type JSONVa
 import path from "path";
 import { preprocess } from "./preprocessor";
 
-export async function parseMD(file: string, variables?: JSONDict, checkFilesIsInsidePath: string | false = false, logwarn: (msg: string) => void = console.warn)
+export async function parseMD(file: string, variables?: JSONDict, checkFilesIsInsidePath: string | false = false, signal?: AbortSignal | null, logwarn: (msg: string) => void = console.warn)
 {
-	const preprocessed = await preprocess(file, variables, checkFilesIsInsidePath, logwarn);
+	signal?.throwIfAborted();
+	const preprocessed = await preprocess(file, variables, checkFilesIsInsidePath, signal, logwarn);
+	signal?.throwIfAborted();
 	const lines = preprocessed.split("\n");
 	const doc = new Doc();
 	const warnAt = (line: number, message: string) => logwarn(`Line ${line}: ${message}`);
@@ -459,7 +461,7 @@ export function parseLine(line: string): { prefix: Prefix, text: string, level: 
 	let parts: string[] = [];
 	if (prefix.startsWith("!"))
 	{
-		const m_img = /!\[(.*)\]\((.*)\)({(.*)})?/.exec(line);
+		const m_img = /^!\[(.*)\]\((.*)\)({(.*)})?/.exec(line);
 		if (m_img) return {
 			prefix: "Img",
 			text: line.trim(),

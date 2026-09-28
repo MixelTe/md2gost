@@ -15,7 +15,7 @@ type IListItem = DeepWriteable<INumberingOptions>["config"][number];
 type IListItemLevel = IListItem["levels"][number];
 export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string, assets: string, checkFilesIsInsidePath: string | false, logwarn: (msg: string) => void = console.warn)
 {
-	const getPath = getSafePathResolver(workdir, checkFilesIsInsidePath);
+	const { resolvePath: getPath } = getSafePathResolver(workdir, checkFilesIsInsidePath);
 	const sections: ISectionOptions[] = [];
 	const numbering: DeepWriteable<INumberingOptions>["config"] = [];
 

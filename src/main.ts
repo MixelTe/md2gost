@@ -60,7 +60,7 @@ export async function render({
 	// progress(10, "Trying to understand your scribbles");
 	progress(10, "Пытаемся понять, что вы тут написали...");
 	loginfo(`[!1] Parsing file ${fin}`);
-	const doc = await parseMD(fin, variables, checkFilesIsInsidePath, logwarn);
+	const doc = await parseMD(fin, variables, checkFilesIsInsidePath, signal, logwarn);
 	signal?.throwIfAborted();
 	// console.log(doc);
 
