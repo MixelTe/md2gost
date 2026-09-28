@@ -228,6 +228,7 @@
     "commander": "^15.0.0",
     "docx": "^9.7.1",
     "image-size": "^2.0.4",
+    "jsonc-simple-parser": "^3.0.0",
     "pdf-lib": "^1.17.1",
     "pizzip": "^3.2.0",
     "prismjs": "^1.30.0"

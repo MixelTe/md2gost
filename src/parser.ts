@@ -434,7 +434,7 @@ export async function parseMD(file: string, variables?: JSONDict, checkFilesIsIn
 			node.title = doc.admonition[node.admonitionType].title;
 	});
 	doc.nodes = doc.nodes.filter(n => n.type != "text" || n.text != "");
-	findDocs(doc.nodes, warnAt);
+	await findDocs(doc.nodes, warnAt);
 	findMath(doc.nodes, warnAt); // keep before table recognition so `|` inside LaTex is inert.
 	findTables(doc.nodes);
 
@@ -495,18 +495,18 @@ export function parseLine(line: string): { prefix: Prefix, text: string, level: 
 	return { prefix: "", text: line.trim(), level, parts };
 }
 
-function findDocs(nodes: DocNode[], warnAt: (line: number, message: string) => void)
+async function findDocs(nodes: DocNode[], warnAt: (line: number, message: string) => void)
 {
+	const { default: JSONC } = await import("jsonc-simple-parser");
 	const re_doc = /^!!\(([^{}]*)\)\s*{(.*)}$/s;
-	const re_remTrailingComma = /,(\s*[}\]])/g;
 	for (let i = 0; i < nodes.length; i++)
 	{
 		const node = nodes[i]!;
 		if (node.type != "text") continue;
-		const m_doc = re_doc.exec(node.text.trimEnd().replaceAll(re_remTrailingComma, "$1"));
+		const m_doc = re_doc.exec(node.text.trimEnd());
 		if (!m_doc) continue;
 		let dict = {};
-		try { dict = JSON.parse(`{${m_doc[2]!}}`); }
+		try { dict = JSONC.parse(`{${m_doc[2]!}}`); }
 		catch { warnAt(node.sourceLine ?? -1, `Cant parse doc dict: {${m_doc[2]!.replaceAll("\n", " ")}}`); }
 		nodes.splice(i, 1, {
 			type: "externalDoc",

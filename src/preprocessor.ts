@@ -1,7 +1,6 @@
 import fs from "fs/promises";
 import { deepOverwrite, getSafePathResolver, trimEnd, trimStart, type JSONDict } from "./utils";
 import path from "path";
-import { stringifyDict } from "./parser";
 import { UserInputError } from "./errors";
 
 /* TODO:
@@ -32,7 +31,7 @@ async function processInclude(node: INodeInclude, variables: JSONDict | undefine
 		content = processExpressions(nodes, variables || {}, logwarn);
 	}
 	else variables = {};
-	const includes = parseIncludes(content, logwarn);
+	const includes = await parseIncludes(content, logwarn);
 	let result = "";
 	for (const node of includes)
 	{
@@ -211,10 +210,10 @@ interface INodeInclude
 	dict: { [key: string]: string };
 }
 
-function parseIncludes(content: string, logwarn: (msg: string) => void): INode[]
+async function parseIncludes(content: string, logwarn: (msg: string) => void): Promise<INode[]>
 {
+	const { default: JSONC } = await import("jsonc-simple-parser");
 	const re_doc = /^!!\(([^{}]*)\)\s*{(.*)}$/s;
-	const re_remTrailingComma = /,(\s*[}\]])/g;
 	const re_codeFence = /^( {0,3})(`{3,})([^`]*)$/;
 	const nodes: INode[] = [];
 
@@ -254,16 +253,15 @@ function parseIncludes(content: string, logwarn: (msg: string) => void): INode[]
 		const paragraphBreak = rest.search(/\r?\n[^\S\r\n]*\r?\n/);
 		const endOfParagraph = paragraphBreak < 0 ? content.length : i + paragraphBreak;
 
-		const paragraph = content.slice(i, endOfParagraph);
-		const source = paragraph.trimEnd().replaceAll(re_remTrailingComma, "$1");
-		const m_doc = re_doc.exec(source);
+		const paragraph = content.slice(i, endOfParagraph).trimEnd();
+		const m_doc = re_doc.exec(paragraph);
 		if (!m_doc) continue;
 
 		const path = trimEnd(trimStart(m_doc[1]!, "<", '"'), ">", '"');
 		if (!path.toLowerCase().endsWith(".md")) continue;
 
 		let dict = {};
-		try { dict = JSON.parse(`{${m_doc[2]!}}`); }
+		try { dict = JSONC.parse(`{${m_doc[2]!}}`); }
 		catch { logwarn(`Can't parse include dict: {${m_doc[2]!.replaceAll("\n", " ")}}`); continue; }
 
 		pushText(textStart, i);
