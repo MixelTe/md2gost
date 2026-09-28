@@ -208,7 +208,7 @@ function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, render
 function showChangelogOnUpdate(context: vscode.ExtensionContext)
 {
 	const packageVersion = context.extension.packageJSON.version;
-	const pageVersion = "6";
+	const pageVersion = "7";
 	const lastVersion = context.globalState.get<string>("extension_version");
 
 	if (pageVersion !== lastVersion)

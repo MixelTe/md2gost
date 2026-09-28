@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+
+## [1.6.0] - 2026-09-29
+### Added
 - Markdown file includes (`!!(file.md){...}`) with nested includes, inherited typed variables, `{{variable.path}}` substitution, default values `{{name || "Empty name"}}` and `{{name ?? "No name"}}`, cycle protection, relative-path rewriting, npm API root variables, editor completion, highlighting, and preview
 - LaTeX formula support: inline `$…$` and display `$$…$$` formulas export as editable Office Math (OMML), with identifiers, automatic and manual numbering, formula references, `[!formulas]`, preview placeholders, and configurable `!!rule formula spacing before|after` offsets
 - configurable `!!header` and `!!footer` blocks with text, Markdown tables, alignment, editor IntelliSense, and enhanced Markdown preview

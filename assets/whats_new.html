@@ -305,6 +305,36 @@
 	<script>
 		const changelogData = [
 			{
+				date: "2026-09-29",
+				version: "v1.6.0 — The Formula Update",
+				changes: [
+					{ type: "Added", text: `Подключение других Markdown-файлов через <a href="#" onclick="openDocs('### Markdown-вставки и шаблонизация')"><code>!!(file.md){...}</code></a>: вложенные файлы, переменные и подсказки в редакторе.` },
+					{ type: "Added", text: `<a href="#" onclick="openDocs('### Формулы')">Формулы LaTeX</a> (<code>$…$</code> и <code>$$…$$</code>) преобразуются в редактируемые формулы Word. Поддерживаются <a href="#" onclick="openDocs('#### Именованные ссылки')">нумерация и ссылки</a> на формулы.` },
+					{ type: "Added", text: `Настраиваемые <a href="#" onclick="openDocs('### Колонтитулы')">верхние и нижние колонтитулы</a> через <code>!!header</code> и <code>!!footer</code>.` },
+					{ type: "Added", text: `<a href="#" onclick="openDocs('### Блоки Admonition')">Блоки-примечания</a> <code>:::note</code>, <code>:::info</code>, <code>:::tip</code>, <code>:::warning</code> и <code>:::danger</code> с настройкой оформления.` },
+					{ type: "Added", text: "Переменная <code>[!page]</code> для номера текущей страницы." },
+					{ type: "Changed", text: "Предупреждения при создании документа теперь указывают строку и отображаются в панели Problems." },
+				],
+			},
+			{
+				date: "2026-09-18",
+				version: "v1.5.1",
+				changes: [
+					{ type: "Added", text: "Файлы DOCX и PDF можно перетаскивать в редактор при включённой настройке <code>editor.dropIntoEditor.enabled</code>." },
+					{ type: "Added", text: "В редакторе таблиц клавиша Tab в последней ячейке добавляет новую строку." },
+					{ type: "Added", text: "Дефисы между буквами и цифрами автоматически становятся неразрывными, чтобы слова не переносились посередине." },
+					{ type: "Fixed", text: "Таблицы в альбомных разделах снова занимают всю ширину страницы." },
+				],
+			},
+			{
+				date: "2026-09-07",
+				version: "v1.4.1",
+				changes: [
+					{ type: "Added", text: `Разделы документа можно делать альбомными или книжными и отключать для них нумерацию страниц через <a href="#" onclick="openDocs('### Разрыв раздела')"><code>!!section</code></a>.` },
+					{ type: "Added", text: "Создание документа теперь можно отменить во время выполнения." },
+				],
+			},
+			{
 				date: "2026-07-09",
 				version: "v1.3.0",
 				changes: [
