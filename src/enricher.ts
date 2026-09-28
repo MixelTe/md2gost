@@ -7,13 +7,13 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 	for (let i = 0; i < doc.nodes.length; i++)
 	{
 		const node = doc.nodes[i]!;
-		if (node.type == "title" && node.text.toUpperCase().startsWith("ТИТУЛЬНИК"))
+		if (node.type == "title" && node.level == 1 && node.text.toUpperCase().startsWith("ТИТУЛЬНИК"))
 		{
 			doc.nodes.splice(i, 1, { type: "text", text: node.text.toUpperCase(), sourceLine: node.sourceLine });
 			doc.nodes.splice(i + 1, 0, { type: "pageBreak", sourceLine: node.sourceLine });
 			i++;
 		}
-		else if (node.type == "title" && node.text.toUpperCase() == "РЕФЕРАТ")
+		else if (node.type == "title" && node.level == 1 && node.text.toUpperCase() == "РЕФЕРАТ")
 		{
 			node.level = 0;
 			node.text = node.text.toUpperCase();
@@ -27,13 +27,13 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 			while (i + 1 < doc.nodes.length && doc.nodes[i + 1]?.type != "title") i++;
 			doc.nodes.splice(i + 1, 0, { type: "pageBreak", sourceLine: node.sourceLine });
 		}
-		else if (node.type == "title" && node.text.toUpperCase() == "ОГЛАВЛЕНИЕ")
+		else if (node.type == "title" && node.level == 1 && node.text.toUpperCase() == "ОГЛАВЛЕНИЕ")
 		{
 			node.level = 0;
 			node.text = node.text.toUpperCase();
 			doc.nodes.splice(i + 1, 0, { type: "tableOfContents", sourceLine: node.sourceLine });
 		}
-		else if (node.type == "title" && node.text.toUpperCase() == "ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ")
+		else if (node.type == "title" && node.level == 1 && node.text.toUpperCase() == "ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ")
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
@@ -53,7 +53,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 			doc.nodes.splice(i + 2, 0, { type: "table", align, rows, normalFontSize: true, tags: ["definitions_table"], sourceLine: node.sourceLine });
 			doc.nodes.splice(i + 3, 0, { type: "pageBreak", sourceLine: node.sourceLine });
 		}
-		else if (node.type == "title" && node.text.toUpperCase() == "ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ")
+		else if (node.type == "title" && node.level == 1 && node.text.toUpperCase() == "ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ")
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
@@ -70,7 +70,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 			doc.nodes.splice(i + 2, 0, { type: "pageBreak", sourceLine: node.sourceLine });
 			doc.nodes.splice(i + 2, 0, ...items);
 		}
-		else if (node.type == "title" && node.text.toUpperCase() == "ВВЕДЕНИЕ")
+		else if (node.type == "title" && node.level == 1 && node.text.toUpperCase() == "ВВЕДЕНИЕ")
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
@@ -84,14 +84,14 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 				}
 			}
 		}
-		else if (node.type == "title" && node.text.toUpperCase() == "ЗАКЛЮЧЕНИЕ")
+		else if (node.type == "title" && node.level == 1 && node.text.toUpperCase() == "ЗАКЛЮЧЕНИЕ")
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
 			doc.nodes.splice(i, 0, { type: "pageBreak", sourceLine: node.sourceLine });
 			i++;
 		}
-		else if (node.type == "title" && node.text.toUpperCase() == "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ")
+		else if (node.type == "title" && node.level == 1 && node.text.toUpperCase() == "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ")
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
@@ -131,7 +131,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 			if (list.items.length > 0)
 				doc.nodes.splice(startI, i - startI + 1, list);
 		}
-		else if (node.type == "title" && node.text.toUpperCase() == "ПРИЛОЖЕНИЯ")
+		else if (node.type == "title" && node.level == 1 && node.text.toUpperCase() == "ПРИЛОЖЕНИЯ")
 		{
 			node.level = 0;
 			node.center = true;

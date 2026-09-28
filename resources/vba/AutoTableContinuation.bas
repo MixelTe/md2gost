@@ -11,7 +11,7 @@ Sub AutoTableContinuation()
               ChrW(1090) & ChrW(1072) & ChrW(1073) & ChrW(1083) & ChrW(1080) & ChrW(1094) & _
               ChrW(1099) & ChrW(32)
 
-    Dim i As Long, r As Long
+    Dim i As Long, r As Long, moved As Boolean
     Dim tbl As Table, secondTbl As Table
     Dim tableNumber As String
     Dim prevPara As Paragraph, sepPara As Paragraph
@@ -37,14 +37,19 @@ Sub AutoTableContinuation()
 
         If previousPage = currentPage Then GoTo SkipIteration
 
+        moved = False
         For r = 2 To tbl.Rows.Count
             currentPage = tbl.Rows(r).Range.Information(wdActiveEndPageNumber)
 
             If currentPage > previousPage Then
 
-                If r < 4 Then
+                If r < 4 And Not moved Then
                     If Not prevPara Is Nothing Then
                         prevPara.Range.ParagraphFormat.PageBreakBefore = True
+                        previousPage = tbl.Rows(1).Range.Information(wdActiveEndPageNumber)
+                        r = 2
+                        moved = True
+                        GoTo SkipIterationRow
                     End If
                 Else
                     ' PAGE BREAK DETECTED: Split the table
@@ -92,6 +97,7 @@ Sub AutoTableContinuation()
             End If
 
             previousPage = currentPage
+SkipIterationRow:
         Next r
 
 SkipIteration:

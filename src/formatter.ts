@@ -147,17 +147,19 @@ export async function md_formatter(document: TextDocument, range: Range, options
 			continue;
 		}
 
-		if (re_sep.test(tableTrim(text)) || re_sep_oneCol.test(text))
+		if (i > 0 && (re_sep.test(tableTrim(text)) || re_sep_oneCol.test(text)))
 		{
 			const line = tableTrim(text);
 			const prevLine = document.lineAt(i - 1);
 			const cols = line.split("|");
 			const header = tableTrim(prevLine.text).split("|").map(v => v.trim());
 			if (header.length != cols.length) continue;
+			const headerFooterBlock = i > 2 && /^!!(footer|header)/.exec(document.lineAt(i - 2).text);
+			const headerFooterBlockEnd = headerFooterBlock && `!!end${headerFooterBlock[1]}`;
 			while (i < document.lineCount)
 			{
 				const line = document.lineAt(i).text;
-				if (line.trim() == "") break;
+				if (line.trim() == "" || (headerFooterBlockEnd && line.trim() == headerFooterBlockEnd)) break;
 				i++;
 			}
 			const range = new Range(prevLine.range.start, document.lineAt(i - 1).range.end);

@@ -432,10 +432,12 @@ export class TableCodeLensProvider implements CodeLensProvider
 			const cols = line.split("|");
 			const header = trim(prevLine.text).split("|").map(v => v.trim());
 			if (header.length != cols.length) continue;
+			const headerFooterBlock = i > 2 && /^!!(footer|header)/.exec(document.lineAt(i - 2).text);
+			const headerFooterBlockEnd = headerFooterBlock && `!!end${headerFooterBlock[1]}`;
 			while (i < document.lineCount)
 			{
 				const line = document.lineAt(i).text;
-				if (line.trim() == "") break;
+				if (line.trim() == "" || (headerFooterBlockEnd && line.trim() == headerFooterBlockEnd)) break;
 				i++;
 			}
 			const range = new Range(prevLine.range.start, document.lineAt(i - 1).range.end);

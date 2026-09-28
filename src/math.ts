@@ -14,7 +14,14 @@ class Omml extends XmlComponent
 const symbols: Record<string, string> = {
 	alpha: "α", beta: "β", gamma: "γ", delta: "δ", epsilon: "ε", varepsilon: "ε", zeta: "ζ", eta: "η", theta: "θ", vartheta: "ϑ", iota: "ι", kappa: "κ", lambda: "λ", mu: "μ", nu: "ν", xi: "ξ", pi: "π", rho: "ρ", sigma: "σ", tau: "τ", upsilon: "υ", phi: "φ", varphi: "ϕ", chi: "χ", psi: "ψ", omega: "ω",
 	Gamma: "Γ", Delta: "Δ", Theta: "Θ", Lambda: "Λ", Xi: "Ξ", Pi: "Π", Sigma: "Σ", Upsilon: "Υ", Phi: "Φ", Psi: "Ψ", Omega: "Ω",
-	cdot: "·", times: "×", div: "÷", pm: "±", mp: "∓", le: "≤", leq: "≤", ge: "≥", geq: "≥", neq: "≠", ne: "≠", approx: "≈", equiv: "≡", sim: "∼", propto: "∝", infty: "∞", partial: "∂", nabla: "∇", in: "∈", notin: "∉", subset: "⊂", subseteq: "⊆", superset: "⊃", cup: "∪", cap: "∩", to: "→", rightarrow: "→", leftarrow: "←", leftrightarrow: "↔", mapsto: "↦", forall: "∀", exists: "∃", neg: "¬", land: "∧", lor: "∨", degree: "°", ell: "ℓ", ldots: "…", dots: "…",
+	cdot: "·", times: "×", div: "÷", pm: "±", mp: "∓", ast: "∗", star: "⋆", circ: "∘", bullet: "∙",
+	oplus: "⊕", ominus: "⊖", otimes: "⊗", oslash: "⊘", odot: "⊙", setminus: "∖", wedge: "∧", vee: "∨",
+	le: "≤", leq: "≤", ge: "≥", geq: "≥", neq: "≠", ne: "≠", approx: "≈", equiv: "≡", sim: "∼", simeq: "≃", cong: "≅", propto: "∝", ll: "≪", gg: "≫",
+	infty: "∞", partial: "∂", nabla: "∇", in: "∈", notin: "∉", ni: "∋", subset: "⊂", subseteq: "⊆", superset: "⊃", supseteq: "⊇", emptyset: "∅", varnothing: "∅", cup: "∪", cap: "∩",
+	perp: "⊥", parallel: "∥", mid: "∣", angle: "∠", therefore: "∴", because: "∵",
+	to: "→", rightarrow: "→", leftarrow: "←", leftrightarrow: "↔", mapsto: "↦", Rightarrow: "⇒", Leftarrow: "⇐", Leftrightarrow: "⇔", uparrow: "↑", downarrow: "↓", updownarrow: "↕",
+	forall: "∀", exists: "∃", neg: "¬", land: "∧", lor: "∨",
+	degree: "°", ell: "ℓ", prime: "′", hbar: "ℏ", aleph: "ℵ", Re: "ℜ", Im: "ℑ", ldots: "…", dots: "…", cdots: "⋯", vdots: "⋮", ddots: "⋱",
 };
 const operators: Record<string, string> = { sin: "sin", cos: "cos", tan: "tan", cot: "cot", sec: "sec", csc: "csc", log: "log", ln: "ln", exp: "exp", max: "max", min: "min", gcd: "gcd", det: "det" };
 

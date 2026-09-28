@@ -689,15 +689,42 @@ let rainbowI = 0;
 function runifyText(text: string, rainbow = false): Rune[]
 {
 	const formulas: string[] = [];
+	const codeSpans: string[] = [];
+
+	function findClosingBackticks(from: number, count: number)
+	{
+		for (let i = from; i < text.length;)
+		{
+			const start = text.indexOf("`", i);
+			if (start < 0) return -1;
+			let end = start + 1;
+			while (text[end] == "`") end++;
+			if (end - start == count) return start;
+			i = end;
+		}
+		return -1;
+	};
+
 	let preprocessedText = "";
+
 	for (let i = 0; i < text.length;)
 	{
-		const fence = text.startsWith("```", i) ? "```" : text[i] == "`" ? "`" : "";
-		if (fence)
+		if (text[i] == "`")
 		{
-			const end = text.indexOf(fence, i + fence.length);
-			const next = end < 0 ? text.length : end + fence.length;
-			preprocessedText += text.slice(i, next); i = next; continue;
+			let delimiterEnd = i + 1;
+			while (text[delimiterEnd] == "`") delimiterEnd++;
+			const delimiterLength = delimiterEnd - i;
+			const end = findClosingBackticks(delimiterEnd, delimiterLength);
+			if (end >= 0)
+			{
+				codeSpans.push(text.slice(delimiterEnd, end));
+				preprocessedText += `\uE002${codeSpans.length - 1}\uE003`;
+				i = end + delimiterLength;
+				continue;
+			}
+			preprocessedText += text.slice(i, delimiterEnd);
+			i = delimiterEnd;
+			continue;
 		}
 		if (text[i] == "$" && text[i - 1] != "\\" && text[i + 1] != "$")
 		{
@@ -706,14 +733,19 @@ function runifyText(text: string, rainbow = false): Rune[]
 			if (end < text.length && text[end] == "$")
 			{
 				formulas.push(text.slice(i + 1, end));
-				preprocessedText += `\uE000${formulas.length - 1}\uE001`; i = end + 1; continue;
+				preprocessedText += `\uE000${formulas.length - 1}\uE001`;
+				i = end + 1;
+				continue;
 			}
 		}
 		preprocessedText += text[i++];
 	}
 	text = preprocessedText.replaceAll("\\$", "$");
-	return replaceAmpCodes(text).replaceAll("\n", "&Tab;\n").replaceAll(/\s*<br>\s*/g, "\n")
-		.replaceAll("—", "-").replaceAll(" - ", " \u2013 ")
+	return replaceAmpCodes(text)
+		.replaceAll("\n", "&Tab;\n")
+		.replaceAll(/\s*<br>\s*/g, "\n")
+		.replaceAll("—", "-")
+		.replaceAll(" - ", " \u2013 ")
 		.replaceAll(/(?<=[\p{L}\p{N}])-(?=[\p{L}\p{N}])/gu, "\u2011")
 		.replaceAll(/(^|[^\p{L}\d_])"([\p{L}\d_])/gu, "$1«$2")
 		.replaceAll(/([\p{L}\d_])"([^\p{L}\d_]|$)/gu, "$1»$2")
@@ -751,24 +783,27 @@ function runifyText(text: string, rainbow = false): Rune[]
 			bold: rune.bold,
 			italic: (i % 2 == 1 && i != arr.length - 1) || rune.italic,
 		}) as Rune)).flat()
-		.map(rune => rune.text.split("```").map((p, i, arr) => ({
-			...rune,
-			text: p,
-			linebreak: i == 0 && rune.linebreak,
-			mono: (i % 2 == 1 && i != arr.length - 1),
-		}) as Rune)).flat()
-		.map(rune => rune.mono ? rune : rune.text.split("`").map((p, i, arr) => ({
-			...rune,
-			text: p,
-			linebreak: i == 0 && rune.linebreak,
-			mono: (i % 2 == 1 && i != arr.length - 1),
-		}) as Rune)).flat()
+		.map(rune => rune.text.split(/(\uE002\d+\uE003)/).map((p, i) =>
+		{
+			const m = /^\uE002(\d+)\uE003$/.exec(p);
+			return {
+				...rune,
+				text: m ? codeSpans[parseInt(m[1]!)]! : p,
+				mono: m ? true : rune.mono,
+				linebreak: i == 0 && rune.linebreak,
+			} as Rune;
+		})).flat()
 		.map(rune => rune.mono ? [rune] : rune.text.split(/(\uE000\d+\uE001)/).map((p, i) =>
 		{
 			const m = /^\uE000(\d+)\uE001$/.exec(p);
-			return { ...rune, text: m ? formulas[parseInt(m[1]!)]! : p, type: m ? "math" : rune.type, linebreak: i == 0 && rune.linebreak } as Rune;
+			return {
+				...rune,
+				text: m ? formulas[parseInt(m[1]!)]! : p,
+				type: m ? "math" : rune.type,
+				linebreak: i == 0 && rune.linebreak,
+			} as Rune;
 		})).flat()
-		.map(rune => rune.link ? [rune] : rune.text.split(/(\[!?[a-zA-Zа-яА-ЯёЁ_\d#]+\s*[+-]?\s*\d*\])/g).map((p, i) =>
+		.map(rune => rune.link || rune.mono ? [rune] : rune.text.split(/(\[!?[a-zA-Zа-яА-ЯёЁ_\d#]+\s*[+-]?\s*\d*\])/g).map((p, i) =>
 		{
 			const m = /\[(!?([a-zA-Zа-яА-ЯёЁ_\d]+|#)(\s*[-+]\s*\d+)?)\]/.exec(p);
 			const v = m && m[1];
@@ -788,7 +823,7 @@ function runifyText(text: string, rainbow = false): Rune[]
 					.replaceAll("&#x200B;", ""),
 			} : {}),
 		}) as Rune)
-		.map(rune => !rainbow || (rune.type && rune.type != "text") ? [rune] : rune.text.split("").map((p, i) => ({
+		.map(rune => !rainbow || rune.mono || (rune.type && rune.type != "text") ? [rune] : rune.text.split("").map((p, i) => ({
 			...rune,
 			text: p,
 			linebreak: i == 0 && rune.linebreak,

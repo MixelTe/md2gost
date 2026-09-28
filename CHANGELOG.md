@@ -34,6 +34,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - avoid showing a successful render notification after PowerShell, VBA, or PDF errors
 - fix macros on non-Russian system locales
 - fix trailing commas parsing by using JSONC for parsing doc and include dictionary
+- limit special section detection to H1
+- fix inline fenced code handling
+- fix table continuation title insertion
 ### Security
 - escape serialized table data embedded into the table editor webview
 - open rendered files without passing their paths through a command shell
