@@ -11,7 +11,24 @@ export async function parseMD(file: string, variables?: JSONDict, checkFilesIsIn
 	signal?.throwIfAborted();
 	const lines = preprocessed.split("\n");
 	const doc = new Doc();
-	const warnAt = (line: number, message: string) => logwarn(`Line ${line}: ${message}`);
+	const warnAt = (line: number, message: string) => logwarn(`Line ${doc.mapSourceLine(line)}: ${message}`);
+
+	(function processLineSkips()
+	{
+		for (let i = 0; i < lines.length; i++)
+		{
+			const line = lines[i];
+			if (line.at(0) != "\uE100") continue;
+			const m = /\uE100(-?\d+)\uE101/.exec(line);
+			if (!m)
+			{
+				lines[i] = line.replaceAll("\uE100", "").replaceAll("\uE101", "");
+				continue;
+			}
+			lines[i] = line.slice(m?.[0].length);
+			doc.addLineSkip(i + 1, parseInt(m[1]));
+		}
+	})();
 
 	try
 	{

@@ -599,7 +599,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 		try { return latexToOmml(latex, para); }
 		catch (error)
 		{
-			logwarn(`${sourceLine ? `Line ${sourceLine + 1}: ` : ""}Formula was not converted: ${error instanceof Error ? error.message : String(error)}`);
+			logwarn(`${sourceLine ? `Line ${doc.mapSourceLine(sourceLine + 1)}: ` : ""}Formula was not converted: ${error instanceof Error ? error.message : String(error)}`);
 			return new TextRun(latex) as unknown as XmlComponent;
 		}
 	}

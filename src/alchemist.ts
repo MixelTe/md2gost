@@ -18,7 +18,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 	};
 	type TtKeys = keyof typeof counter["titles"];
 	const named: { [name: string]: { n: number, prefix: string } | { f: (n: number, prefix: string) => void, i: number, sourceLine?: number }[] } = {};
-	const warnAt = (line: number | undefined, message: string) => logwarn(`${line ? `Line ${line}: ` : ""}${message}`);
+	const warnAt = (line: number | undefined, message: string) => logwarn(`${line ? `Line ${doc.mapSourceLine(line)}: ` : ""}${message}`);
 	const vals: { [name: string]: ((n: number) => void)[] } = {};
 	let lastRefI = 0;
 	let prevNum = -1;

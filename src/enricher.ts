@@ -3,7 +3,7 @@ import { trimEnd } from "./utils";
 
 export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.warn)
 {
-	const warnAt = (line: number, message: string) => logwarn(`Line ${line}: ${message}`);
+	const warnAt = (line: number, message: string) => logwarn(`Line ${doc.mapSourceLine(line)}: ${message}`);
 	for (let i = 0; i < doc.nodes.length; i++)
 	{
 		const node = doc.nodes[i]!;

@@ -85,6 +85,17 @@ export class Doc
 	{
 		this.nodes.push(node);
 	}
+	private lineSkips: { ln: number, d: number }[] = [];
+	public addLineSkip(line: number, delta: number)
+	{
+		this.lineSkips.push({ ln: line, d: delta });
+	}
+	public mapSourceLine(line: number)
+	{
+		for (const { ln, d } of this.lineSkips)
+			if (ln <= line) line -= d;
+		return line;
+	}
 }
 
 export interface DocHeadingStyle

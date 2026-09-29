@@ -5,7 +5,7 @@ import { UserInputError } from "./errors";
 
 export async function preprocess(file: string, variables: JSONDict | undefined, checkFilesIsInsidePath: string | false, signal?: AbortSignal | null, logwarn: (msg: string) => void = console.warn): Promise<string>
 {
-	// variables ||= { zero: "ZZZ", sds: [0], one: { one: 1 } };
+	variables ||= { zero: "ZZZ", sds: [0], one: { one: 1 } };
 	const { resolvePath, getRelative } = getSafePathResolver(path.parse(file).dir, checkFilesIsInsidePath);
 	return processInclude({ type:"include", path: file, dict: {} }, variables, resolvePath, getRelative, [], signal, logwarn);
 }
@@ -31,6 +31,7 @@ async function processInclude(node: INodeInclude, variables: JSONDict | undefine
 	{
 		variables = deepOverwrite(variables, node.dict);
 		const nodes = parseFExpr(rawContent);
+		nodes.forEach(n => n.type == "expr" && (n.source.fname = relativePath));
 		// _printNodes(nodes);
 		content = processExpressions(nodes, variables || {}, logwarn);
 	}
@@ -42,6 +43,11 @@ async function processInclude(node: INodeInclude, variables: JSONDict | undefine
 	{
 		if (node.type == "text") result += node.value;
 		else result += await processInclude(node, variables, resolvePath, getRelative, [...stack, relativePath], signal, logwarn);
+	}
+	if (node.sourceLineCount)
+	{
+		const delta = result.split("\n").length - node.sourceLineCount + 1;
+		result += "\n\uE100" + delta + "\uE101";
 	}
 	return result;
 
@@ -63,12 +69,14 @@ interface FNodeExpression
 	type: "expr";
 	value: string;
 	hasQuotes: boolean;
+	source: { ln: number, col: number, fname?: string };
 }
 
 function parseFExpr(content: string): FNode[]
 {
 	const nodes: FNode[] = [];
 	let textStart = 0;
+	let ln = 1;
 
 	function pushText(start: number, end: number)
 	{
@@ -76,6 +84,9 @@ function parseFExpr(content: string): FNode[]
 
 		const value = content.slice(start, end);
 		const prev = nodes.at(-1);
+
+		for (let i = start; i < end; i++)
+			if (content[i] == "\n") ln++;
 
 		if (prev?.type == "text")
 			prev.value += value;
@@ -141,7 +152,9 @@ function parseFExpr(content: string): FNode[]
 		const hasQuotes = i > 0 && content[i - 1] == '"' && !isEscaped(i - 1) && content[end + 2] === '"';
 		const textEnd = hasQuotes ? i - 1 : i;
 		pushText(textStart, textEnd);
-		nodes.push({ type: "expr", value: content.slice(i + 2, end), hasQuotes });
+		const lineStart = content.lastIndexOf("\n", i + 2);
+		const source = { ln, col: lineStart < 0 ? i : i - lineStart };
+		nodes.push({ type: "expr", value: content.slice(i + 2, end), hasQuotes, source });
 
 		const next = hasQuotes ? end + 3 : end + 2;
 		textStart = next;
@@ -202,7 +215,7 @@ function processExpressions(nodes: FNode[], variables: JSONDict, logwarn: (msg: 
 			const value =
 				operator == "||" ? v || defval
 					: operator == "??" ? v ?? defval : v;
-			if (value === undefined) logwarn("Undefined variable: " + rawValue);
+			if (value === undefined) logwarn("Undefined variable: " + rawValue + pos(node));
 			const result = value === undefined ? rawValue
 				: typeof value == "object" || node.hasQuotes ? JSON.stringify(value) : `${value}`;
 				// console.log(`[${path}] [${operator}] [${defval}] => [${result}]`);
@@ -214,9 +227,13 @@ function processExpressions(nodes: FNode[], variables: JSONDict, logwarn: (msg: 
 			const str = JSON.parse(node.value);
 			return node.hasQuotes ? JSON.stringify(str) : `${str}`;
 		}
-		logwarn("Unsupported expression: " + rawValue);
+		logwarn("Unsupported expression: " + rawValue + pos(node));
 		return rawValue;
 	}).join("");
+	function pos(node: FNodeExpression)
+	{
+		return ` [Ln ${node.source.ln}, Col ${node.source.col}] (${node.source.fname})`;
+	}
 }
 
 type INode = INodeText | INodeInclude;
@@ -230,6 +247,7 @@ interface INodeInclude
 	type: "include";
 	path: string;
 	dict: { [key: string]: string };
+	sourceLineCount?: number;
 }
 
 async function parseIncludes(content: string, logwarn: (msg: string) => void): Promise<INode[]>
@@ -275,8 +293,8 @@ async function parseIncludes(content: string, logwarn: (msg: string) => void): P
 		const paragraphBreak = rest.search(/\r?\n[^\S\r\n]*\r?\n/);
 		const endOfParagraph = paragraphBreak < 0 ? content.length : i + paragraphBreak;
 
-		const paragraph = content.slice(i, endOfParagraph).trimEnd();
-		const m_doc = re_doc.exec(paragraph);
+		const paragraph = content.slice(i, endOfParagraph);
+		const m_doc = re_doc.exec(paragraph.trimEnd());
 		if (!m_doc) continue;
 
 		const path = trimEnd(trimStart(m_doc[1]!, "<", '"'), ">", '"');
@@ -287,7 +305,7 @@ async function parseIncludes(content: string, logwarn: (msg: string) => void): P
 		catch { logwarn(`Can't parse include dict: {${m_doc[2]!.replaceAll("\n", " ")}}`); continue; }
 
 		pushText(textStart, i);
-		nodes.push({ type: "include", path, dict });
+		nodes.push({ type: "include", path, dict, sourceLineCount: paragraph.split("\n").length });
 
 		textStart = endOfParagraph;
 		i = endOfParagraph - 1;
