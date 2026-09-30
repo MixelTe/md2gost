@@ -8,6 +8,7 @@ import { md_formatter } from "./formatter";
 import { addDiagnostic, FileDropProvider, md_completion, md_hover, md_inlineCompletion, md_inlineHints, RenderDiagnosticCollection, TableCodeLensProvider } from "./intellisense";
 import { onEditTableCommand } from "./tableEditor";
 import { markdownItPlugin } from "./markdownPlugin";
+import { registerMarkdownImageReplacePaste } from "./markdownImageReplacePaste";
 
 export function activate(context: vscode.ExtensionContext)
 {
@@ -89,6 +90,7 @@ export function activate(context: vscode.ExtensionContext)
 		{ language: "markdown" },
 		documentDropEditProvider,
 	));
+	registerMarkdownImageReplacePaste(context);
 
 	context.subscriptions.push(
 		vscode.workspace.onDidChangeConfiguration(async e =>
