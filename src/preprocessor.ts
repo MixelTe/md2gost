@@ -347,10 +347,10 @@ function parseExp(nodes: FNode[], ctx: ExecContext): ENode[]
 	const re_val = new RegExp(String.raw`^${reVal}$`);
 	const re_str = new RegExp(String.raw`^\s*(${reStr})\s*$`);
 	const re_else = /^:else\s*$/;
-	const re_for = new RegExp(String.raw`^\/for\s+(${reIdent})(?:\s*,\s*(${reIdent}))?\s+in\s+(${reVar})$`);
-	const re_forEnd = /^#for\s*$/;
-	const re_if = new RegExp(String.raw`^\/if\s+((?:${reVar})|${reVal})\s*(?:(==|!=|<=|>=|<|>|\bin\b)\s*((?:${reVar})|${reVal}))?$`);
-	const re_ifEnd = /^#if\s*$/;
+	const re_for = new RegExp(String.raw`^#for\s+(${reIdent})(?:\s*,\s*(${reIdent}))?\s+in\s+(${reVar})$`);
+	const re_forEnd = /^\/for\s*$/;
+	const re_if = new RegExp(String.raw`^#if\s+((?:${reVar})|${reVal})\s*(?:(==|!=|<=|>=|<|>|\bin\b)\s*((?:${reVar})|${reVal}))?$`);
+	const re_ifEnd = /^\/if\s*$/;
 	const re_path = /[A-Za-z_$][A-Za-z0-9_$]*|\d+/g;
 	return nodes.map((node): ENode  =>
 	{
