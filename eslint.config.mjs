@@ -76,6 +76,9 @@ export default tseslint.config(
 			// Spaces around operators
 			"@stylistic/space-infix-ops": "error",
 
+			//  spacing before and after the arrow (=>) in arrow functions
+			"@stylistic/arrow-spacing": ["error", { "before": true, "after": true }],
+
 			// Space after a semicolon and no space before it
 			"@stylistic/semi-spacing": ["error", { "before": false, "after": true }],
 
