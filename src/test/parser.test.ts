@@ -27,7 +27,7 @@ suite("parser and runifier", () =>
 	{
 		const warnings: string[] = [];
 		const file = await writeMarkdown(dir, "!!rule title Custom\n!!rule text size nope\n!!rule unknown yes\n!!section landscape from 4\n!!(<appendix.docx>) {\"a\": {\"b\": 1,},}");
-		const doc = await parseMD(file, undefined, false, null, w => warnings.push(w));
+		const doc = await parseMD(file, undefined, {}, false, null, w => warnings.push(w));
 		assert.equal(doc.title, "Custom");
 		assert.deepEqual(doc.nodes[0], { type: "sectionBreak", orientation: "landscape", pageStart: 4, sourceLine: 4 });
 		assert.deepEqual(doc.nodes[1], { type: "externalDoc", path: "appendix.docx", dict: { "a.b": "1" }, sourceLine: 5 });
@@ -97,7 +97,7 @@ suite("parser and runifier", () =>
 	{
 		const warnings: string[] = [];
 		const file = await writeMarkdown(dir, "[energy]\n$$\nE = mc^2\n$$\n\nA $x_i$ and \\$ with `$code$`.\n\n```\n$literal$\n```\n\n$$\nunclosed");
-		const doc = await parseMD(file, undefined, false, null, warning => warnings.push(warning));
+		const doc = await parseMD(file, undefined, {}, false, null, warning => warnings.push(warning));
 		assert.deepEqual(doc.nodes.find(node => node.type == "math"), { type: "math", latex: "E = mc^2", title: "([energy])", sourceLine: 2 });
 		const runic = runifyDoc(doc);
 		const text = runic.nodes.find(node => node.type == "text") as any;

@@ -4,6 +4,7 @@ import { Doc } from "../doc";
 import { runifyDoc } from "../parser";
 
 function text(node: any) { return (node.text || node.title).map((r: any) => r.text).join(""); }
+const NBSP = "\u00A0";
 
 suite("alchemist", () =>
 {
@@ -21,7 +22,7 @@ suite("alchemist", () =>
 		];
 		const runic = runifyDoc(doc);
 		alchemist(runic);
-		assert.equal(text(runic.nodes[1]), "see 1.2 and 1.1");
+		assert.equal(text(runic.nodes[1]), `see${NBSP}1.2 and${NBSP}1.1`);
 		assert.equal(text((runic.nodes[2] as any)), "Рисунок 1.1 – First");
 		assert.equal(text((runic.nodes[3] as any)), "Рисунок 1.2 – Second");
 		assert.equal(text((runic.nodes[5] as any)), "Таблица 2.1 – Data");

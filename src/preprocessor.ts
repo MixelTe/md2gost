@@ -3,25 +3,104 @@ import { deepOverwrite, getSafePathResolver, isLocalFilePath, trimEnd, trimStart
 import path from "path";
 import { UserInputError } from "./errors";
 
-export async function preprocess(file: string, variables: JSONDict | undefined, checkFilesIsInsidePath: string | false, signal?: AbortSignal | null, logwarn: (msg: string) => void = console.warn): Promise<string>
+export interface TemplateExecOptions
 {
-	variables ||= { zero: "ZZZ", sds: [0], one: { one: 1 } };
-	const { resolvePath, getRelative } = getSafePathResolver(path.parse(file).dir, checkFilesIsInsidePath);
-	return processInclude({ type:"include", path: file, dict: {} }, variables, resolvePath, getRelative, [], signal, logwarn);
+	allowLoops?: boolean;
+	allowIncludes?: boolean;
+
+	maxLoopIterations?: number;
+	maxTotalIterations?: number;
+
+	maxDepth?: number;
+
+	maxIncludeDepth?: number;
+	maxIncludes?: number;
+
+	maxFileLength?: number;
+	maxTotalInputLength?: number;
+	maxGeneratedLength?: number;
 }
 
-async function processInclude(node: INodeInclude, variables: JSONDict | undefined, resolvePath: (fname: string, origin?: string) => string, getRelative: (fname: string) => string, stack: string[], signal: AbortSignal | null | undefined, logwarn: (msg: string) => void): Promise<string>
+// const serverTemplateExecOptions: TemplateExecOptions = {
+// 	allowLoops: true,
+// 	allowIncludes: true,
+
+// 	maxLoopIterations: 100,
+// 	maxTotalIterations: 2_000,
+
+// 	maxDepth: 20,
+
+// 	maxIncludeDepth: 10,
+// 	maxIncludes: 50,
+
+// 	maxFileLength: 200_000,
+// 	maxTotalInputLength: 1_000_000,
+// 	maxGeneratedLength: 2_000_000,
+// };
+
+interface ExecContext
 {
-	signal?.throwIfAborted();
+	options: TemplateExecOptions;
+	includes: number;
+	iterations: number;
+	inputLength: number;
+	generatedLength: number;
+	signal: AbortSignal | undefined;
+	logwarn: (msg: string) => void;
+	countAsOutput: (v: string) => string;
+}
+
+export async function preprocess(file: string, variables: JSONDict | undefined, checkFilesIsInsidePath: string | false, options: TemplateExecOptions, signal?: AbortSignal | null, logwarn: (msg: string) => void = console.warn): Promise<string>
+{
+	const { resolvePath, getRelative } = getSafePathResolver(path.parse(file).dir, checkFilesIsInsidePath);
+	const ctx: ExecContext = {
+		options, includes: 0, iterations: 0, inputLength: 0, generatedLength: 0, signal: signal || undefined, logwarn, countAsOutput(v)
+		{
+			ctx.generatedLength += v.length;
+			if (options.maxGeneratedLength !== undefined && ctx.generatedLength > options.maxGeneratedLength)
+				throw new UserInputError(`Maximum output length exceeded (${options.maxGeneratedLength})`);
+			return v;
+		},
+	};
+	return processInclude({ type:"include", path: file, dict: {} }, variables, resolvePath, getRelative, [], ctx);
+}
+
+async function processInclude(node: INodeInclude, variables: JSONDict | undefined, resolvePath: (fname: string, origin?: string) => string, getRelative: (fname: string) => string, stack: string[], ctx: ExecContext): Promise<string>
+{
+	ctx.signal?.throwIfAborted();
 	const fpath = resolvePath(node.path);
 	const relativePath = getRelative(fpath);
 	const dir = path.dirname(fpath);
-	if (stack.length > 1000) throw new UserInputError(`Maximum include depth exceeded while including "${relativePath}":\n${stack.join(" -> ")}`);
+	if (ctx.options.maxIncludeDepth !== undefined && stack.length > ctx.options.maxIncludeDepth)
+		throw new UserInputError(`Maximum include depth exceeded while including "${relativePath}":\n${stack.join(" -> ")}`);
+	if (stack.length > 0)
+	{
+		ctx.includes++;
+		const maxIncludes = ctx.options.maxIncludes === undefined ? 1000 : ctx.options.maxIncludes;
+		if (ctx.includes > maxIncludes)
+			throw new UserInputError(`Maximum include count exceeded (${maxIncludes})`);
+	}
 
 	let rawContent: string;
-	try { rawContent = await fs.readFile(fpath, { encoding: "utf8", signal: signal || undefined }); }
+	try
+	{
+		if (ctx.options.maxFileLength !== undefined)
+		{
+			const size = (await fs.stat(fpath)).size;
+			if (size > ctx.options.maxFileLength * 3)
+				throw new UserInputError(`File is too large (${size} > ${ctx.options.maxFileLength * 3}) "${relativePath}"`);
+		}
+		rawContent = await fs.readFile(fpath, { encoding: "utf8", signal: ctx.signal });
+		if (ctx.options.maxFileLength !== undefined && rawContent.length > ctx.options.maxFileLength)
+			throw new UserInputError(`File is too large (${rawContent.length} > ${ctx.options.maxFileLength}) "${relativePath}"`);
+		ctx.inputLength += rawContent.length;
+		if (ctx.options.maxTotalInputLength !== undefined && ctx.inputLength > ctx.options.maxTotalInputLength)
+			throw new UserInputError(`Maximum total input length exceeded (${ctx.inputLength} > ${ctx.options.maxTotalInputLength})`);
+	}
 	catch (err)
 	{
+		ctx.signal?.throwIfAborted();
+		if (err instanceof UserInputError) throw err;
 		const reason = err instanceof Error ? err.message : String(err);
 		throw new UserInputError(`Failed to read included file "${relativePath}": ${reason}`);
 	}
@@ -33,16 +112,21 @@ async function processInclude(node: INodeInclude, variables: JSONDict | undefine
 		const nodes = parseFExpr(rawContent);
 		nodes.forEach(n => n.type == "expr" && (n.source.fname = relativePath));
 		// _printNodes(nodes);
-		content = processExpressions(nodes, variables || {}, logwarn);
+		content = processExpressions(nodes, variables || {}, ctx);
 	}
-	else variables = {};
+	else
+	{
+		variables = {};
+		ctx.countAsOutput(content);
+	}
 	content = await fixLinks(content, fixLink);
-	const includes = await parseIncludes(content, logwarn);
+	if (!ctx.options.allowIncludes) return content;
+	const includes = await parseIncludes(content, ctx.logwarn);
 	let result = "";
 	for (const node of includes)
 	{
 		if (node.type == "text") result += node.value;
-		else result += await processInclude(node, variables, resolvePath, getRelative, [...stack, relativePath], signal, logwarn);
+		else result += await processInclude(node, variables, resolvePath, getRelative, [...stack, relativePath], ctx);
 	}
 	if (node.sourceLineCount)
 	{
@@ -69,7 +153,14 @@ interface FNodeExpression
 	type: "expr";
 	value: string;
 	hasQuotes: boolean;
-	source: { ln: number, col: number, fname?: string };
+	source: NodeSource;
+}
+type WithSource<T> = T & { source: NodeSource };
+interface NodeSource
+{
+	ln: number;
+	col: number;
+	fname?: string;
 }
 
 function parseFExpr(content: string): FNode[]
@@ -153,7 +244,7 @@ function parseFExpr(content: string): FNode[]
 		const textEnd = hasQuotes ? i - 1 : i;
 		pushText(textStart, textEnd);
 		const lineStart = content.lastIndexOf("\n", i + 2);
-		const source = { ln, col: lineStart < 0 ? i : i - lineStart };
+		const source = { ln, col: lineStart < 0 ? i + 1 : i - lineStart };
 		nodes.push({ type: "expr", value: content.slice(i + 2, end), hasQuotes, source });
 
 		const next = hasQuotes ? end + 3 : end + 2;
@@ -179,7 +270,7 @@ function _printNodes(nodes: FNode[]): void
 	), "\n"));
 }
 
-function getPathValue(value: unknown, path: (string | number)[]): unknown
+function getByPath(value: unknown, path: (string | number)[]): unknown
 {
 	for (const key of path)
 	{
@@ -195,44 +286,418 @@ function getPathValue(value: unknown, path: (string | number)[]): unknown
 	return value;
 }
 
-function processExpressions(nodes: FNode[], variables: JSONDict, logwarn: (msg: string) => void): string
+function processExpressions(nodes: FNode[], variables: JSONDict, ctx: ExecContext): string
 {
-	const re = /^\s*([A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*|\.\d+|\[\d+\])*)(?:\s*(\?\?|\|\|)\s*("(?:\\.|[^"\\])*"))?\s*$/;
-	const re_str = /^\s*("(?:\\.|[^"\\])*")\s*$/;
+	const expr = parseExp(nodes, ctx);
+	const tree = buildExpTree(expr, ctx);
+	const res = execExpTree(tree, variables, ctx);
+	return res.join("");
+}
+
+type ENode = ENodeText | WithSource<ENodeVar | ENodeFor | ENodeForEnd | ENodeIf | ENodeIfEnd | ENodeElse>;
+type VarPath = (string | number)[];
+interface ENodeText
+{
+	type: "text";
+	value: string;
+}
+interface ENodeVar
+{
+	type: "var";
+	path: VarPath
+	def?: string;
+	defPipe: boolean;
+	hasQuotes: boolean;
+}
+interface ENodeFor
+{
+	type: "for";
+	varValue: string;
+	varKey?: string;
+	arrayPath: VarPath;
+}
+interface ENodeForEnd
+{
+	type: "forEnd";
+}
+interface ENodeIf
+{
+	type: "if";
+	left: { t: "val", val: any } | { t: "var", path: VarPath };
+	operator?: "==" | "!=" | "<" | "<=" | ">" | ">=" | "in";
+	right?: { t: "val", val: any } | { t: "var", path: VarPath };
+}
+interface ENodeIfEnd
+{
+	type: "ifEnd";
+}
+interface ENodeElse
+{
+	type: "else";
+}
+
+function parseExp(nodes: FNode[], ctx: ExecContext): ENode[]
+{
+	const reVar = String.raw`[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*|\.\d+|\[\d+\])*`;
+	const reIdent = String.raw`[A-Za-z_$][A-Za-z0-9_$]*`;
+	const reStr = String.raw`"(?:\\.|[^"\\])*"`;
+	const reNum = String.raw`-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?`;
+	const reVal = String.raw`(?:${reStr}|${reNum}|true|false|null)`;
+	const re_var = new RegExp(String.raw`^\s*(${reVar})(?:\s*(\?\?|\|\|)\s*(${reStr}))?\s*$`);
+	const re_val = new RegExp(String.raw`^${reVal}$`);
+	const re_str = new RegExp(String.raw`^\s*(${reStr})\s*$`);
+	const re_else = /^:else\s*$/;
+	const re_for = new RegExp(String.raw`^\/for\s+(${reIdent})(?:\s*,\s*(${reIdent}))?\s+in\s+(${reVar})$`);
+	const re_forEnd = /^#for\s*$/;
+	const re_if = new RegExp(String.raw`^\/if\s+((?:${reVar})|${reVal})\s*(?:(==|!=|<=|>=|<|>|\bin\b)\s*((?:${reVar})|${reVal}))?$`);
+	const re_ifEnd = /^#if\s*$/;
 	const re_path = /[A-Za-z_$][A-Za-z0-9_$]*|\d+/g;
-	return nodes.map(node =>
+	return nodes.map((node): ENode  =>
 	{
-		if (node.type == "text") return node.value;
+		ctx.signal?.throwIfAborted();
+		if (node.type == "text") return { type: "text", value: node.value };
+		const enode = node;
+		const source = node.source;
 		const rawValue = node.hasQuotes ? `"{{${node.value}}}"` : `{{${node.value}}}`;
-		const m = re.exec(node.value);
-		if (m)
+		function retWarn(msg: string)
 		{
-			const name = m[1];
-			const operator = m[2];
-			const defval = m[3] === undefined ? undefined : JSON.parse(m[3]) as string;
-			const path = name.match(re_path)?.map(part => /^\d+$/.test(part) ? Number(part) : part);
-			const v = path ? getPathValue(variables, path) : undefined;
-			const value =
-				operator == "||" ? v || defval
-					: operator == "??" ? v ?? defval : v;
-			if (value === undefined) logwarn("Undefined variable: " + rawValue + pos(node));
-			const result = value === undefined ? rawValue
-				: typeof value == "object" || node.hasQuotes ? JSON.stringify(value) : `${value}`;
-				// console.log(`[${path}] [${operator}] [${defval}] => [${result}]`);
-			return result;
+			ctx.logwarn(msg + pos(enode));
+			return { type: "text", value: rawValue } as const;
+		}
+		const mvar = re_var.exec(node.value);
+		if (mvar)
+		{
+			const name = mvar[1];
+			const operator = mvar[2];
+			const defval = mvar[3] === undefined ? undefined : safeParse(mvar[3]);
+			if (mvar[3] !== undefined && typeof defval !== "string") return retWarn("Cant parse string: " + mvar[3]);
+			const path = parsePath(name);
+			if (!path) return retWarn("Unsupported expression: " + rawValue);
+			return { type: "var", path, def: defval, defPipe: operator == "||", source, hasQuotes: node.hasQuotes };
 		}
 		const mstr = re_str.exec(node.value);
 		if (mstr)
 		{
-			const str = JSON.parse(node.value);
-			return node.hasQuotes ? JSON.stringify(str) : `${str}`;
+			const str = safeParse(node.value);
+			if (str === undefined) return retWarn("Cant parse string: " + node.value);
+			return { type: "text", value: node.hasQuotes ? JSON.stringify(str) : `${str}` };
 		}
-		logwarn("Unsupported expression: " + rawValue + pos(node));
-		return rawValue;
-	}).join("");
-	function pos(node: FNodeExpression)
+		const mfor = re_for.exec(node.value);
+		if (mfor)
+		{
+			if (!ctx.options.allowLoops) return retWarn("Loop expressions are not allowed");
+			const varValue = mfor[1];
+			const varKey = mfor[2];
+			const arrayPathStr = mfor[3];
+			const arrayPath = parsePath(arrayPathStr);
+			if (!arrayPath) return retWarn("Unsupported expression: " + rawValue);
+			return { type: "for", varValue, varKey, arrayPath, source };
+		}
+		const mif = re_if.exec(node.value);
+		if (mif)
+		{
+			function parseOperand(value: string | undefined)
+			{
+				if (!value) return undefined;
+				if (re_val.test(value))
+				{
+					const val = safeParse(value);
+					if (val === undefined) return null;
+					return { t: "val", val } as const;
+				}
+				const path = parsePath(value);
+				if (!path) return null;
+				return { t: "var", path } as const;
+			}
+			const left = parseOperand(mif[1]);
+			if (!left) return retWarn("Unsupported expression: " + rawValue);
+			const operator = mif[2] as ENodeIf["operator"] | undefined;
+			if (!operator) return { type: "if", left, source };
+			const right = parseOperand(mif[3]);
+			if (!right) return retWarn("Unsupported expression: " + rawValue);
+			return { type: "if", left, operator, right, source };
+		}
+		if (re_else.exec(node.value)) return { type: "else", source };
+		if (re_ifEnd.exec(node.value)) return { type: "ifEnd", source };
+		if (re_forEnd.exec(node.value))
+		{
+			if (!ctx.options.allowLoops) return retWarn("Loop expressions are not allowed");
+			return { type: "forEnd", source };
+		}
+		return retWarn("Unsupported expression: " + rawValue);
+	});
+	function pos(node: { source: NodeSource; })
 	{
 		return ` [Ln ${node.source.ln}, Col ${node.source.col}] (${node.source.fname})`;
+	}
+	function safeParse(value: string)
+	{
+		try { return JSON.parse(value); }
+		catch { return undefined; }
+	}
+	function parsePath(value: string | undefined): VarPath | undefined
+	{
+		const parts = value?.match(re_path);
+		if (!parts?.length) return undefined;
+		return parts.map(part => /^\d+$/.test(part) ? Number(part) : part);
+	}
+}
+
+type TNode = TNodeText | WithSource<TNodeVar | TNodeFor | TNodeIf>;
+type TNodeText = ENodeText;
+type TNodeVar = ENodeVar;
+type TNodeFor = ENodeFor &
+{
+	body: TNode[];
+	bodyElse?: TNode[];
+};
+type TNodeIf = ENodeIf &
+{
+	body: TNode[];
+	bodyElse?: TNode[];
+};
+
+function buildExpTree(nodes: ENode[], ctx: ExecContext, depth = 0, source?: NodeSource): TNode[]
+{
+	ctx.signal?.throwIfAborted();
+	if (ctx.options.maxDepth !== undefined && depth >= ctx.options.maxDepth)
+	{
+		ctx.logwarn(`Maximum expression nesting depth exceeded (${ctx.options.maxDepth})${source ? pos({ source }) : ""}`);
+		return nodes.map(n =>
+		{
+			if (n.type == "text" || n.type == "var") return n;
+			if (n.type == "else" || n.type == "forEnd" || n.type == "ifEnd")
+			{
+				const str = n.type == "else" ? "{:else}" : n.type == "ifEnd" ? "{#if}" : "{#for}";
+				return { type: "text", value: str };
+			}
+			if (n.type == "for")
+			{
+				const second = n.varKey ? `, ${n.varKey}` : "";
+				return { type: "text", value: `{/for ${n.varValue}${second} in ${n.arrayPath.join(".")}}` };
+			}
+			if (n.type == "if")
+			{
+				const v = (v: ENodeIf["left"]) => v.t == "val" ? JSON.stringify(v.val) : v.path.join(".");
+				const right = n.right ? ` ${n.operator} ${v(n.right)}` : "";
+				return { type: "text", value: `{/if ${v(n.left)}${right}}` };
+			}
+			n satisfies never;
+			return { type: "text", value: "" };
+		});
+	}
+	const tree = [] as TNode[];
+	for (let i = 0; i < nodes.length; i++)
+	{
+		const node = nodes[i];
+		if (node.type == "text" || node.type == "var")
+		{
+			tree.push(node);
+		}
+		if (node.type == "else" || node.type == "forEnd" || node.type == "ifEnd")
+		{
+			const str = node.type == "else" ? "{:else}" : node.type == "ifEnd" ? "{#if}" : "{#for}";
+			ctx.logwarn(`Unexpected expression (${str})` + pos(node));
+			tree.push({ type: "text", value: str });
+		}
+		if (node.type == "for" || node.type == "if")
+		{
+			const r = parseBlockWithElse(i);
+			if (!r)
+			{
+				if (node.type == "for")
+				{
+					const second = node.varKey ? `, ${node.varKey}` : "";
+					tree.push({ type: "text", value: `{/for ${node.varValue}${second} in ${node.arrayPath.join(".")}}` });
+				}
+				else if (node.type == "if")
+				{
+					const v = (v: ENodeIf["left"]) => v.t == "val" ? JSON.stringify(v.val) : v.path.join(".");
+					const right = node.right ? ` ${node.operator} ${v(node.right)}` : "";
+					tree.push({ type: "text", value: `{/if ${v(node.left)}${right}}` });
+				}
+			}
+			else
+			{
+				const { body, bodyElse, endI } = r;
+				i = endI;
+				tree.push({ ...node, body, bodyElse });
+			}
+		}
+	}
+	return tree;
+	function pos(node: { source: NodeSource; })
+	{
+		return ` [Ln ${node.source.ln}, Col ${node.source.col}] (${node.source.fname})`;
+	}
+	type BlockType = "for" | "if";
+	function findBlockEnd(startI: number, type: BlockType, skipElse: boolean)
+	{
+		const stack = [] as BlockType[];
+		for (let i = startI; i < nodes.length; i++)
+		{
+			const node = nodes[i];
+			if (node.type == "if") stack.push("if");
+			else if (node.type == "for") stack.push("for");
+			else if (node.type == "forEnd" && stack.at(-1) == "for") stack.pop();
+			else if (node.type == "ifEnd" && stack.at(-1) == "if") stack.pop();
+			else if (stack.length == 0)
+			{
+				if (node.type == "else" && !skipElse) return i;
+				if (node.type == "forEnd" && type == "for") return i;
+				if (node.type == "ifEnd" && type == "if") return i;
+			}
+		}
+		return -1;
+	}
+	function parseBlockWithElse(startI: number)
+	{
+		const node = nodes[startI];
+		if (node.type != "for" && node.type != "if") return null;
+		const n = node;
+		const type = n.type;
+		const unclosed = (m: string) => ctx.logwarn(`Unclosed ${type} ${m}` + pos(n));
+		const bodyEnd = findBlockEnd(startI + 1, type, false);
+		if (bodyEnd < 0) { unclosed("body"); return null; }
+		const bodyNodes = nodes.slice(startI + 1, bodyEnd);
+		const body = buildExpTree(bodyNodes, ctx, depth + 1, n.source);
+		let endI = bodyEnd;
+		let bodyElse: TNode[] | undefined;
+		if (nodes[bodyEnd].type == "else")
+		{
+			const bodyElseEnd = findBlockEnd(bodyEnd + 1, type, true);
+			if (bodyElseEnd < 0) { unclosed("else block"); return null; }
+			const bodyElseNodes = nodes.slice(bodyEnd + 1, bodyElseEnd);
+			bodyElse = buildExpTree(bodyElseNodes, ctx, depth + 1, n.source);
+			endI = bodyElseEnd;
+		}
+		return { body, bodyElse, endI };
+	}
+}
+
+function execExpTree(tree: TNode[], variables: JSONDict, ctx: ExecContext): string[]
+{
+	return tree.flatMap((node): string | string[] =>
+	{
+		ctx.signal?.throwIfAborted();
+		if (node.type == "text") return ctx.countAsOutput(node.value);
+		if (node.type == "var")
+		{
+			const v = getByPath(variables, node.path);
+			const value = node.def === undefined ? v : (node.defPipe ? v || node.def : v ?? node.def);
+			const rawValue = node.hasQuotes ? `"{{${node.path.join(".")}}}"` : `{{${node.path.join(".")}}}`;
+			if (value === undefined) ctx.logwarn("Undefined variable: " + rawValue + pos(node));
+			const result = value === undefined ? rawValue
+				: typeof value == "object" || node.hasQuotes ? JSON.stringify(value) : `${value}`;
+			return ctx.countAsOutput(result);
+		}
+		if (node.type == "if")
+		{
+			const left = node.left.t == "val" ? node.left.val : getByPath(variables, node.left.path);
+			let result: boolean;
+			if (node.operator && node.right)
+			{
+				const right = node.right.t == "val" ? node.right.val : getByPath(variables, node.right.path);
+				if (node.operator == "==") result = isEqual(left, right);
+				else if (node.operator == "!=") result = !isEqual(left, right);
+				else if (node.operator == "<=") result = left < right || isEqual(left, right);
+				else if (node.operator == ">=") result = left > right || isEqual(left, right);
+				else if (node.operator == "<") result = left < right;
+				else if (node.operator == ">") result = left > right;
+				else if (node.operator == "in") result = !!right && typeof right == "object" &&
+					(Array.isArray(right) ? right : Object.keys(right)).some(v => isEqual(v, left));
+				else { node.operator satisfies never; result = false; }
+			}
+			else
+			{
+				if (left && typeof left == "object")
+					result = (Array.isArray(left) ? left : Object.keys(left)).length > 0;
+				else result = !!left;
+			}
+			if (result) return execExpTree(node.body, variables, ctx);
+			if (node.bodyElse) return execExpTree(node.bodyElse, variables, ctx);
+			return "";
+		}
+		if (node.type == "for")
+		{
+			if (!ctx.options.allowLoops) throw new UserInputError("Loop expressions are not allowed");
+			const arr = getByPath(variables, node.arrayPath);
+			if (!arr || typeof arr == "object" && (Array.isArray(arr) ? arr : Object.keys(arr)).length == 0)
+			{
+				if (node.bodyElse) return execExpTree(node.bodyElse, variables, ctx);
+				return "";
+			}
+			const values = (() =>
+			{
+				const n = node;
+				function checkLoopIterations(count: number, final = true)
+				{
+					const max = ctx.options.maxLoopIterations;
+					if (max !== undefined && count > max)
+						throw new UserInputError(`Maximum loop iterations exceeded (${final ? count + " " : ""}> ${max})` + pos(n));
+				}
+				if (typeof arr == "number" && Number.isInteger(arr))
+				{
+					if (arr < 0) { ctx.logwarn(`For loop source is a negative integer (${arr})` + pos(node)); return []; }
+					checkLoopIterations(arr);
+					return Array.from({ length: arr }, (_, i) => ({ k: i, v: i + 1 }));
+				}
+				if (typeof arr == "object")
+				{
+					if (Array.isArray(arr))
+					{
+						checkLoopIterations(arr.length);
+						return arr.map((v, i) => ({ k: i, v }));
+					}
+					const keys = Object.keys(arr);
+					checkLoopIterations(keys.length);
+					return keys.map(k => ({ k, v: (arr as any)[k] }));
+				}
+				if (typeof arr == "string")
+				{
+					// arr.length is wrong for unicode
+					const values: { k: number; v: string }[] = [];
+					for (const v of arr)
+					{
+						values.push({ k: values.length, v });
+						checkLoopIterations(values.length, false);
+					}
+					return values;
+				}
+			})();
+			if (!values) { ctx.logwarn(`For loop source is not object, string or integer (${arr})` + pos(node)); return ""; }
+			return values.flatMap(({ k, v }) =>
+			{
+				ctx.signal?.throwIfAborted();
+				ctx.iterations++;
+				if (ctx.options.maxTotalIterations !== undefined && ctx.iterations > ctx.options.maxTotalIterations)
+					throw new UserInputError(`Maximum total loop iterations exceeded (${ctx.options.maxTotalIterations})`);
+				// to protect from __proto__
+				const locals = Object.assign(Object.create(null), variables) as JSONDict;
+				locals[node.varValue] = v;
+				if (node.varKey) locals[node.varKey] = k;
+				return execExpTree(node.body, locals, ctx);
+			});
+		}
+		node satisfies never;
+		return "";
+	});
+	function pos(node: { source: NodeSource; })
+	{
+		return ` [Ln ${node.source.ln}, Col ${node.source.col}] (${node.source.fname})`;
+	}
+	function isEqual(obj1: any, obj2: any)
+	{
+		if (obj1 === obj2) return true;
+		if (obj1 == null || obj2 == null || typeof obj1 !== "object" || typeof obj2 !== "object")
+			return obj1 == obj2;
+		const keys1 = Object.keys(obj1);
+		const keys2 = Object.keys(obj2);
+		if (keys1.length !== keys2.length) return false;
+		for (const key of keys1)
+			if (!Object.hasOwn(obj2, key) || !isEqual(obj1[key], obj2[key]))
+				return false;
+		return true;
 	}
 }
 

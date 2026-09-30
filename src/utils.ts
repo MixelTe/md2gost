@@ -242,7 +242,7 @@ export function isLocalFilePath(link: string): boolean
 
 export function deepOverwrite(target: JSONDict, source: JSONDict): JSONDict
 {
-	const result: JSONDict = { ...target };
+	const result = Object.assign(Object.create(null), target) as JSONDict;
 
 	for (const [key, sourceValue] of Object.entries(source))
 	{

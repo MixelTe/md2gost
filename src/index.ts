@@ -3,6 +3,8 @@ import { render } from "./main";
 import { UserInputError } from "./errors";
 import type { JSONDict } from "./utils";
 
+export { UserInputError, JSONDict };
+
 declare const __MD2GOST_DIRNAME__: string;
 
 /**

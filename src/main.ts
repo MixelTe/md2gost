@@ -10,6 +10,7 @@ import { PDFDocument } from "pdf-lib";
 import type { Doc, RunicDoc } from "./doc";
 import { alchemist } from "./alchemist";
 import PizZip from "pizzip";
+import type { TemplateExecOptions } from "./preprocessor";
 
 const DISABLE_MACRO = false;
 
@@ -25,6 +26,7 @@ export interface RenderOptions
 	useLibreOffice?: boolean;
 	checkFilesIsInsidePath?: string | false;
 	variables?: JSONDict;
+	templateOptions?: TemplateExecOptions;
 	logwarn?: (msg: string) => void;
 	loginfo?: (msg: string) => void;
 	logPS?: (msg: string) => void;
@@ -42,6 +44,7 @@ export async function render({
 	disableMacros = false,
 	useLibreOffice = false,
 	checkFilesIsInsidePath = "",
+	templateOptions = { allowIncludes: true, allowLoops: true },
 	variables,
 	logwarn = console.warn,
 	loginfo = console.info,
@@ -60,7 +63,7 @@ export async function render({
 	// progress(10, "Trying to understand your scribbles");
 	progress(10, "Пытаемся понять, что вы тут написали...");
 	loginfo(`[!1] Parsing file ${fin}`);
-	const doc = await parseMD(fin, variables, checkFilesIsInsidePath, signal, logwarn);
+	const doc = await parseMD(fin, variables, templateOptions, checkFilesIsInsidePath, signal, logwarn);
 	signal?.throwIfAborted();
 	// console.log(doc);
 

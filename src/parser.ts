@@ -2,12 +2,12 @@ import { Doc, tableRow, type AdmonitionType, type DocHeaderFooter, type DocNode,
 import fs from "fs/promises";
 import { hslToHex, toCapitalCase, trimEnd, trimStart, type JSONDict, type JSONValue } from "./utils";
 import path from "path";
-import { preprocess } from "./preprocessor";
+import { preprocess, type TemplateExecOptions } from "./preprocessor";
 
-export async function parseMD(file: string, variables?: JSONDict, checkFilesIsInsidePath: string | false = false, signal?: AbortSignal | null, logwarn: (msg: string) => void = console.warn)
+export async function parseMD(file: string, variables?: JSONDict, templateOptions: TemplateExecOptions = {}, checkFilesIsInsidePath: string | false = false, signal?: AbortSignal | null, logwarn: (msg: string) => void = console.warn)
 {
 	signal?.throwIfAborted();
-	const preprocessed = await preprocess(file, variables, checkFilesIsInsidePath, signal, logwarn);
+	const preprocessed = await preprocess(file, variables, checkFilesIsInsidePath, templateOptions, signal, logwarn);
 	signal?.throwIfAborted();
 	const lines = preprocessed.split("\n");
 	const doc = new Doc();
