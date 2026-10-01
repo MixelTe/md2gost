@@ -218,7 +218,7 @@ export async function parseMD(file: string, variables?: JSONDict, templateOption
 			content.push(line);
 		}
 		if (!closed) warnAt(initialLineI, `Admonition "${type}" is not closed`);
-		return { type: "admonition", admonitionType: type, title, text: content.join("\n").trim(), attributes, sourceLine: initialLineI };
+		return { type: "admonition", admonitionType: type, title, text: content.filter(t => !!t.trim()).join("\n").trim(), attributes, sourceLine: initialLineI };
 	}
 	class RuleError extends Error { };
 	function apllyRule(text: string)
@@ -977,7 +977,7 @@ const unitsPattern = createAlternation(units);
  * А
  * A
  */
-const referenceIdentifierPattern = String.raw`(?:\(\s*\d+(?:\.\d+)*\s*\)|\d+(?:\.\d+)*|[А-ЯЁA-Z])`;
+const referenceIdentifierPattern = String.raw`(?:\(\s*\d+(?:\.\d+)*\s*\)|\d+(?:\.\d+)*|[А-ЯЁA-Z](?:[^\p{L}]|$))`;
 
 export function formatTypography(text: string): string
 {

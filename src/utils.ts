@@ -8,7 +8,7 @@ export type JSONValue = string | number | boolean | null | { [x: string]: JSONVa
 export type JSONDict = Record<string, JSONValue>;
 export function lt<T, R>(v: T | null | undefined, fn: (v: T) => R)
 {
-	if (v) return fn(v);
+	if (v !== null && v !== undefined) return fn(v);
 	return null;
 }
 export function also<T>(v: T, fn: (v: T) => any)
@@ -16,9 +16,10 @@ export function also<T>(v: T, fn: (v: T) => any)
 	fn(v);
 	return v;
 }
-export function choice<T>(...options: T[]): T
+export function choice<T>(first: T, ...options: T[]): T
 {
-	return options[randomInt(options.length)];
+	const all = [first, ...options];
+	return all[randomInt(all.length)];
 }
 export function randomInt(max: number): number;
 export function randomInt(min: number, max: number, rnd?: () => number): number;
@@ -31,6 +32,7 @@ export function randomInt(maxmin: number, max?: number, rnd = Math.random)
 
 export function trimEnd(str: string, ...chs: string[])
 {
+	chs = chs.filter(ch => ch.length > 0);
 	if (!chs || chs.length == 0) return str.trimEnd();
 	let trimmed = false;
 	do
@@ -49,6 +51,7 @@ export function trimEnd(str: string, ...chs: string[])
 
 export function trimStart(str: string, ...chs: string[])
 {
+	chs = chs.filter(ch => ch.length > 0);
 	if (!chs || chs.length == 0) return str.trimStart();
 	let trimmed = false;
 	do

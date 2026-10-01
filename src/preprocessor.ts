@@ -24,6 +24,7 @@ export interface TemplateExecOptions
 interface ExecContext
 {
 	options: TemplateExecOptions;
+	workdir: string;
 	includes: number;
 	iterations: number;
 	inputLength: number;
@@ -35,9 +36,10 @@ interface ExecContext
 
 export async function preprocess(file: string, variables: JSONDict | undefined, checkFilesIsInsidePath: string | false, options: TemplateExecOptions, signal?: AbortSignal | null, logwarn: (msg: string) => void = console.warn): Promise<string>
 {
-	const { resolvePath, getRelative } = getSafePathResolver(path.parse(file).dir, checkFilesIsInsidePath);
+	const rootFile = path.resolve(file);
+	const { resolvePath, getRelative } = getSafePathResolver(path.dirname(rootFile), checkFilesIsInsidePath);
 	const ctx: ExecContext = {
-		options, includes: 0, iterations: 0, inputLength: 0, generatedLength: 0, signal: signal || undefined, logwarn, countAsOutput(v)
+		options, workdir: path.dirname(rootFile), includes: 0, iterations: 0, inputLength: 0, generatedLength: 0, signal: signal || undefined, logwarn, countAsOutput(v)
 		{
 			ctx.generatedLength += v.length;
 			if (options.maxGeneratedLength !== undefined && ctx.generatedLength > options.maxGeneratedLength)
@@ -45,7 +47,8 @@ export async function preprocess(file: string, variables: JSONDict | undefined, 
 			return v;
 		},
 	};
-	return processInclude({ type:"include", path: file, dict: {} }, variables, resolvePath, getRelative, [], ctx);
+	const rootNode = { type: "include", path: rootFile, dict: {}, trimEnd: false, trimStart: false } as const;
+	return processInclude(rootNode, variables, resolvePath, getRelative, [], ctx);
 }
 
 async function processInclude(node: INodeInclude, variables: JSONDict | undefined, resolvePath: (fname: string, origin?: string) => string, getRelative: (fname: string) => string, stack: string[], ctx: ExecContext): Promise<string>
@@ -109,7 +112,13 @@ async function processInclude(node: INodeInclude, variables: JSONDict | undefine
 	for (const node of includes)
 	{
 		if (node.type == "text") result += node.value;
-		else result += await processInclude(node, variables, resolvePath, getRelative, [...stack, relativePath], ctx);
+		else
+		{
+			let r = await processInclude(node, variables, resolvePath, getRelative, [...stack, relativePath], ctx);
+			if (node.trimStart) r = r.trimStart();
+			if (node.trimEnd) r = r.trimEnd();
+			result += r;
+		}
 	}
 	if (node.sourceLineCount)
 	{
@@ -120,8 +129,11 @@ async function processInclude(node: INodeInclude, variables: JSONDict | undefine
 
 	function fixLink(oldpath: string)
 	{
-		if (!isLocalFilePath(oldpath)) return oldpath;
-		return getRelative(resolvePath(oldpath, dir));
+		oldpath = oldpath.trim();
+		oldpath = trimEnd(trimStart(oldpath, "<", '"'), ">", '"');
+		const newpath = !isLocalFilePath(oldpath) ? oldpath : path.relative(ctx.workdir, resolvePath(oldpath, dir)).split(path.sep).join("/");
+		if (newpath.includes(" ")) return `<${newpath}>`;
+		return newpath;
 	}
 }
 
@@ -136,6 +148,8 @@ interface FNodeExpression
 	type: "expr";
 	value: string;
 	hasQuotes: boolean;
+	trimLeft: boolean;
+	trimRight: boolean;
 	source: NodeSource;
 }
 type WithSource<T> = T & { source: NodeSource };
@@ -152,6 +166,12 @@ function parseFExpr(content: string): FNode[]
 	let textStart = 0;
 	let ln = 1;
 
+	function countLines(start: number, end: number)
+	{
+		for (let i = start; i < end; i++)
+			if (content[i] == "\n") ln++;
+	}
+
 	function pushText(start: number, end: number)
 	{
 		if (start >= end) return;
@@ -159,8 +179,7 @@ function parseFExpr(content: string): FNode[]
 		const value = content.slice(start, end);
 		const prev = nodes.at(-1);
 
-		for (let i = start; i < end; i++)
-			if (content[i] == "\n") ln++;
+		countLines(start, end);
 
 		if (prev?.type == "text")
 			prev.value += value;
@@ -197,10 +216,12 @@ function parseFExpr(content: string): FNode[]
 			continue;
 		}
 
+		const trimLeft = content[i + 2] == "-" && !/\d/.test(content[i + 3] || "");
+		const valueStart = i + 2 + (trimLeft ? 1 : 0);
 		let end = -1;
 		let inString = false;
 		let escaped = false;
-		for (let j = i + 2; j < content.length - 1; j++)
+		for (let j = valueStart; j < content.length - 1; j++)
 		{
 			const ch = content[j];
 			if (inString)
@@ -218,19 +239,31 @@ function parseFExpr(content: string): FNode[]
 			}
 		}
 		if (end < 0) continue;
+		const trimRight = end > valueStart && content[end - 1] == "-";
+		const valueEnd = trimRight ? end - 1 : end;
 
 		/*
 			{{ expr }}   -> hasQuotes: false
 			"{{ expr }}" -> hasQuotes: true
 		*/
 		const hasQuotes = i > 0 && content[i - 1] == '"' && !isEscaped(i - 1) && content[end + 2] === '"';
-		const textEnd = hasQuotes ? i - 1 : i;
+		let textEnd = hasQuotes ? i - 1 : i;
+		const untrimmedTextEnd = textEnd;
+		if (trimLeft)
+			while (textEnd > textStart && /\s/.test(content[textEnd - 1]!)) textEnd--;
 		pushText(textStart, textEnd);
+		countLines(textEnd, untrimmedTextEnd);
 		const lineStart = content.lastIndexOf("\n", i + 2);
 		const source = { ln, col: lineStart < 0 ? i + 1 : i - lineStart };
-		nodes.push({ type: "expr", value: content.slice(i + 2, end), hasQuotes, source });
+		nodes.push({ type: "expr", value: content.slice(valueStart, valueEnd), hasQuotes, trimLeft, trimRight, source });
 
-		const next = hasQuotes ? end + 3 : end + 2;
+		let next = hasQuotes ? end + 3 : end + 2;
+		if (trimRight)
+		{
+			const untrimmedNext = next;
+			while (next < content.length && /\s/.test(content[next]!)) next++;
+			countLines(untrimmedNext, next);
+		}
 		textStart = next;
 		i = next - 1;
 	}
@@ -279,6 +312,10 @@ function processExpressions(nodes: FNode[], variables: JSONDict, ctx: ExecContex
 
 type ENode = ENodeText | WithSource<ENodeVar | ENodeFor | ENodeForEnd | ENodeIf | ENodeIfEnd | ENodeElse>;
 type VarPath = (string | number)[];
+type Operand = { t: "val", val: any } | { t: "var", path: VarPath };
+type OperatorCompare = "==" | "!=" | "<" | "<=" | ">" | ">=" | "in";
+type OperatorMath = "+" | "-" | "/" | "//" | "%" | "*" | "**";
+type OperatorLogical = "and" | "or" | "&&" | "||" | "??";
 interface ENodeText
 {
 	type: "text";
@@ -287,9 +324,9 @@ interface ENodeText
 interface ENodeVar
 {
 	type: "var";
-	path: VarPath
-	def?: string;
-	defPipe: boolean;
+	left: Operand;
+	operator?: OperatorMath | OperatorLogical;
+	right?: Operand;
 	hasQuotes: boolean;
 }
 interface ENodeFor
@@ -297,7 +334,7 @@ interface ENodeFor
 	type: "for";
 	varValue: string;
 	varKey?: string;
-	arrayPath: VarPath;
+	array: Operand;
 }
 interface ENodeForEnd
 {
@@ -306,9 +343,9 @@ interface ENodeForEnd
 interface ENodeIf
 {
 	type: "if";
-	left: { t: "val", val: any } | { t: "var", path: VarPath };
-	operator?: "==" | "!=" | "<" | "<=" | ">" | ">=" | "in";
-	right?: { t: "val", val: any } | { t: "var", path: VarPath };
+	left: Operand;
+	operator?: OperatorCompare | OperatorLogical;
+	right?: Operand;
 }
 interface ENodeIfEnd
 {
@@ -326,13 +363,16 @@ function parseExp(nodes: FNode[], ctx: ExecContext): ENode[]
 	const reStr = String.raw`"(?:\\.|[^"\\])*"`;
 	const reNum = String.raw`-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?`;
 	const reVal = String.raw`(?:${reStr}|${reNum}|true|false|null)`;
-	const re_var = new RegExp(String.raw`^\s*(${reVar})(?:\s*(\?\?|\|\|)\s*(${reStr}))?\s*$`);
+	const reOCompare = String.raw`(?:==|!=|<|<=|>|>=|\bin\b)`;
+	const reOMath = String.raw`(?:\+|-|/|//|%|\*|\*\*)`;
+	const reOLogical = String.raw`(?:and|or|&&|\|\||\?\?)`;
+	const re_var = new RegExp(String.raw`^\s*((?:${reVar})|${reVal})\s*(?:(${reOMath}|${reOLogical})\s*((?:${reVar})|${reVal}))?\s*$`);
 	const re_val = new RegExp(String.raw`^${reVal}$`);
 	const re_str = new RegExp(String.raw`^\s*(${reStr})\s*$`);
 	const re_else = /^:else\s*$/;
-	const re_for = new RegExp(String.raw`^#for\s+(${reIdent})(?:\s*,\s*(${reIdent}))?\s+in\s+(${reVar})$`);
+	const re_for = new RegExp(String.raw`^#for\s+(${reIdent})(?:\s*,\s*(${reIdent}))?\s+in\s+(${reVar}|${reNum}|${reStr})\s*$`);
 	const re_forEnd = /^\/for\s*$/;
-	const re_if = new RegExp(String.raw`^#if\s+((?:${reVar})|${reVal})\s*(?:(==|!=|<=|>=|<|>|\bin\b)\s*((?:${reVar})|${reVal}))?$`);
+	const re_if = new RegExp(String.raw`^#if\s+((?:${reVar})|${reVal})\s*(?:(${reOCompare}|${reOLogical})\s*((?:${reVar})|${reVal}))?\s*$`);
 	const re_ifEnd = /^\/if\s*$/;
 	const re_path = /[A-Za-z_$][A-Za-z0-9_$]*|\d+/g;
 	return nodes.map((node): ENode  =>
@@ -341,7 +381,8 @@ function parseExp(nodes: FNode[], ctx: ExecContext): ENode[]
 		if (node.type == "text") return { type: "text", value: node.value };
 		const enode = node;
 		const source = node.source;
-		const rawValue = node.hasQuotes ? `"{{${node.value}}}"` : `{{${node.value}}}`;
+		const expression = `{{${node.trimLeft ? "-" : ""}${node.value}${node.trimRight ? "-" : ""}}}`;
+		const rawValue = node.hasQuotes ? `"${expression}"` : expression;
 		function retWarn(msg: string)
 		{
 			ctx.logwarn(msg + pos(enode));
@@ -350,13 +391,13 @@ function parseExp(nodes: FNode[], ctx: ExecContext): ENode[]
 		const mvar = re_var.exec(node.value);
 		if (mvar)
 		{
-			const name = mvar[1];
-			const operator = mvar[2];
-			const defval = mvar[3] === undefined ? undefined : safeParse(mvar[3]);
-			if (mvar[3] !== undefined && typeof defval !== "string") return retWarn("Cant parse string: " + mvar[3]);
-			const path = parsePath(name);
-			if (!path) return retWarn("Unsupported expression: " + rawValue);
-			return { type: "var", path, def: defval, defPipe: operator == "||", source, hasQuotes: node.hasQuotes };
+			const left = parseOperand(mvar[1]);
+			if (!left) return retWarn("Unsupported expression: " + rawValue);
+			const operator = mvar[2] as OperatorMath | OperatorLogical | undefined;
+			if (!operator) return { type: "var", left, source, hasQuotes: node.hasQuotes };
+			const right = parseOperand(mvar[3]);
+			if (!right) return retWarn("Unsupported expression: " + rawValue);
+			return { type: "var", left, operator, right, source, hasQuotes: node.hasQuotes };
 		}
 		const mstr = re_str.exec(node.value);
 		if (mstr)
@@ -371,30 +412,16 @@ function parseExp(nodes: FNode[], ctx: ExecContext): ENode[]
 			if (!ctx.options.allowLoops) return retWarn("Loop expressions are not allowed");
 			const varValue = mfor[1];
 			const varKey = mfor[2];
-			const arrayPathStr = mfor[3];
-			const arrayPath = parsePath(arrayPathStr);
-			if (!arrayPath) return retWarn("Unsupported expression: " + rawValue);
-			return { type: "for", varValue, varKey, arrayPath, source };
+			const array = parseOperand(mfor[3]);
+			if (!array) return retWarn("Unsupported expression: " + rawValue);
+			return { type: "for", varValue, varKey, array, source };
 		}
 		const mif = re_if.exec(node.value);
 		if (mif)
 		{
-			function parseOperand(value: string | undefined)
-			{
-				if (!value) return undefined;
-				if (re_val.test(value))
-				{
-					const val = safeParse(value);
-					if (val === undefined) return null;
-					return { t: "val", val } as const;
-				}
-				const path = parsePath(value);
-				if (!path) return null;
-				return { t: "var", path } as const;
-			}
 			const left = parseOperand(mif[1]);
 			if (!left) return retWarn("Unsupported expression: " + rawValue);
-			const operator = mif[2] as ENodeIf["operator"] | undefined;
+			const operator = mif[2] as OperatorCompare | OperatorLogical | undefined;
 			if (!operator) return { type: "if", left, source };
 			const right = parseOperand(mif[3]);
 			if (!right) return retWarn("Unsupported expression: " + rawValue);
@@ -424,6 +451,19 @@ function parseExp(nodes: FNode[], ctx: ExecContext): ENode[]
 		if (!parts?.length) return undefined;
 		return parts.map(part => /^\d+$/.test(part) ? Number(part) : part);
 	}
+	function parseOperand(value: string | undefined)
+	{
+		if (!value) return undefined;
+		if (re_val.test(value))
+		{
+			const val = safeParse(value);
+			if (val === undefined) return null;
+			return { t: "val", val } as const;
+		}
+		const path = parsePath(value);
+		if (!path) return null;
+		return { t: "var", path } as const;
+	}
 }
 
 type TNode = TNodeText | WithSource<TNodeVar | TNodeFor | TNodeIf>;
@@ -451,19 +491,18 @@ function buildExpTree(nodes: ENode[], ctx: ExecContext, depth = 0, source?: Node
 			if (n.type == "text" || n.type == "var") return n;
 			if (n.type == "else" || n.type == "forEnd" || n.type == "ifEnd")
 			{
-				const str = n.type == "else" ? "{:else}" : n.type == "ifEnd" ? "{#if}" : "{#for}";
+				const str = n.type == "else" ? "{{:else}}" : n.type == "ifEnd" ? "{{/if}}" : "{{/for}}";
 				return { type: "text", value: str };
 			}
 			if (n.type == "for")
 			{
 				const second = n.varKey ? `, ${n.varKey}` : "";
-				return { type: "text", value: `{/for ${n.varValue}${second} in ${n.arrayPath.join(".")}}` };
+				return { type: "text", value: `{{#for ${n.varValue}${second} in ${strOperand(n.array)}}}` };
 			}
 			if (n.type == "if")
 			{
-				const v = (v: ENodeIf["left"]) => v.t == "val" ? JSON.stringify(v.val) : v.path.join(".");
-				const right = n.right ? ` ${n.operator} ${v(n.right)}` : "";
-				return { type: "text", value: `{/if ${v(n.left)}${right}}` };
+				const right = n.right ? ` ${n.operator} ${strOperand(n.right)}` : "";
+				return { type: "text", value: `{{#if ${strOperand(n.left)}${right}}}` };
 			}
 			n satisfies never;
 			return { type: "text", value: "" };
@@ -479,7 +518,7 @@ function buildExpTree(nodes: ENode[], ctx: ExecContext, depth = 0, source?: Node
 		}
 		if (node.type == "else" || node.type == "forEnd" || node.type == "ifEnd")
 		{
-			const str = node.type == "else" ? "{:else}" : node.type == "ifEnd" ? "{#if}" : "{#for}";
+			const str = node.type == "else" ? "{{:else}}" : node.type == "ifEnd" ? "{{/if}}" : "{{/for}}";
 			ctx.logwarn(`Unexpected expression (${str})` + pos(node));
 			tree.push({ type: "text", value: str });
 		}
@@ -491,13 +530,12 @@ function buildExpTree(nodes: ENode[], ctx: ExecContext, depth = 0, source?: Node
 				if (node.type == "for")
 				{
 					const second = node.varKey ? `, ${node.varKey}` : "";
-					tree.push({ type: "text", value: `{/for ${node.varValue}${second} in ${node.arrayPath.join(".")}}` });
+					tree.push({ type: "text", value: `{{#for ${node.varValue}${second} in ${strOperand(node.array)}}}` });
 				}
 				else if (node.type == "if")
 				{
-					const v = (v: ENodeIf["left"]) => v.t == "val" ? JSON.stringify(v.val) : v.path.join(".");
-					const right = node.right ? ` ${node.operator} ${v(node.right)}` : "";
-					tree.push({ type: "text", value: `{/if ${v(node.left)}${right}}` });
+					const right = node.right ? ` ${node.operator} ${strOperand(node.right)}` : "";
+					tree.push({ type: "text", value: `{{#if ${strOperand(node.left)}${right}}}` });
 				}
 			}
 			else
@@ -513,6 +551,7 @@ function buildExpTree(nodes: ENode[], ctx: ExecContext, depth = 0, source?: Node
 	{
 		return ` [Ln ${node.source.ln}, Col ${node.source.col}] (${node.source.fname})`;
 	}
+	function strOperand(v: Operand) { return v.t == "val" ? JSON.stringify(v.val) : v.path.join("."); }
 	type BlockType = "for" | "if";
 	function findBlockEnd(startI: number, type: BlockType, skipElse: boolean)
 	{
@@ -566,37 +605,25 @@ function execExpTree(tree: TNode[], variables: JSONDict, ctx: ExecContext): stri
 		if (node.type == "text") return ctx.countAsOutput(node.value);
 		if (node.type == "var")
 		{
-			const v = getByPath(variables, node.path);
-			const value = node.def === undefined ? v : (node.defPipe ? v || node.def : v ?? node.def);
-			const rawValue = node.hasQuotes ? `"{{${node.path.join(".")}}}"` : `{{${node.path.join(".")}}}`;
-			if (value === undefined) ctx.logwarn("Undefined variable: " + rawValue + pos(node));
-			const result = value === undefined ? rawValue
+			const n = node;
+			const value = execOperator(node.left, node.operator, node.right);
+			const rawValue = () =>
+			{
+				const right = n.right ? ` ${n.operator} ${strOperand(n.right)}` : "";
+				const value = `{{${strOperand(n.left)}${right}}}`;
+				return n.hasQuotes ? `"${value}"` : value;
+			};
+			if (value === undefined) ctx.logwarn("Undefined variable: " + rawValue() + pos(node));
+			const result = value === undefined ? rawValue()
 				: typeof value == "object" || node.hasQuotes ? JSON.stringify(value) : `${value}`;
 			return ctx.countAsOutput(result);
 		}
 		if (node.type == "if")
 		{
-			const left = node.left.t == "val" ? node.left.val : getByPath(variables, node.left.path);
-			let result: boolean;
-			if (node.operator && node.right)
-			{
-				const right = node.right.t == "val" ? node.right.val : getByPath(variables, node.right.path);
-				if (node.operator == "==") result = isEqual(left, right);
-				else if (node.operator == "!=") result = !isEqual(left, right);
-				else if (node.operator == "<=") result = left < right || isEqual(left, right);
-				else if (node.operator == ">=") result = left > right || isEqual(left, right);
-				else if (node.operator == "<") result = left < right;
-				else if (node.operator == ">") result = left > right;
-				else if (node.operator == "in") result = !!right && typeof right == "object" &&
-					(Array.isArray(right) ? right : Object.keys(right)).some(v => isEqual(v, left));
-				else { node.operator satisfies never; result = false; }
-			}
-			else
-			{
-				if (left && typeof left == "object")
-					result = (Array.isArray(left) ? left : Object.keys(left)).length > 0;
-				else result = !!left;
-			}
+			const res = execOperator(node.left, node.operator, node.right);
+			const result = (res && typeof res == "object")
+				? (Array.isArray(res) ? res : Object.keys(res)).length > 0
+				: !!res;
 			if (result) return execExpTree(node.body, variables, ctx);
 			if (node.bodyElse) return execExpTree(node.bodyElse, variables, ctx);
 			return "";
@@ -604,7 +631,7 @@ function execExpTree(tree: TNode[], variables: JSONDict, ctx: ExecContext): stri
 		if (node.type == "for")
 		{
 			if (!ctx.options.allowLoops) throw new UserInputError("Loop expressions are not allowed");
-			const arr = getByPath(variables, node.arrayPath);
+			const arr = node.array.t == "val" ? node.array.val : getByPath(variables, node.array.path);
 			if (!arr || typeof arr == "object" && (Array.isArray(arr) ? arr : Object.keys(arr)).length == 0)
 			{
 				if (node.bodyElse) return execExpTree(node.bodyElse, variables, ctx);
@@ -615,9 +642,11 @@ function execExpTree(tree: TNode[], variables: JSONDict, ctx: ExecContext): stri
 				const n = node;
 				function checkLoopIterations(count: number, final = true)
 				{
-					const max = ctx.options.maxLoopIterations;
-					if (max !== undefined && count > max)
+					const max = ctx.options.maxLoopIterations === undefined ? 1000 : ctx.options.maxLoopIterations;
+					if (count > max)
 						throw new UserInputError(`Maximum loop iterations exceeded (${final ? count + " " : ""}> ${max})` + pos(n));
+					if (ctx.options.maxTotalIterations !== undefined && ctx.iterations + count > ctx.options.maxTotalIterations)
+						throw new UserInputError(`Maximum total loop iterations exceeded (${ctx.options.maxTotalIterations})`);
 				}
 				if (typeof arr == "number" && Number.isInteger(arr))
 				{
@@ -669,6 +698,7 @@ function execExpTree(tree: TNode[], variables: JSONDict, ctx: ExecContext): stri
 	{
 		return ` [Ln ${node.source.ln}, Col ${node.source.col}] (${node.source.fname})`;
 	}
+	function strOperand(v: Operand) { return v.t == "val" ? JSON.stringify(v.val) : v.path.join("."); }
 	function isEqual(obj1: any, obj2: any)
 	{
 		if (obj1 === obj2) return true;
@@ -682,6 +712,34 @@ function execExpTree(tree: TNode[], variables: JSONDict, ctx: ExecContext): stri
 				return false;
 		return true;
 	}
+	function execOperator(left: Operand, operator?: OperatorCompare | OperatorLogical | OperatorMath, right?: Operand)
+	{
+
+		const leftV = left.t == "val" ? left.val : getByPath(variables, left.path);
+		if (!operator || !right) return leftV;
+		const rightV = right.t == "val" ? right.val : getByPath(variables, right.path);
+
+		if (operator == "==") return isEqual(leftV, rightV);
+		if (operator == "!=") return !isEqual(leftV, rightV);
+		if (operator == "<=") return leftV < rightV || isEqual(leftV, rightV);
+		if (operator == ">=") return leftV > rightV || isEqual(leftV, rightV);
+		if (operator == "<") return leftV < rightV;
+		if (operator == ">") return leftV > rightV;
+		if (operator == "in") return !!rightV && typeof rightV == "object" &&
+					(Array.isArray(rightV) ? rightV : Object.keys(rightV)).some(v => isEqual(v, leftV));
+		if (operator == "and" || operator == "&&") return leftV && rightV;
+		if (operator == "or" || operator == "||") return leftV || rightV;
+		if (operator == "??") return leftV ?? rightV;
+		if (operator == "+") return leftV + rightV;
+		if (operator == "-") return leftV - rightV;
+		if (operator == "*") return leftV * rightV;
+		if (operator == "**") return Math.pow(leftV, rightV);
+		if (operator == "/") return rightV == 0 ? 0 : leftV / rightV;
+		if (operator == "//") return Math.floor(rightV == 0 ? 0 : leftV / rightV);
+		if (operator == "%") return rightV == 0 ? 0 : leftV % rightV;
+		operator satisfies never;
+		return false;
+	}
 }
 
 type INode = INodeText | INodeInclude;
@@ -694,8 +752,59 @@ interface INodeInclude
 {
 	type: "include";
 	path: string;
-	dict: { [key: string]: string };
+	dict: JSONDict;
 	sourceLineCount?: number;
+	trimStart: boolean;
+	trimEnd: boolean;
+}
+
+function parseIncludePath(value: string)
+{
+	value = value.trim();
+	const trimLeft = value.startsWith("-");
+	if (trimLeft) value = value.slice(1).trimStart();
+	const trimLeftInner = value.startsWith("-");
+	if (trimLeftInner) value = value.slice(1).trimStart();
+	const trimRight = value.endsWith("-");
+	if (trimRight) value = value.slice(0, -1).trimEnd();
+	const trimRightInner = value.endsWith("-");
+	if (trimRightInner) value = value.slice(0, -1).trimEnd();
+	const path = trimEnd(trimStart(value, "<", '"'), ">", '"');
+	return { path, trimLeft, trimLeftInner, trimRight, trimRightInner };
+}
+
+function findClosingBrace(content: string, start: number)
+{
+	let depth = 0;
+	let inString = false;
+	let lineComment = false;
+	let blockComment = false;
+	for (let i = start; i < content.length; i++)
+	{
+		const ch = content[i];
+		if (lineComment)
+		{
+			if (ch == "\n") lineComment = false;
+			continue;
+		}
+		if (blockComment)
+		{
+			if (ch == "*" && content[i + 1] == "/") { blockComment = false; i++; }
+			continue;
+		}
+		if (inString)
+		{
+			if (ch == "\\") i++;
+			else if (ch == '"') inString = false;
+			continue;
+		}
+		if (ch == '"') { inString = true; continue; }
+		if (ch == "/" && content[i + 1] == "/") { lineComment = true; i++; continue; }
+		if (ch == "/" && content[i + 1] == "*") { blockComment = true; i++; continue; }
+		if (ch == "{") depth++;
+		else if (ch == "}" && --depth == 0) return i;
+	}
+	return -1;
 }
 
 async function parseIncludes(content: string, logwarn: (msg: string) => void): Promise<INode[]>
@@ -735,28 +844,35 @@ async function parseIncludes(content: string, logwarn: (msg: string) => void): P
 			if (ticks >= codeFence && suffix.trim() == "") { codeFence = 0; continue; }
 		}
 		if (codeFence != 0) continue;
-		if (content.slice(i, i + 3) !== "!!(") continue;
+		if (content.slice(i, i + 2) !== "!!") continue;
 
-		const rest = content.slice(i);
-		const paragraphBreak = rest.search(/\r?\n[^\S\r\n]*\r?\n/);
-		const endOfParagraph = paragraphBreak < 0 ? content.length : i + paragraphBreak;
+		const m_start = /^!!\([^{}]*\)\s*{/.exec(content.slice(i));
+		if (!m_start) continue;
+		const end = findClosingBrace(content, i + m_start[0].length - 1);
+		if (end < 0) continue;
 
-		const paragraph = content.slice(i, endOfParagraph);
-		const m_doc = re_doc.exec(paragraph.trimEnd());
+		const block = content.slice(i, end + 1);
+		const m_doc = re_doc.exec(block);
 		if (!m_doc) continue;
 
-		const path = trimEnd(trimStart(m_doc[1]!, "<", '"'), ">", '"');
+		const { path, trimLeft, trimLeftInner, trimRight, trimRightInner } = parseIncludePath(m_doc[1]!);
 		if (!path.toLowerCase().endsWith(".md")) continue;
 
 		let dict = {};
 		try { dict = JSONC.parse(`{${m_doc[2]!}}`); }
 		catch { logwarn(`Can't parse include dict: {${m_doc[2]!.replaceAll("\n", " ")}}`); continue; }
 
-		pushText(textStart, i);
-		nodes.push({ type: "include", path, dict, sourceLineCount: paragraph.split("\n").length });
+		let textEnd = i;
+		if (trimLeft)
+			while (textEnd > textStart && /\s/.test(content[textEnd - 1]!)) textEnd--;
+		pushText(textStart, textEnd);
+		nodes.push({ type: "include", path, dict, sourceLineCount: block.split("\n").length, trimStart: trimLeftInner, trimEnd: trimRightInner });
 
-		textStart = endOfParagraph;
-		i = endOfParagraph - 1;
+		let next = end + 1;
+		if (trimRight)
+			while (next < content.length && /\s/.test(content[next]!)) next++;
+		textStart = next;
+		i = next - 1;
 	}
 
 	pushText(textStart, content.length);
@@ -806,25 +922,30 @@ async function fixLinks(content: string, fixLink: (oldpath: string) => string): 
 			continue;
 		}
 
-		const rest = content.slice(i);
-		const paragraphBreak = rest.search(/\r?\n[^\S\r\n]*\r?\n/);
-		const endOfParagraph = paragraphBreak < 0 ? content.length : i + paragraphBreak;
-		const paragraph = content.slice(i, endOfParagraph);
+		const m_start = /^!!\([^{}]*\)\s*{/.exec(content.slice(i));
+		if (!m_start) continue;
+		const end = findClosingBrace(content, i + m_start[0].length - 1);
+		if (end < 0) continue;
+		const block = content.slice(i, end + 1);
 
-		const m_doc = /^!!\(([^{}]*)\)(\s*{(.*)})$/s.exec(paragraph);
+		const m_doc = /^!!\(([^{}]*)\)(\s*{(.*)})$/s.exec(block);
 		if (!m_doc) continue;
 
 		try { JSONC.parse(m_doc[2].trim()); }
 		catch { continue; }
 
+		const { path, trimLeft, trimLeftInner, trimRight, trimRightInner } = parseIncludePath(m_doc[1]!);
+		let fixedPath = fixLink(path);
+		if (fixedPath.startsWith("-") || fixedPath.endsWith("-"))
+			fixedPath = `"${fixedPath}"`;
+
 		append(textStart, i);
-		result += `!!(${fixLink(m_doc[1])})${m_doc[2]}`;
-		textStart = endOfParagraph;
-		i = endOfParagraph - 1;
+		result += `!!(${trimLeft ? "-" : ""}${trimLeftInner ? "-" : ""}${fixedPath}${trimRightInner ? "-" : ""}${trimRight ? "-" : ""})${m_doc[2]}`;
+		textStart = end + 1;
+		i = end;
 	}
 
 	append(textStart, content.length);
 
 	return result;
 }
-
