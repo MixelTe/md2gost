@@ -150,6 +150,11 @@
           "default": true,
           "description": "Использовать дополненную подсветку Markdown (требуется перезагрузка окна)."
         },
+        "md2gost.ui.expressionHighlighting": {
+          "type": "boolean",
+          "default": true,
+          "description": "Подсвечивать выражения шаблона md2gost (требуется перезагрузка окна)."
+        },
         "md2gost.ui.enhancedPreview": {
           "type": "boolean",
           "default": true,

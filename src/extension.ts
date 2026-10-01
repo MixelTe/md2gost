@@ -99,8 +99,8 @@ export function activate(context: vscode.ExtensionContext)
 				onDidChangeInlayHints.fire();
 			if (e.affectsConfiguration("md2gost.tables.editor.enabled"))
 				tableCodeLensProvider.refresh();
-			if (e.affectsConfiguration("md2gost.ui.enhancedHighlighting"))
-				onEnhancedHighlighting(assets, logger);
+			if (e.affectsConfiguration("md2gost.ui.enhancedHighlighting") || e.affectsConfiguration("md2gost.ui.expressionHighlighting"))
+				onEnhancedHighlighting(assets, logger, e);
 		}),
 	);
 
@@ -337,15 +337,23 @@ function showFormatterSuggest()
 	});
 }
 
-function onEnhancedHighlighting(assets: string, logger: vscode.LogOutputChannel)
+function onEnhancedHighlighting(assets: string, logger: vscode.LogOutputChannel, event: vscode.ConfigurationChangeEvent)
 {
 	const config = vscode.workspace.getConfiguration("md2gost");
-	const isEnabled = config.get<boolean>("ui.enhancedHighlighting", true);
+	const grammars = [
+		{ setting: "ui.enhancedHighlighting", name: "grammars", scopeName: "md2gost.markdown.injection" },
+		{ setting: "ui.expressionHighlighting", name: "grammars-expressions", scopeName: "md2gost.expression.injection" },
+	] as const;
+	let currentGrammar = "";
 
 	try
 	{
-		update("grammars", "md2gost.markdown.injection");
-		update("grammars-expressions", "md2gost.expression.injection");
+		for (const grammar of grammars)
+		{
+			if (!event.affectsConfiguration(`md2gost.${grammar.setting}`)) continue;
+			currentGrammar = grammar.name;
+			update(grammar.name, grammar.scopeName, config.get<boolean>(grammar.setting, true));
+		}
 
 		const action = "Reload Window";
 		vscode.window.showInformationMessage(
@@ -359,7 +367,7 @@ function onEnhancedHighlighting(assets: string, logger: vscode.LogOutputChannel)
 	{
 		const action = "Copy Path";
 		vscode.window.showErrorMessage(
-			`md2gost: Permission denied. Please manually edit grammars.json to ${isEnabled ? "enable" : "disable"} highlighting.`,
+			`md2gost: Permission denied. Please manually edit ${currentGrammar}.json to update highlighting.`,
 			action,
 		).then(selectedAction =>
 		{
@@ -367,10 +375,10 @@ function onEnhancedHighlighting(assets: string, logger: vscode.LogOutputChannel)
 			vscode.env.clipboard.writeText(assets);
 			vscode.window.showInformationMessage("Path copied to clipboard!");
 		});
-		logger.error(`Manual fix: replace content of grammars.json and grammars-expressions.json`);
+		logger.error(`Manual fix: replace content of ${currentGrammar}.json`);
 	}
 
-	function update(name: string, scopeName: string)
+	function update(name: string, scopeName: string, isEnabled: boolean)
 	{
 		const grammarPath = path.join(assets, name + ".json");
 		const grammarCopyPath = path.join(assets, name + ".copy.json");
