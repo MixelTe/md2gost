@@ -131,6 +131,12 @@ function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, render
 
 	const config = vscode.workspace.getConfiguration("md2gost");
 	const removeIntermediateDocx = config.get<boolean>("render.removeIntermediateDocx", false);
+	const templateOptions = {
+		allowLoops: true,
+		allowIncludes: true,
+		maxTotalIterations: config.get<number>("render.maxTotalIterations", 2000),
+		maxIncludeDepth: config.get<number>("render.maxIncludeDepth", 100),
+	};
 	const sourceDocument = vscode.workspace.textDocuments.find(document => document.uri.fsPath == file);
 	if (sourceDocument) renderDiagnostics.clear(sourceDocument);
 
@@ -154,6 +160,7 @@ function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, render
 				removeIntermediateDocx,
 				disableMacros,
 				checkFilesIsInsidePath: false,
+				templateOptions,
 				loginfo: logger.info,
 				logwarn: msg =>
 				{

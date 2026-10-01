@@ -2,8 +2,9 @@ import path from "path";
 import { render } from "./main";
 import { UserInputError } from "./errors";
 import type { JSONDict } from "./utils";
+import type { TemplateExecOptions } from "./preprocessor";
 
-export { UserInputError, JSONDict };
+export { UserInputError, JSONDict, TemplateExecOptions };
 
 declare const __MD2GOST_DIRNAME__: string;
 
@@ -89,6 +90,27 @@ export interface MDRenderConfig
 	 * When omitted, the root document is not treated as a template.
 	 */
 	variables?: JSONDict;
+
+	/**
+	 * Controls template loops, includes, and resource limits.
+	 * @defaultValue `{ allowIncludes: true, allowLoops: true }`
+	 * @example
+	 * ```ts
+	 * templateOptions: {
+	 * 	allowLoops: true,
+	 * 	allowIncludes: true,
+	 * 	maxLoopIterations: 100,
+	 * 	maxTotalIterations: 2_000,
+	 * 	maxDepth: 20,
+	 * 	maxIncludeDepth: 10,
+	 * 	maxIncludes: 50,
+	 * 	maxFileLength: 200_000,
+	 * 	maxTotalInputLength: 1_000_000,
+	 * 	maxGeneratedLength: 2_000_000,
+	 * }
+	 * ```
+	 */
+	templateOptions?: TemplateExecOptions;
 }
 
 /**
@@ -170,10 +192,25 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	assert(typeof config.checkFilesIsInsidePath == "string" || config.checkFilesIsInsidePath === false || typeof config.checkFilesIsInsidePath == "undefined", "checkFilesIsInsidePath must be a string, false or undefined.");
 	assert(typeof config.progress == "function" || typeof config.progress == "undefined", "Progress callback must be a function or undefined.");
 	assert((typeof config.variables == "object" && config.variables !== null && !Array.isArray(config.variables)) || typeof config.variables == "undefined", "variables must be an object or undefined.");
+	assert((typeof config.templateOptions == "object" && config.templateOptions !== null && !Array.isArray(config.templateOptions)) || typeof config.templateOptions == "undefined", "templateOptions must be an object or undefined.");
+	if (config.templateOptions)
+	{
+		const options = config.templateOptions;
+		const booleanProps = ["allowLoops", "allowIncludes"] as const;
+		const limitProps = ["maxLoopIterations", "maxTotalIterations", "maxDepth", "maxIncludeDepth", "maxIncludes", "maxFileLength", "maxTotalInputLength", "maxGeneratedLength"] as const;
+		const extraProps = getExtraProperties(options, [...booleanProps, ...limitProps]);
+		assert(extraProps.length == 0, `Found unknown properties in config.templateOptions: ${extraProps.join(", ")}`);
+		booleanProps.forEach(p =>
+			assert(options[p] === undefined || typeof options[p] == "boolean", `config.templateOptions.${p} must be a boolean or undefined.`),
+		);
+		limitProps.forEach(p =>
+			assert(options[p] === undefined || (Number.isSafeInteger(options[p]) && options[p] >= 0), `config.templateOptions.${p} must be a non-negative safe integer or undefined.`),
+		);
+	}
 	assert(config.abortSignal instanceof AbortSignal || typeof config.abortSignal == "undefined", "abortSignal must be an AbortSignal or undefined.");
 	{
 		const extraProps = getExtraProperties(config,
-			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "useLibreOffice", "progress", "logger", "abortSignal", "checkFilesIsInsidePath", "variables"],
+			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "useLibreOffice", "progress", "logger", "abortSignal", "checkFilesIsInsidePath", "variables", "templateOptions"],
 		);
 		assert(extraProps.length == 0, `Found unknown properties in config: ${extraProps.join(", ")}`);
 	}
@@ -238,6 +275,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 			useLibreOffice,
 			checkFilesIsInsidePath,
 			variables: config.variables,
+			templateOptions: config.templateOptions,
 			loginfo: logger?.info,
 			logwarn: msg => { logger?.warn(msg); warnings.push(msg); },
 			logPS: msg => { logger?.info(msg); logPS.push(msg); },

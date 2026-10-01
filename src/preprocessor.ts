@@ -21,23 +21,6 @@ export interface TemplateExecOptions
 	maxGeneratedLength?: number;
 }
 
-// const serverTemplateExecOptions: TemplateExecOptions = {
-// 	allowLoops: true,
-// 	allowIncludes: true,
-
-// 	maxLoopIterations: 100,
-// 	maxTotalIterations: 2_000,
-
-// 	maxDepth: 20,
-
-// 	maxIncludeDepth: 10,
-// 	maxIncludes: 50,
-
-// 	maxFileLength: 200_000,
-// 	maxTotalInputLength: 1_000_000,
-// 	maxGeneratedLength: 2_000_000,
-// };
-
 interface ExecContext
 {
 	options: TemplateExecOptions;
