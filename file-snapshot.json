@@ -18,9 +18,9 @@
     "vsixFiles": [
         "[Content_Types].xml",
         "extension.vsixmanifest",
-        "extension/changelog.md",
         "extension/LICENSE.txt",
-        "extension/readme.md",
+        "extension/assets/grammars-expressions.copy.json",
+        "extension/assets/grammars-expressions.json",
         "extension/assets/grammars.copy.json",
         "extension/assets/grammars.json",
         "extension/assets/markdown.css",
@@ -29,7 +29,11 @@
         "extension/assets/tableEditor.html",
         "extension/assets/template.dotm",
         "extension/assets/whats_new.html",
+        "extension/changelog.md",
         "extension/dist/extension.js",
+        "extension/imgs/admonition.png",
+        "extension/imgs/admonition2.png",
+        "extension/imgs/admonition3.png",
         "extension/imgs/backtick_mono_italic.png",
         "extension/imgs/backtick_mono_off.png",
         "extension/imgs/backtick_mono_on.png",
@@ -53,6 +57,7 @@
         "extension/imgs/tableEditor_openBtn.png",
         "extension/imgs/table_edit.svg",
         "extension/imgs/table_edit_white.svg",
-        "extension/package.json"
+        "extension/package.json",
+        "extension/readme.md"
     ]
 }
