@@ -174,6 +174,9 @@
 			position: relative;
 			font-size: 0.95rem;
 		}
+		li:nth-child(2) {
+			align-self: center;
+		}
 
 		li::before {
 			/* content: "•"; */
@@ -193,6 +196,7 @@
 			padding: 2px 6px;
 			border-radius: 4px;
 			margin-right: 8px;
+			margin-top: 0.2rem;
 			background: var(--tag-bg);
 			border: 1px solid var(--border);
 			text-transform: uppercase;
@@ -305,14 +309,17 @@
 	<script>
 		const changelogData = [
 			{
-				date: "2026-09-29",
-				version: "v1.6.0 — The Formula Update",
+				date: "2026-10-01",
+				version: "v1.6.0 — The Formula & Template Update",
 				changes: [
-					{ type: "Added", text: `Подключение других Markdown-файлов через <a href="#" onclick="openDocs('### Markdown-вставки и шаблонизация')"><code>!!(file.md){...}</code></a>: вложенные файлы, переменные и подсказки в редакторе.` },
 					{ type: "Added", text: `<a href="#" onclick="openDocs('### Формулы')">Формулы LaTeX</a> (<code>$…$</code> и <code>$$…$$</code>) преобразуются в редактируемые формулы Word. Поддерживаются <a href="#" onclick="openDocs('#### Именованные ссылки')">нумерация и ссылки</a> на формулы.` },
+					{ type: "Added", text: `Изображение из буфера обмена можно вставить поверх картинки, на которой стоит курсор: новый файл получит свободный номер, а путь в документе обновится.` },
+					{ type: "Added", text: `Подключение других Markdown-файлов через <a href="#" onclick="openDocs('### Markdown-вставки и шаблонизация')"><code>!!(file.md){...}</code></a>: вложенные файлы, переменные и подсказки в редакторе.` },
+					{ type: "Added", text: `Сложная <a href="#" onclick="openDocs('#### Расширенная шаблонизация')">шаблонизация</a>: условия, циклы, вычисления.` },
 					{ type: "Added", text: `Настраиваемые <a href="#" onclick="openDocs('### Колонтитулы')">верхние и нижние колонтитулы</a> через <code>!!header</code> и <code>!!footer</code>.` },
 					{ type: "Added", text: `<a href="#" onclick="openDocs('### Блоки Admonition')">Блоки-примечания</a> <code>:::note</code>, <code>:::info</code>, <code>:::tip</code>, <code>:::warning</code> и <code>:::danger</code> с настройкой оформления.` },
 					{ type: "Added", text: "Переменная <code>[!page]</code> для номера текущей страницы." },
+					{ type: "Added", text: `При экспорте <a href="#" onclick="openDocs('### Автозамены')">неразрывные пробелы</a> автоматически ставятся между короткими словами, числами и единицами измерения, инициалами и другими связанными обозначениями.` },
 					{ type: "Changed", text: "Предупреждения при создании документа теперь указывают строку и отображаются в панели Problems." },
 				],
 			},

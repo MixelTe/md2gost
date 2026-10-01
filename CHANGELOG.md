@@ -14,9 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Security
 
 
-## [1.6.0] - 2026-09-29
+## [1.6.0] - 2026-10-01
 ### Added
-- Markdown file includes (`!!(file.md){...}`) with nested includes, inherited typed variables, `{{variable.path}}` substitution, default values `{{name || "Empty name"}}` and `{{name ?? "No name"}}`, cycle protection, relative-path rewriting, npm API root variables, editor completion, highlighting, and preview
 - LaTeX formula support: inline `$…$` and display `$$…$$` formulas export as editable Office Math (OMML), with identifiers, automatic and manual numbering, formula references, `[!formulas]`, preview placeholders, and configurable `!!rule formula spacing before|after` offsets
 - configurable `!!header` and `!!footer` blocks with text, Markdown tables, alignment, editor IntelliSense, and enhanced Markdown preview
 - text var `[!page]` for current page
@@ -26,7 +25,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Admonition support in editor completion, diagnostics, hover help, syntax highlighting, and enhanced Markdown preview
 - source-line tracking for parsed Markdown nodes, so parser and conversion warnings and errors identify their originating line
 - render warnings with a `Line N:` prefix are highlighted in the editor and shown in the Problems panel; affected diagnostics are cleared as the document is edited
-- nbsp auto-insertion
+- Markdown file includes (`!!(file.md){...}`) with nested includes, inherited typed variables, `{{variable.path}}` substitution, default values `{{name || "Empty name"}}` and `{{name ?? "No name"}}`, relative-path rewriting, npm API root variables, editor completion, highlighting, and preview
+- template conditions (`{{#if ...}}`), loops (`{{#for ... in ...}}`), arithmetic, comparison and logical expressions, and whitespace-trimming markers for expressions and Markdown includes
+- template execution limits through `MDRenderConfig.templateOptions` and VS Code settings for total loop iterations and include depth
+- paste a clipboard image onto an existing Markdown image to create a numbered replacement file and update its path
+- automatic non-breaking spaces for short words, element references, initials, dates, standards, addresses, and numbers with units
 ### Changed
 - reject output file extensions that do not match the selected render format
 ### Deprecated
