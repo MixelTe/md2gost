@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Security
 
 
+## [1.6.1] - 2026-10-10
+### Fixed
+- allow pasting image into image tag with empty url
+
 ## [1.6.0] - 2026-10-01
 ### Added
 - LaTeX formula support: inline `$…$` and display `$$…$$` formulas export as editable Office Math (OMML), with identifiers, automatic and manual numbering, formula references, `[!formulas]`, preview placeholders, and configurable `!!rule formula spacing before|after` offsets

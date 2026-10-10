@@ -1,10 +1,24 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
+import * as picomatch from "picomatch";
 
 interface MarkdownImage {
 	fullRange: vscode.Range;
 	pathRange: vscode.Range;
 	path: string;
+}
+
+type OverwriteBehavior = "overwrite" | "nameIncrementally";
+
+interface CopyFileConfiguration {
+	destination: Record<string, string>;
+	overwriteBehavior: OverwriteBehavior;
+}
+
+interface ImageTarget {
+	uri: vscode.Uri;
+	fileName: string;
+	overwrite: boolean;
 }
 
 export class MarkdownImageReplacePasteProvider implements vscode.DocumentPasteEditProvider
@@ -33,19 +47,26 @@ export class MarkdownImageReplacePasteProvider implements vscode.DocumentPasteEd
 		const ext = getImageExtension(clipboardImage.mime, clipboardImage.file.name);
 		if (!ext) return;
 
-		const target = await createTarget(document, ref.path, ext);
+		const target = await createTarget(document, ref.path, ext, clipboardImage.file.name, token);
 		if (!target || token.isCancellationRequested) return;
 
 		const contents = await clipboardImage.file.data();
 		if (token.isCancellationRequested) return;
 
-		const newPath = replaceBasename(ref.path, target.fileName) + ref.suffix;
+		const newPath = ref.path
+			? replaceBasename(ref.path, target.fileName) + ref.suffix
+			: makeMarkdownPath(document, target.uri) + ref.suffix;
+
 		const edit = new vscode.WorkspaceEdit();
 
-		edit.createFile(target.uri, { contents });
+		edit.createFile(target.uri, { contents, overwrite: target.overwrite });
 		edit.replace(document.uri, image.pathRange, newPath);
 
-		const pasteEdit = new vscode.DocumentPasteEdit("", `Replace image with ${target.fileName}`, MarkdownImageReplacePasteProvider.kind);
+		const title = image.path
+			? `Replace image with ${target.fileName}`
+			: `Paste image as ${target.fileName}`;
+
+		const pasteEdit = new vscode.DocumentPasteEdit("", title, MarkdownImageReplacePasteProvider.kind);
 		pasteEdit.additionalEdit = edit;
 		return [pasteEdit];
 	}
@@ -88,7 +109,7 @@ function findMarkdownImageNear(document: vscode.TextDocument, range: vscode.Rang
 
 	const intersecting = images.find(image =>
 		start <= image.fullRange.end.character &&
-        end >= image.fullRange.start.character,
+		end >= image.fullRange.start.character,
 	);
 	if (intersecting) return intersecting;
 
@@ -227,11 +248,34 @@ function findClosingParen(text: string, start: number)
 	return -1;
 }
 
+/**
+ * Разбирает destination у markdown-картинки.
+ *
+ * В отличие от обычного варианта, здесь пустой destination тоже
+ * считается валидным:
+ *
+ *     ![image]()
+ *
+ * pathRange в этом случае будет zero-width range между "(" и ")".
+ */
 function parseDestination(text: string, start: number, end: number): { start: number; end: number } | undefined
 {
+	const rawStart = start;
 	let i = start;
 	while (i < end && /\s/.test(text[i])) i++;
-	if (i >= end) return;
+
+	// ![alt]()
+	// или ![alt](   )
+	if (i >= end) return { start: rawStart, end };
+
+	// Поддерживаем пустой destination с title:
+	//
+	// ![alt]( "title")
+	// ![alt]( 'title')
+	//
+	// Вставляем путь до пробела, сохраняя title.
+	if (i > rawStart && (text[i] === '"' || text[i] === "'"))
+		return { start: rawStart, end: rawStart };
 
 	if (text[i] === "<")
 	{
@@ -286,10 +330,32 @@ function splitLocalReference(raw: string): { path: string; suffix: string } | un
 		: { path: raw.slice(0, index), suffix: raw.slice(index) };
 }
 
-async function createTarget(document: vscode.TextDocument, oldMarkdownPath: string, extension: string)
+/**
+ * Если у markdown-картинки уже есть путь, сохраняем старое поведение:
+ *
+ *     ![](imgs/foo.png)
+ *       ->
+ *     ![](imgs/foo1.png)
+ *
+ * Если путь пустой:
+ *
+ *     ![]()
+ *
+ * используем markdown.copyFiles.destination и
+ * markdown.copyFiles.overwriteBehavior.
+ */
+async function createTarget(
+	document: vscode.TextDocument,
+	oldMarkdownPath: string,
+	extension: string,
+	clipboardFileName: string,
+	token: vscode.CancellationToken,
+): Promise<ImageTarget | undefined>
 {
 	const decoded = safeDecodeURIComponent(oldMarkdownPath).replace(/\\/g, "/");
-	if (!decoded) return;
+
+	if (!decoded)
+		return createTargetForEmptyPath(document, clipboardFileName, extension, token);
 
 	let oldUri: vscode.Uri;
 
@@ -308,17 +374,297 @@ async function createTarget(document: vscode.TextDocument, oldMarkdownPath: stri
 	const dir = oldUri.with({ path: path.posix.dirname(oldUri.path) });
 	const oldName = path.posix.basename(oldUri.path);
 	const oldExt = path.posix.extname(oldName);
-	const oldStem = oldName.slice(0, -oldExt.length || undefined);
+	const oldStem = oldExt ? oldName.slice(0, -oldExt.length) : oldName;
 	const stem = sequenceBase(oldStem);
 
 	for (let n = 1; n < 10000; n++)
 	{
+		if (token.isCancellationRequested) return;
 		const fileName = `${stem}${n}.${extension}`;
 		const uri = dir.with({ path: path.posix.join(dir.path, fileName) });
-		if (!(await exists(uri))) return { uri, fileName };
+		if (!(await exists(uri))) return { uri, fileName, overwrite: false };
 	}
 
 	return;
+}
+
+async function createTargetForEmptyPath(document: vscode.TextDocument, clipboardFileName: string, extension: string, token: vscode.CancellationToken): Promise<ImageTarget | undefined>
+{
+	const fileName = normalizeClipboardFileName(clipboardFileName, extension);
+	const config = getCopyFileConfiguration(document);
+	const desiredUri = getDesiredCopyFileUri(document, fileName, config.destination);
+
+	if (config.overwriteBehavior === "overwrite")
+		return { uri: desiredUri, fileName: path.posix.basename(desiredUri.path), overwrite: true };
+
+	const uri = await findAvailableTarget(desiredUri, token);
+	if (!uri) return;
+
+	return {
+		uri,
+		fileName: path.posix.basename(uri.path),
+		overwrite: false,
+	};
+}
+
+function getCopyFileConfiguration(document: vscode.TextDocument): CopyFileConfiguration
+{
+	const config = vscode.workspace.getConfiguration("markdown", document.uri);
+	return {
+		destination: config.get<Record<string, string>>("copyFiles.destination") ?? {},
+		overwriteBehavior: config.get<string>("copyFiles.overwriteBehavior") === "overwrite" ? "overwrite" : "nameIncrementally",
+	};
+}
+
+/**
+ * Повторяет семантику markdown.copyFiles.destination.
+ *
+ * Например:
+ *
+ * {
+ *     "*": "${documentDirName}/imgs/${fileName}"
+ * }
+ */
+function getDesiredCopyFileUri(document: vscode.TextDocument, fileName: string, destinations: Record<string, string>)
+{
+	for (const [rawGlob, destination] of Object.entries(destinations))
+	{
+		for (const glob of parseCopyFileGlob(rawGlob))
+		{
+			if (picomatch.isMatch(document.uri.path, glob, { dot: true }))
+				return resolveCopyDestination(document.uri, fileName, destination);
+		}
+	}
+
+	// Поведение VS Code по умолчанию:
+	// сохранить файл рядом с Markdown-документом.
+	const dir = path.posix.dirname(document.uri.path);
+
+	return document.uri.with({ path: path.posix.join(dir, fileName) });
+}
+
+/**
+ * VS Code трактует:
+ *
+ *     "*"
+ *
+ * как:
+ *
+ *     "** /*"
+ *
+ * А glob, начинающийся с "/", привязывается к workspace root.
+ */
+function parseCopyFileGlob(rawGlob: string): Iterable<string>
+{
+	if (rawGlob.startsWith("/"))
+		return (vscode.workspace.workspaceFolders ?? []).map(folder =>
+			vscode.Uri.joinPath(folder.uri, rawGlob).path,
+		);
+
+	if (!rawGlob.startsWith("**"))
+		return [`**/${rawGlob}`];
+
+	return [rawGlob];
+}
+
+/**
+ * Разрешает правую часть markdown.copyFiles.destination.
+ *
+ * Поддерживаются:
+ *
+ * ${documentDirName}
+ * ${documentRelativeDirName}
+ * ${documentFileName}
+ * ${documentBaseName}
+ * ${documentExtName}
+ * ${documentFilePath}
+ * ${documentRelativeFilePath}
+ * ${documentWorkspaceFolder}
+ * ${fileName}
+ * ${fileExtName}
+ * ${unixTime}
+ * ${isoTime}
+ *
+ * А также transforms:
+ *
+ * ${documentBaseName/(.).*\/$1/}
+ */
+function resolveCopyDestination(documentUri: vscode.Uri, fileName: string, destination: string)
+{
+	const resolved = resolveCopyDestinationSetting(documentUri, fileName, destination);
+
+	if (resolved.startsWith("/"))
+		return documentUri.with({ path: path.posix.normalize(resolved) });
+
+	const documentDir = path.posix.dirname(documentUri.path);
+
+	return documentUri.with({
+		path: path.posix.resolve(documentDir, resolved),
+	});
+}
+
+function resolveCopyDestinationSetting(documentUri: vscode.Uri, fileName: string, destination: string)
+{
+	let result = destination.trim();
+	if (!result) result = "${fileName}";
+
+	// Начальный "/" в markdown.copyFiles.destination
+	// означает путь от корня workspace.
+	if (result.startsWith("/"))
+		result = "${documentWorkspaceFolder}/" + result.slice(1);
+
+	// Если указан только каталог, VS Code автоматически
+	// добавляет имя файла.
+	if (result.endsWith("/"))
+		result += "${fileName}";
+
+	const documentDir = path.posix.dirname(documentUri.path);
+	const documentFileName = path.posix.basename(documentUri.path);
+	const documentExtName = path.posix.extname(documentFileName);
+	const documentBaseName = documentExtName
+		? documentFileName.slice(0, -documentExtName.length)
+		: documentFileName;
+	const workspaceFolder = vscode.workspace.getWorkspaceFolder(documentUri)?.uri;
+	const workspacePath = workspaceFolder?.path ?? documentDir;
+	const variables = new Map<string, string>([
+		["documentDirName", documentDir],
+		[
+			"documentRelativeDirName",
+			workspaceFolder ? path.posix.relative(workspaceFolder.path, documentDir) : documentDir,
+		],
+		["documentFileName", documentFileName],
+		["documentBaseName", documentBaseName],
+		["documentExtName", documentExtName.replace(".", "")],
+		["documentFilePath", documentUri.path],
+		[
+			"documentRelativeFilePath",
+			workspaceFolder ? path.posix.relative(workspaceFolder.path, documentUri.path) : documentUri.path,
+		],
+		["documentWorkspaceFolder", workspacePath],
+		["fileName", fileName],
+		["fileExtName", path.posix.extname(fileName).replace(".", "")],
+		["unixTime", Date.now().toString()],
+		["isoTime", new Date().toISOString()],
+	]);
+
+	/*
+	 * Поддерживает:
+	 *
+	 * ${fileName}
+	 *
+	 * и:
+	 *
+	 * ${documentBaseName/(.).*\/$1/}
+	 *
+	 * Также \$ позволяет экранировать "$".
+	 */
+	const variablePattern = /(\\\$)|(?<!\\)\$\{(\w+)(?:\/((?:\\\/|[^}/])+)\/((?:\\\/|[^}/])*)\/)?\}/g;
+
+	return result.replace(variablePattern,
+		(
+			match,
+			escapedDollar: string | undefined,
+			name: string | undefined,
+			pattern: string | undefined,
+			replacement: string | undefined,
+		) =>
+		{
+			if (escapedDollar) return "$";
+			if (!name) return match;
+
+			const value = variables.get(name);
+			if (value === undefined) return match;
+
+			if (pattern !== undefined && replacement !== undefined)
+			{
+				try
+				{
+					return value.replace(
+						new RegExp(replaceTransformEscapes(pattern)),
+						replaceTransformEscapes(replacement),
+					);
+				}
+				catch
+				{
+					return value;
+				}
+			}
+
+			return value;
+		},
+	);
+}
+
+function replaceTransformEscapes(value: string)
+{
+	return value.replace(/\\\//g, "/");
+}
+
+/**
+ * При nameIncrementally:
+ *
+ * image.png
+ * image-1.png
+ * image-2.png
+ * ...
+ */
+async function findAvailableTarget(desiredUri: vscode.Uri, token: vscode.CancellationToken): Promise<vscode.Uri | undefined>
+{
+	const dir = path.posix.dirname(desiredUri.path);
+	const ext = path.posix.extname(desiredUri.path);
+	const fileName = path.posix.basename(desiredUri.path);
+	const stem = ext ? fileName.slice(0, -ext.length) : fileName;
+
+	for (let n = 0; n < 10000; n++)
+	{
+		if (token.isCancellationRequested) return;
+
+		const candidateName = n === 0
+			? `${stem}${ext}`
+			: `${stem}-${n}${ext}`;
+
+		const candidate = desiredUri.with({
+			path: path.posix.join(dir, candidateName),
+		});
+
+		if (!(await exists(candidate)))
+			return candidate;
+	}
+
+	return;
+}
+
+/**
+ * DataTransferFile.name обычно уже содержит нормальное имя
+ * вроде image.png.
+ *
+ * Если расширения нет, дописываем расширение, определённое
+ * через MIME.
+ */
+function normalizeClipboardFileName(fileName: string, extension: string)
+{
+	const normalized = fileName.replace(/\\/g, "/");
+	let name = path.posix.basename(normalized);
+	if (!name) return `image.${extension}`;
+	if (!path.posix.extname(name)) name += `.${extension}`;
+	return name;
+}
+
+/**
+ * Строит ссылку относительно текущего Markdown-документа.
+ *
+ * /project/docs/readme.md
+ * /project/docs/imgs/image.png
+ *
+ * ->
+ *
+ * imgs/image.png
+ */
+function makeMarkdownPath(document: vscode.TextDocument, target: vscode.Uri)
+{
+	const documentDir = path.posix.dirname(document.uri.path);
+	const relative = path.posix.relative(documentDir, target.path);
+	return relative || path.posix.basename(target.path);
 }
 
 function sequenceBase(stem: string)
