@@ -24,6 +24,7 @@ file-snapshot.json
 pack.cmd
 README-NPM.md
 README-NPM.patch.md
+skills/**
 bak_README.md
 _hint.txt
 mac.txt
