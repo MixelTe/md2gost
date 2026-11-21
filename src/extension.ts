@@ -1,3 +1,4 @@
+import type { OfficeEngineType } from "./office";
 import * as vscode from "vscode";
 import type MarkdownIt from "markdown-it";
 import { render } from "./main";
@@ -9,6 +10,8 @@ import { addDiagnostic, FileDropProvider, md_completion, md_hover, md_inlineComp
 import { onEditTableCommand } from "./tableEditor";
 import { markdownItPlugin } from "./markdownPlugin";
 import { registerMarkdownImageReplacePaste } from "./markdownImageReplacePaste";
+import { reverseDocx } from "./antirender";
+import { registerDocxViewer } from "./docxViewer";
 
 export function activate(context: vscode.ExtensionContext)
 {
@@ -18,6 +21,7 @@ export function activate(context: vscode.ExtensionContext)
 	showChangelogOnUpdate(context);
 	showFormatterSuggest();
 	addDiagnostic(context);
+	registerDocxViewer(context, logger);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("md2gost.render_pdf",
@@ -35,6 +39,7 @@ export function activate(context: vscode.ExtensionContext)
 		),
 	);
 	const _onEditTableCommand = onEditTableCommand(context);
+	context.subscriptions.push(vscode.commands.registerCommand("md2gost.reverse_docx", (uri?: vscode.Uri) => onReverseCommand(logger, uri)));
 	context.subscriptions.push(vscode.commands.registerCommand("md2gost.edit_table", _onEditTableCommand));
 
 	context.subscriptions.push(
@@ -62,7 +67,7 @@ export function activate(context: vscode.ExtensionContext)
 	context.subscriptions.push(vscode.languages.registerCompletionItemProvider(
 		{ language: "markdown", pattern: "**/*.g.md" },
 		{ provideCompletionItems: md_completion },
-		"!", " ", "#",
+		"!", " ", "#", "[",
 	));
 	context.subscriptions.push(vscode.languages.registerInlineCompletionItemProvider(
 		{ language: "markdown" },
@@ -159,6 +164,9 @@ function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, render
 				renderPDF,
 				removeIntermediateDocx,
 				disableMacros,
+				engine: config.get<OfficeEngineType>("render.engine", "auto"),
+				sofficePath: config.get<string>("render.sofficePath", "").trim() || undefined,
+				unoPythonPath: config.get<string>("render.unoPythonPath", "").trim() || undefined,
 				checkFilesIsInsidePath: false,
 				templateOptions,
 				loginfo: logger.info,
@@ -167,19 +175,19 @@ function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, render
 					vscode.window.showWarningMessage(msg);
 					if (sourceDocument) renderDiagnostics.addWarning(sourceDocument, msg);
 				},
-				logPS: msg => logger.info(`PS: ${msg.trimEnd()}`),
-				logPSError: msg => logger.error(`PS ERROR: ${msg.trimEnd()}`),
+				logPS: msg => logger.info(`Office: ${msg.trimEnd()}`),
+				logPSError: msg => logger.error(`Office ERROR: ${msg.trimEnd()}`),
 				signal: controller.signal,
 			});
-			if (errS) logger.error(errS);
+			if (errS) logger.error(errS instanceof Error ? errS : String(errS));
 			if (err == "inPS") vscode.window.showErrorMessage(`Unknown error! Возможно у вас не установлен Word или установлен неправильно`);
 			if (err == "noPS") vscode.window.showErrorMessage(`Cant start PowerShell! Возможно он не прописан у вас в PATH`);
 			if (err == "vba") vscode.window.showErrorMessage(`VBA error: ${errS}`);
 			if (err == "pdf") vscode.window.showErrorMessage(`PDF render error` + (errS ? `: ${errS}` : ""));
-			if (err == "noWin") vscode.window.showWarningMessage("Функционал ограничен, полный функционал только на Windows (more info in readme)");
-			if (err && err != "noWin") return;
-			progress.report({ increment: 100, message: "Done!" });
-			vscode.window.showInformationMessage(`File rendered to ${fname}`, "Open").then(v =>
+			if (err == "noOffice" || err == "office") vscode.window.showErrorMessage(`${errS}`);
+			if (!err) progress.report({ increment: 100, message: "Done!" });
+			const message = err ? `DOCX сохранён с ограничениями: ${fname}` : `File rendered to ${fname}`;
+			vscode.window.showInformationMessage(message, "Open").then(v =>
 			{
 				if (v != "Open") return;
 				openFile(fname);
@@ -214,10 +222,39 @@ function onRenderCommand(assets: string, logger: vscode.LogOutputChannel, render
 	);
 }
 
+async function onReverseCommand(logger: vscode.LogOutputChannel, uri?: vscode.Uri)
+{
+	const input = uri || (await vscode.window.showOpenDialog({ canSelectMany: false, filters: { DOCX: ["docx"] } }))?.[0];
+	if (!input) return;
+	const output = await vscode.window.showSaveDialog({
+		defaultUri: vscode.Uri.file(input.fsPath.replace(/\.docx$/i, "") + ".g.md"),
+		filters: { "md2gost Markdown": ["g.md"] },
+	});
+	if (!output) return;
+	await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: "Reading DOCX...", cancellable: true }, async (_, token) =>
+	{
+		const controller = new AbortController();
+		const listener = token.onCancellationRequested(() => controller.abort());
+		try
+		{
+			if (token.isCancellationRequested) controller.abort();
+			const result = await reverseDocx({ input: input.fsPath, output: output.fsPath, overwrite: true, abortSignal: controller.signal });
+			result.warnings.forEach(w => logger.warn(`${w.block ? `Block ${w.block}: ` : ""}${w.message}`));
+			await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(result.filePath));
+			if (result.warnings.length) vscode.window.showWarningMessage(`DOCX converted with ${result.warnings.length} warning(s). See md2gost output.`);
+		}
+		catch (error)
+		{
+			if (!controller.signal.aborted) vscode.window.showErrorMessage(`Cannot reverse DOCX: ${error instanceof Error ? error.message : String(error)}`);
+		}
+		finally { listener.dispose(); }
+	});
+}
+
 function showChangelogOnUpdate(context: vscode.ExtensionContext)
 {
 	const packageVersion = context.extension.packageJSON.version;
-	const pageVersion = "7";
+	const pageVersion = "8";
 	const lastVersion = context.globalState.get<string>("extension_version");
 
 	if (pageVersion !== lastVersion)

@@ -3,14 +3,15 @@ import { parseMD, runifyDoc } from "./parser";
 import { serializeDocx } from "./serializer";
 import { checkIfFileIsBlocked, choice, randomInt, trimEnd, type JSONDict, type SetProgressFn } from "./utils";
 import { enrichDoc } from "./enricher";
-import { exec, spawn, type ChildProcess } from "child_process";
 import fs from "fs/promises";
 import { existsSync } from "fs";
 import { PDFDocument } from "pdf-lib";
+import { assemblePDFManifest } from "./pdfMerge";
 import type { Doc, RunicDoc } from "./doc";
 import { alchemist } from "./alchemist";
 import PizZip from "pizzip";
 import type { TemplateExecOptions } from "./preprocessor";
+import { OfficeError, resolveOfficeEngine, runDocxMacro, runLibreOffice, type OfficeEngineType } from "./office";
 
 const DISABLE_MACRO = false;
 
@@ -23,7 +24,9 @@ export interface RenderOptions
 	renderPDF?: boolean;
 	removeIntermediateDocx?: boolean;
 	disableMacros?: boolean;
-	useLibreOffice?: boolean;
+	engine?: OfficeEngineType;
+	sofficePath?: string;
+	unoPythonPath?: string;
 	checkFilesIsInsidePath?: string | false;
 	variables?: JSONDict;
 	templateOptions?: TemplateExecOptions;
@@ -42,7 +45,9 @@ export async function render({
 	renderPDF = false,
 	removeIntermediateDocx = false,
 	disableMacros = false,
-	useLibreOffice = false,
+	engine = "auto",
+	sofficePath,
+	unoPythonPath,
 	checkFilesIsInsidePath = "",
 	templateOptions = { allowIncludes: true, allowLoops: true },
 	variables,
@@ -53,8 +58,8 @@ export async function render({
 	signal = null,
 }: RenderOptions): Promise<{
 	fout: string;
-	err?: "inPS" | "noPS" | "vba" | "pdf" | "noWin";
-	errS?: any;
+	err?: "inPS" | "noPS" | "vba" | "pdf" | "noOffice" | "office";
+	errS?: unknown;
 }>
 {
 	signal?.throwIfAborted();
@@ -83,329 +88,107 @@ export async function render({
 	const p = path.parse(fin);
 	const fdir = p.dir;
 	const fname = trimEnd(p.name, ".g");
-	const ftmp = path.join(fdir, fname + ".tmp.docx");
 	const fout = pout ? path.join(pout.dir, pout.name + ".docx") : path.join(fdir, fname + ".docx");
-	if (await checkIfFileIsBlocked(ftmp))
-		throw new Error(`Закройте docx файл. Output file is busy or locked: ${ftmp}`);
 	if (await checkIfFileIsBlocked(fout))
 		throw new Error(`Закройте docx файл. Output file is busy or locked: ${fout}`);
-	// progress(10, "Rendering to docx");
-
-	signal?.throwIfAborted();
-	progress(10, phrase_renderDocx());
-	loginfo("[!3] Serializing to docx");
-	await serializeDocx(runicDoc, ftmp, fdir, assets, checkFilesIsInsidePath, logwarn);
-
-	let willRunMacros = !disableMacros && (renderPDF || hasReasonForRunningMacros(runicDoc));
-
-	let limitedRender = false;
-	if (process.platform != "win32" && willRunMacros && !useLibreOffice)
-	{
-		limitedRender = true;
-		willRunMacros = false;
-	}
-
-	if (willRunMacros)
+	const workdir = await fs.mkdtemp(path.join(path.dirname(fout), ".md2gost-"));
+	const ftmp = path.join(workdir, "input.docx");
+	const processed = path.join(workdir, "output.docx");
+	const tmpfolder = path.join(workdir, ".md2gost_out");
+	try
 	{
 		signal?.throwIfAborted();
-		// progress(20, "Running complex macros");
-		progress(20, phrase_runMacros());
-		loginfo("[!4] Starting macros");
-		const tmpfolder = path.join(pout ? pout.dir : fdir, ".md2gost_out");
-		await fs.rm(tmpfolder, { recursive: true, force: true });
+		progress(10, phrase_renderDocx());
+		loginfo("[!3] Serializing to docx");
+		await serializeDocx(runicDoc, ftmp, fdir, assets, checkFilesIsInsidePath, logwarn);
+		const willRunMacros = !disableMacros && (renderPDF || hasReasonForRunningMacros(runicDoc));
+		if (!willRunMacros)
+		{
+			signal?.throwIfAborted();
+			await fs.rename(ftmp, fout);
+			return { fout };
+		}
+		let selected: Exclude<OfficeEngineType, "auto"> | undefined;
 		try
 		{
-			const macroRunner = useLibreOffice ? runUnoScript : runDocxMacro;
-			const ok = await macroRunner(progress, logPS, logPSError, assets, fdir, ftmp, fout, renderPDF, signal);
-			if (!ok)
+			signal?.throwIfAborted();
+			selected = await resolveOfficeEngine(engine, signal);
+			progress(20, phrase_runMacros(selected == "word"));
+			loginfo(`[!4] Starting ${selected}`);
+			if (selected == "libreoffice")
+				await runLibreOffice({
+					assets, input: ftmp, output: processed, cwd: fdir, workdir, renderPDF, signal, sofficePath, unoPythonPath,
+					log: logPS, logError: logPSError,
+					progress: stage => progress(12, stage == "3" ? render_renderPDF() : render_fixingBreaks()),
+				});
+			else if (!await runDocxMacro(
+				stage => progress(12, { "1": render_fixingBreaks(), "3": render_renderPDF() }[stage] || "Make some work"),
+				logPS, logPSError, assets, fdir, ftmp, processed, renderPDF, signal,
+			))
 			{
 				await fs.rename(ftmp, fout);
 				return { fout, err: "inPS" };
 			}
 		}
-		catch (x)
+		catch (error)
 		{
-			if (signal?.aborted)
-			{
-				await fs.unlink(ftmp).catch(() => { });
-				throw x;
-			}
+			signal?.throwIfAborted();
 			await fs.rename(ftmp, fout);
-			return { fout, err: "noPS", errS: x };
+			if (process.platform == "win32" && engine == "auto" && selected == "libreoffice" && error instanceof OfficeError && error.code == "noOffice")
+			{
+				logPSError(error.message + "\n");
+				return { fout, err: "noOffice", errS: new OfficeError("noOffice", "Не удалось использовать ни Microsoft Word, ни LibreOffice. Установите или настройте один из них.", { cause: error }) };
+			}
+			return { fout, err: error instanceof OfficeError ? error.code : selected == "libreoffice" ? "office" : "noPS", errS: error };
 		}
-
-		if (existsSync(ftmp))
-			await fs.unlink(ftmp);
-
 		signal?.throwIfAborted();
-
 		const errorTxt = path.join(tmpfolder, "error.txt");
 		if (existsSync(errorTxt))
 		{
-			const err = await fs.readFile(errorTxt);
-			await fs.rm(tmpfolder, { recursive: true, force: true });
-			return { fout, err: "vba", errS: `${err}` };
+			const err = await fs.readFile(errorTxt, "utf8");
+			await fs.rename(ftmp, fout);
+			return { fout, err: "vba", errS: err };
 		}
 		loginfo("[!5] Updating metadata");
-		await updateMetadata(fout, doc);
+		await updateMetadata(processed, doc);
 		if (renderPDF)
 		{
 			signal?.throwIfAborted();
-			// progress(10, "Combine all together")
 			progress(10, phrase_combine());
 			loginfo("[!6] Merging pdfs");
-			if (!existsSync(tmpfolder))
-				return { fout, err: "pdf" };
 			try
 			{
 				const files = (await fs.readdir(tmpfolder)).sort().map(f => path.join(tmpfolder, f));
 				const pdf = pout ? path.join(pout.dir, pout.name + ".pdf") : path.join(fdir, fname + ".pdf");
-				await mergePDFs(files, pdf, doc, signal || undefined);
-				await fs.rm(tmpfolder, { recursive: true, force: true });
+				const temporaryPDF = path.join(workdir, "output.pdf");
+				await mergePDFs(files, temporaryPDF, doc, signal || undefined);
+				signal?.throwIfAborted();
+				if (!removeIntermediateDocx) await fs.rename(processed, fout);
+				await fs.rename(temporaryPDF, pdf);
 				if (removeIntermediateDocx && existsSync(fout)) await fs.unlink(fout);
 				return { fout: pdf };
 			}
-			catch (err)
+			catch (error)
 			{
-				if (signal?.aborted) throw err;
-				return { fout, err: "pdf", errS: err };
+				signal?.throwIfAborted();
+				if (existsSync(processed)) await fs.rename(processed, fout);
+				return { fout, err: "pdf", errS: error };
 			}
 		}
+		await fs.rename(processed, fout);
+		loginfo(`[!7] Rendered to ${fout}`);
+		return { fout };
 	}
-	else
+	finally
 	{
-		await fs.rename(ftmp, fout);
+		await fs.rm(workdir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 	}
-	loginfo(`[!7] Rendered to ${fout}`);
-	return { fout, err: limitedRender ? "noWin" : undefined };
 }
 
 function hasReasonForRunningMacros(doc: RunicDoc)
 {
 	if (DISABLE_MACRO) return false;
-	return doc.nodes.some(n => n.type == "code" || n.type == "table");
-}
-
-/**
- * Cross-platform process tree killer.
- * - On Windows: Uses taskkill /T /F to terminate the entire process hierarchy.
- * - On POSIX: Sends SIGKILL to the negative PID (process group).
- */
-function killProcessTree(child: ChildProcess, wordPid?: number | null): void
-{
-	if (!child.pid) return;
-
-	if (process.platform === "win32")
-	{
-		if (wordPid)
-		{
-			// Send polite WM_CLOSE to Word (no /F flag)
-			exec(`taskkill /pid ${wordPid}`, () =>
-			{
-				setTimeout(() =>
-				{
-					exec(`taskkill /pid ${wordPid} /F`, () => {});
-					setTimeout(() =>
-					{
-						killProcessTree(child);
-					}, 2000);
-				}, 2000);
-
-			});
-		}
-		else
-		{
-			exec(`taskkill /pid ${child.pid} /T /F`, () => { });
-		}
-	}
-	else
-	{
-		try
-		{
-			process.kill(-child.pid, "SIGKILL");
-		}
-		catch {}
-	}
-}
-
-function runDocxMacro(progress: SetProgressFn, log: (msg: string) => void, logError: (msg: string) => void, assets: string, cwd: string, fin: string, fout: string, renderPDF: boolean, signal: AbortSignal | null)
-{
-	const script = path.join(assets, "run.ps1");
-	const templateMacro = path.join(assets, "template.dotm");
-	// console.log(template);
-	return new Promise<boolean>((res, rej) =>
-	{
-		if (signal?.aborted)
-			return rej(signal.reason ?? new Error("Aborted before execution started"));
-		const child = spawn("powershell", [
-			"-NoProfile", "-ExecutionPolicy", "Bypass",
-			"-File", script,
-			"-InputDoc", fin,
-			"-OutputDoc", fout,
-			"-MacroTemplate", templateMacro,
-			...(renderPDF ? ["-RenderPDF"] : []),
-		], {
-			cwd,
-			detached: process.platform !== "win32", // Enables PGID on POSIX
-			// detached: true,
-			// shell: true,
-		});
-
-		let wordPid: number | null = null;
-
-		let onAbort: (() => void) | undefined;
-		if (signal)
-		{
-			onAbort = () =>
-			{
-				logError("Operation aborted. Terminating process tree...");
-				killProcessTree(child, wordPid);
-				rej(signal.reason ?? new Error("Job timed out or aborted"));
-			};
-			signal.addEventListener("abort", onAbort, { once: true });
-		}
-
-		child.stdout.on("data", data =>
-		{
-			const raw = `${data}`;
-
-			const pidMatch = /\[WordPID:(\d+)\]/.exec(raw);
-			if (pidMatch) wordPid = parseInt(pidMatch[1], 10);
-
-			const m = /\[\*(\d)\]/.exec(raw);
-			if (m) progress(12, {
-				// "1": "Fixing breaks (listings)",
-				"1": render_fixingBreaks(),
-				// "2": "Fixing breaks (tables)",
-				"2": render_fixingBreaks(),
-				// "3": "Rendering to PDF",
-				"3": render_renderPDF(),
-			}[m[1]] || "Make some work");
-			log(raw);
-		});
-		let ok = true;
-		child.stderr.on("data", data =>
-		{
-			ok = false;
-			logError(`${data}`);
-		});
-
-		child.on("close", code =>
-		{
-			if (signal && onAbort)
-			{
-				signal.removeEventListener("abort", onAbort);
-			}
-			res(ok && code === 0);
-		});
-
-		child.on("error", err =>
-		{
-			if (signal && onAbort)
-			{
-				signal.removeEventListener("abort", onAbort);
-			}
-			rej(err);
-		});
-	});
-}
-
-/**
- * Resolves the Python executable. On Windows, it attempts to use LibreOffice's bundled python
- * to guarantee the 'uno' library is present without requiring global environment configuration.
- */
-function getPythonExecutable(): string
-{
-	if (process.platform === "win32")
-	{
-		const loPython = "C:\\Program Files\\LibreOffice\\program\\python.exe";
-		if (existsSync(loPython)) return loPython;
-	}
-	return process.env.UNO_PYTHON_PATH || "python3";
-}
-
-function runUnoScript(progress: (inc: number, msg: string) => void, log: (msg: string) => void, logError: (msg: string) => void, assets: string, cwd: string, fin: string, fout: string, renderPDF: boolean, signal: AbortSignal | null): Promise<boolean>
-{
-	const script = process.env.MACRO_ENGINE_PATH || path.join(assets, "macro_engine.py");
-	const pythonExec = getPythonExecutable();
-
-	return new Promise<boolean>((res, rej) =>
-	{
-		if (signal?.aborted)
-		{
-			return rej(signal.reason ?? new Error("Aborted before execution started"));
-		}
-
-		const args = [
-			script,
-			"--input", fin,
-			"--output", fout,
-		];
-		if (renderPDF) args.push("--render-pdf");
-
-		const child = spawn(pythonExec, args, {
-			cwd,
-			detached: process.platform !== "win32", // Enables PGID on POSIX
-		});
-
-		let onAbort: (() => void) | undefined;
-		if (signal)
-		{
-			onAbort = () =>
-			{
-				logError("Operation aborted. Terminating process tree...");
-				killProcessTree(child);
-				rej(signal.reason ?? new Error("Job timed out or aborted"));
-			};
-			signal.addEventListener("abort", onAbort, { once: true });
-		}
-
-		child.stdout.on("data", data =>
-		{
-			const lines = `${data}`.split("\n");
-			for (const line of lines)
-			{
-				log(line.trimEnd());
-				if (!line.trimEnd()) continue;
-				const m = /\[\*(\d)\]/.exec(line);
-				if (m)
-				{
-					const msg = {
-						"1": render_fixingBreaks(),
-						"2": render_fixingBreaks(),
-						"3": render_renderPDF(),
-					}[m[1]] || "Processing document...";
-					progress(12, msg);
-				}
-			}
-		});
-
-		let ok = true;
-		child.stderr.on("data", data =>
-		{
-			ok = false;
-			logError(`${data}`);
-		});
-
-
-		child.on("close", code =>
-		{
-			if (signal && onAbort)
-			{
-				signal.removeEventListener("abort", onAbort);
-			}
-			res(ok && code === 0);
-		});
-
-		child.on("error", err =>
-		{
-			if (signal && onAbort)
-			{
-				signal.removeEventListener("abort", onAbort);
-			}
-			rej(err);
-		});
-	});
+	return doc.nodes.some(n => n.type == "code" || n.type == "table" || n.type == "tableOfContents");
 }
 
 
@@ -420,7 +203,12 @@ async function mergePDFs(files: string[], fout: string, doc?: Doc, signal?: Abor
 	}
 
 	let mergedPdf: PDFDocument;
-	if (mainPdfIndex >= 0)
+	const manifest = files.find(file => path.basename(file) === "manifest.json");
+	if (manifest)
+	{
+		mergedPdf = await assemblePDFManifest(manifest, signal);
+	}
+	else if (mainPdfIndex >= 0)
 	{
 		const bytes = await fs.readFile(pdfFiles[mainPdfIndex], { signal });
 		mergedPdf = await PDFDocument.load(bytes);
@@ -530,9 +318,9 @@ const phrase_renderDocx = () => choice(
 	"Слагаем страницы в гармонию структуры...",
 );
 
-const phrase_runMacros = () => choice(
-	"Пробуждаем древних духов VBA...",
-	"Призываем дух Ворда из бездны офисного пакета...",
+const phrase_runMacros = (isWord: boolean) => choice(
+	isWord ? "Пробуждаем древних духов VBA..." : "Пробуждаем древних духов автоматизации...",
+	isWord ? "Призываем дух Ворда из бездны офисного пакета..." : "Призываем помощников из бездны офисного пакета...",
 	"Вдыхаем ману в спящие руны автоматизации...",
 	"Отпираем тайные функции офисной магии...",
 );

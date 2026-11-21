@@ -1,16 +1,25 @@
+import { isSourceHeading, isTocHeading } from "./sections";
 import { tableRow, type Doc, type DocNode, type NodeList } from "./doc";
 import { trimEnd } from "./utils";
 
 export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.warn)
 {
+	const automaticBreaks = new WeakSet<DocNode>();
+	const automaticBreak = (sourceLine: number): DocNode =>
+	{
+		const node: DocNode = { type: "pageBreak", sourceLine };
+		automaticBreaks.add(node);
+		return node;
+	};
 	const warnAt = (line: number, message: string) => logwarn(`Line ${doc.mapSourceLine(line)}: ${message}`);
 	for (let i = 0; i < doc.nodes.length; i++)
 	{
 		const node = doc.nodes[i]!;
+		if (node.type == "title" && node.notSpecial) continue;
 		if (node.type == "title" && node.level == 1 && node.text.toUpperCase().startsWith("ТИТУЛЬНИК"))
 		{
 			doc.nodes.splice(i, 1, { type: "text", text: node.text.toUpperCase(), sourceLine: node.sourceLine });
-			doc.nodes.splice(i + 1, 0, { type: "pageBreak", sourceLine: node.sourceLine });
+			doc.nodes.splice(i + 1, 0, automaticBreak(node.sourceLine));
 			i++;
 		}
 		else if (node.type == "title" && node.level == 1 && node.text.toUpperCase() == "РЕФЕРАТ")
@@ -25,9 +34,9 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 			}
 			doc.nodes.splice(i + 1, 0, { type: "text", tags: ["synopsis"], text: "Отчет [!pages] с., [!imgs] рис., [!tables] табл., [!codes] лист., [!sources] источн.", sourceLine: node.sourceLine });
 			while (i + 1 < doc.nodes.length && doc.nodes[i + 1]?.type != "title") i++;
-			doc.nodes.splice(i + 1, 0, { type: "pageBreak", sourceLine: node.sourceLine });
+			doc.nodes.splice(i + 1, 0, automaticBreak(node.sourceLine));
 		}
-		else if (node.type == "title" && node.level == 1 && node.text.toUpperCase() == "ОГЛАВЛЕНИЕ")
+		else if (node.type == "title" && node.level == 1 && isTocHeading(node.text))
 		{
 			node.level = 0;
 			node.text = node.text.toUpperCase();
@@ -51,7 +60,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 			}
 			doc.nodes.splice(i + 1, 1, { type: "text", text: "В настоящем отчете применяются следующие термины с соответствующими определениями.", sourceLine: node.sourceLine });
 			doc.nodes.splice(i + 2, 0, { type: "table", align, rows, normalFontSize: true, tags: ["definitions_table"], sourceLine: node.sourceLine });
-			doc.nodes.splice(i + 3, 0, { type: "pageBreak", sourceLine: node.sourceLine });
+			doc.nodes.splice(i + 3, 0, automaticBreak(node.sourceLine));
 		}
 		else if (node.type == "title" && node.level == 1 && node.text.toUpperCase() == "ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ")
 		{
@@ -67,7 +76,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 				items.push({ type: "text", text: trimEnd(item.text, "."), noIndent: true, noMargin: true, sourceLine: item.sourceLine });
 			}
 			doc.nodes.splice(i + 1, 1, { type: "text", text: "В настоящем отчете применяют следующие сокращения и обозначения.", sourceLine: node.sourceLine });
-			doc.nodes.splice(i + 2, 0, { type: "pageBreak", sourceLine: node.sourceLine });
+			doc.nodes.splice(i + 2, 0, automaticBreak(node.sourceLine));
 			doc.nodes.splice(i + 2, 0, ...items);
 		}
 		else if (node.type == "title" && node.level == 1 && node.text.toUpperCase() == "ВВЕДЕНИЕ")
@@ -79,7 +88,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 				const node = doc.nodes[j];
 				if (node?.type == "title")
 				{
-					doc.nodes.splice(j, 0, { type: "pageBreak", sourceLine: -1 });
+					doc.nodes.splice(j, 0, automaticBreak(-1));
 					break;
 				}
 			}
@@ -88,14 +97,14 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
-			doc.nodes.splice(i, 0, { type: "pageBreak", sourceLine: node.sourceLine });
+			doc.nodes.splice(i, 0, automaticBreak(node.sourceLine));
 			i++;
 		}
-		else if (node.type == "title" && node.level == 1 && node.text.toUpperCase() == "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ")
+		else if (node.type == "title" && node.level == 1 && isSourceHeading(node.text))
 		{
 			node.center = true;
 			node.text = node.text.toUpperCase();
-			doc.nodes.splice(i++, 0, { type: "pageBreak", sourceLine: node.sourceLine });
+			doc.nodes.splice(i++, 0, automaticBreak(node.sourceLine));
 
 			const nextNode = doc.nodes[i + 1];
 			if (nextNode?.type == "list")
@@ -136,7 +145,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 			node.level = 0;
 			node.center = true;
 			node.text = node.text.toUpperCase();
-			doc.nodes.splice(i++, 0, { type: "pageBreak", sourceLine: node.sourceLine });
+			doc.nodes.splice(i++, 0, automaticBreak(node.sourceLine));
 			for (let j = i + 1; j < doc.nodes.length; j++)
 			{
 				const node = doc.nodes[j];
@@ -146,11 +155,11 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 					j++;
 					node.level = 1;
 					const splitI = node.text.indexOf("]");
-					doc.nodes.splice(j++, 0, { type: "pageBreak", sourceLine: node.sourceLine });
+					doc.nodes.splice(j++, 0, automaticBreak(node.sourceLine));
 					if (splitI >= 0)
 					{
 						doc.nodes.splice(j++ + 1, 0, { type: "text", text: node.text.slice(splitI + 1), center: true, sourceLine: node.sourceLine });
-						node.text = "ПРИЛОЖЕНИЕ " + node.text.slice(0, splitI + 1);
+						node.text = node.text.slice(0, splitI + 1);
 						node.center = true;
 					}
 				}
@@ -203,7 +212,7 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 				nextNode?.type != "sectionBreak"
 			)
 			{
-				doc.nodes.splice(i + 1, 0, { type: "pageBreak", sourceLine: node.sourceLine });
+				doc.nodes.splice(i + 1, 0, automaticBreak(node.sourceLine));
 			}
 			const prevNode = doc.nodes[i - 1];
 			if (
@@ -213,9 +222,21 @@ export function enrichDoc(doc: Doc, logwarn: (msg: string) => void = console.war
 				prevNode?.type != "sectionBreak"
 			)
 			{
-				doc.nodes.splice(i, 0, { type: "pageBreak", sourceLine: node.sourceLine });
+				doc.nodes.splice(i, 0, automaticBreak(node.sourceLine));
 				i++;
 			}
 		}
+	}
+
+	// Section breaks and the TOC already begin a new page. Preserve explicit
+	// Markdown breaks, but do not add another automatic empty page beside them.
+	for (let i = 0; i < doc.nodes.length; i++)
+	{
+		const node = doc.nodes[i];
+		if (!automaticBreaks.has(node)) continue;
+		const prev = doc.nodes[i - 1];
+		const next = doc.nodes[i + 1];
+		if (!prev || prev.type == "pageBreak" || prev.type == "sectionBreak" || prev.type == "tableOfContents" || next?.type == "sectionBreak")
+			doc.nodes.splice(i--, 1);
 	}
 }

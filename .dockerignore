@@ -1,0 +1,10 @@
+.git
+.vscode
+.vscode-test
+node_modules
+dist
+out
+*.tgz
+*.vsix
+**/__pycache__
+**/~$*

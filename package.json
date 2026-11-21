@@ -3,7 +3,7 @@
   "displayName": "md2gost",
   "description": "Converts markdown to docx format, trying to comply with GOST standards",
   "icon": "imgs/icon.png",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "publisher": "MixelTe",
   "license": "MIT",
   "repository": {
@@ -33,6 +33,15 @@
   },
   "contributes": {
     "markdown.markdownItPlugins": true,
+    "customEditors": [
+      {
+        "viewType": "md2gost.docxPreview",
+        "displayName": "DOCX Viewer",
+        "selector": [
+          { "filenamePattern": "*.docx" }
+        ]
+      }
+    ],
     "commands": [
       {
         "command": "md2gost.whats_new",
@@ -69,6 +78,16 @@
           "dark": "imgs/ghost_smallest_white.svg",
           "light": "imgs/ghost_smallest.svg"
         }
+      },
+      {
+        "command": "md2gost.reverse_docx",
+        "title": "md2gost: Convert DOCX to .g.md",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "md2gost.refresh_docx",
+        "title": "md2gost: Refresh DOCX preview",
+        "icon": "$(refresh)"
       }
     ],
     "menus": {
@@ -88,6 +107,29 @@
           "when": "resourceFilename =~ /\\.g\\.md$/",
           "command": "md2gost.readme",
           "group": "navigation"
+        },
+        {
+          "when": "activeCustomEditorId == md2gost.docxPreview",
+          "command": "md2gost.reverse_docx",
+          "group": "navigation"
+        },
+        {
+          "when": "activeCustomEditorId == md2gost.docxPreview",
+          "command": "md2gost.refresh_docx",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "md2gost.refresh_docx",
+          "when": "activeCustomEditorId == md2gost.docxPreview"
+        }
+      ],
+      "explorer/context": [
+        {
+          "when": "resourceExtname == .docx",
+          "command": "md2gost.reverse_docx",
+          "group": "md2gost"
         }
       ]
     },
@@ -129,6 +171,11 @@
           ],
           "default": "preserve",
           "description": "Стиль внешних границ таблиц: \"enclosed\" (добавлять «|» по краям), \"none\" (убирать границы), \"preserve\" (не изменять)."
+        },
+        "md2gost.tables.alignCellContents": {
+          "type": "boolean",
+          "default": true,
+          "description": "Выравнивать текст в Markdown-ячейках согласно выравниванию столбцов. При отключении пробелы добавляются только справа. Не применяется при tables.compact."
         },
         "md2gost.tables.alwaysAddLeftColon": {
           "type": "boolean",
@@ -180,6 +227,24 @@
           "default": true,
           "description": "Автоматически продолжать нумерованные и маркированные списки на новой строке."
         },
+        "md2gost.render.engine": {
+          "type": "string",
+          "enum": ["auto", "word", "libreoffice"],
+          "default": "auto",
+          "description": "Движок экспорта. auto: Word при его наличии в Windows, иначе LibreOffice; на Linux и macOS — LibreOffice."
+        },
+        "md2gost.render.sofficePath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Полный путь к LibreOffice: soffice.com в Windows или soffice в Linux/macOS. Имеет приоритет над SOFFICE_PATH. Пустое значение использует переменную окружения или автоматический поиск."
+        },
+        "md2gost.render.unoPythonPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Полный путь к Python с поддержкой LibreOffice UNO. В Windows обычно python.exe из комплекта LibreOffice. Имеет приоритет над UNO_PYTHON_PATH. Пустое значение использует переменную окружения или автоматический поиск."
+        },
         "md2gost.render.removeIntermediateDocx": {
           "type": "boolean",
           "default": false,
@@ -208,6 +273,7 @@
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "compile-types": "dts-bundle-generator -o dist/index.d.ts src/index.ts --no-check",
     "compile-tests": "tsc -p . --outDir out --emitDeclarationOnly false --declaration false",
+    "build:chat-guide": "node build-chat-guide.js",
     "build:ext": "node esbuild.js --production",
     "build:npm": "npm run compile-types && node esbuild.js --npm-package",
     "build:npm-readme": "node md-patch.js README.md README-NPM.patch.md README-NPM.md MixelTe md2gost master",
@@ -236,6 +302,7 @@
     "esbuild-plugin-copy": "^2.1.1",
     "eslint": "^9.39.2",
     "eslint-plugin-html": "^8.1.4",
+    "markdown-it": "^14.3.3",
     "npm-run-all": "^4.1.5",
     "tar": "^7.5.19",
     "typescript": "^5.9.3",
@@ -250,6 +317,7 @@
     "pdf-lib": "^1.17.1",
     "picomatch": "^4.0.7",
     "pizzip": "^3.2.0",
-    "prismjs": "^1.30.0"
+    "prismjs": "^1.30.0",
+    "xml-js": "^1.6.11"
   }
 }

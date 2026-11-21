@@ -1,19 +1,17 @@
-npm install --save-dev esbuild-plugin-copy
+Команды разработчика (из корня проекта)
 
-const { copy } = require('esbuild-plugin-copy');
+Установка зависимостей: npm ci
+Проверка типов: npm run check-types
+Стиль кода: npm run lint
+Модульные и интеграционные тесты: npm run test:unit
+Тесты расширения в VS Code: npm run compile-tests, затем npm run build:ext и npm run test:vscode
+Сборка расширения: npm run build:ext
+Сборка npm API/CLI: npm run build:npm
+Подготовка README npm: npm run build:npm-readme
+Упаковка и проверка состава: pack.cmd (Windows); CI использует .github/workflows/publish.yml
 
-// Inside your esbuild.context object:
-plugins: [
-  copy({
-    resolveFrom: 'cwd',
-    assets: {
-      from: ['./assets/**/*'],
-      to: ['./dist/assets'],
-    },
-  }),
-],
+Проверки Word/PDF: src/test/e2e/README.md
+Примеры продолжений: src/test/e2e/fixtures/continuations/
 
-
-https://esbuild.github.io/analyze/
-
-vsce package
+Сборка настроена в esbuild.js. Вспомогательные файлы расширения поставляются
+из assets/, а не из dist/assets/; состав пакетов зафиксирован в file-snapshot.json.

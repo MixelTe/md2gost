@@ -27,12 +27,15 @@ const operators: Record<string, string> = { sin: "sin", cos: "cos", tan: "tan", 
 
 type MathStyle = "plain" | "bold" | "italic" | "double-struck" | "script";
 
-function run(text: string, style?: MathStyle): XmlComponent
+function run(text: string, style: MathStyle | undefined, font: string): XmlComponent
 {
 	const value = style == "plain" ? "p" : style == "bold" ? "b" : style == "italic" ? "i" : undefined;
 	return new Omml("m:r", [
 		...(style == "double-struck" || style == "script" ? [new Omml("m:rPr", [new Omml("m:scr", [], { "m:val": style }), new Omml("m:sty", [], { "m:val": "p" })])] : []),
 		...(value ? [new Omml("m:rPr", [new Omml("m:sty", [], { "m:val": value })])] : []),
+		// Word 2007 otherwise inherits body fonts for math runs and can export
+		// missing glyphs. Match the font properties emitted by Word's own editor.
+		new Omml("w:rPr", [new Omml("w:rFonts", [], { "w:ascii": font, "w:hAnsi": font })]),
 		new Omml("m:t", [text], { "xml:space": "preserve" }),
 	]);
 }
@@ -51,9 +54,9 @@ function delimiter(children: XmlComponent[], begin: string, end: string): XmlCom
  * it retains fractions, scripts, radicals, n-ary operators and matrices rather
  * than flattening formulas into text.
  */
-export function latexToOmml(latex: string, para = false): XmlComponent
+export function latexToOmml(latex: string, para = false, font = "Cambria Math"): XmlComponent
 {
-	const parser = new LatexParser(latex);
+	const parser = new LatexParser(latex, font);
 	const body = parser.sequence();
 	if (!parser.done()) throw new Error(`unexpected "${parser.peek()}"`);
 	const math = new Omml("m:oMath", body);
@@ -63,7 +66,8 @@ export function latexToOmml(latex: string, para = false): XmlComponent
 class LatexParser
 {
 	private i = 0;
-	constructor(private readonly source: string) { }
+	constructor(private readonly source: string, private readonly font: string) { }
+	private run(text: string, style?: MathStyle) { return run(text, style, this.font); }
 	done() { return this.i >= this.source.length; }
 	peek() { return this.source[this.i] || ""; }
 	private take() { return this.source[this.i++] || ""; }
@@ -77,7 +81,7 @@ class LatexParser
 			if (/\s/.test(this.peek()))
 			{
 				this.take();
-				if (preserveWhitespace) result.push(run(" ", style));
+				if (preserveWhitespace) result.push(this.run(" ", style));
 				continue;
 			}
 			if (this.command("displaystyle") || this.command("textstyle"))
@@ -122,7 +126,7 @@ class LatexParser
 		const ch = this.take();
 		if (!ch || ["}", "_", "^", "&"].includes(ch)) throw new Error(`unexpected "${ch}"`);
 		if (ch == "{") return new Omml("m:box", [arg(this.sequence("}", style, preserveWhitespace))]);
-		if (ch != "\\") return run(ch, style);
+		if (ch != "\\") return this.run(ch, style);
 		let name = "";
 		while (/[A-Za-z]/.test(this.peek())) name += this.take();
 		if (!name)
@@ -130,11 +134,11 @@ class LatexParser
 			const escaped = this.take();
 			if (!escaped) throw new Error("command expected");
 			const spaces: Record<string, string> = { ",": "\u2009", ";": "\u2004", ":": "\u2005", " ": " " };
-			if (spaces[escaped]) return run(spaces[escaped], style);
+			if (spaces[escaped]) return this.run(spaces[escaped], style);
 			// OMML has no direct negative-thin-space equivalent. Do not emit a
 			// Unicode control character that Word may display as a missing glyph.
-			if (escaped == "!") return run("", style);
-			return run(escaped, style);
+			if (escaped == "!") return this.run("", style);
+			return this.run(escaped, style);
 		}
 		this.skipWhitespace();
 		if (name == "frac" || name == "dfrac" || name == "tfrac") return new Omml("m:f", [new Omml("m:num", this.groupOrAtom(style)), new Omml("m:den", this.groupOrAtom(style))]);
@@ -171,8 +175,8 @@ class LatexParser
 			}
 			let sub: XmlComponent[] = [];
 			if (this.peek() == "_") { this.take(); sub = this.groupOrAtom(style); }
-			if (!sub.length) return run("lim", "plain");
-			return new Omml(below ? "m:limLow" : "m:sSub", [arg([run("lim", "plain")]), new Omml(below ? "m:lim" : "m:sub", sub)]);
+			if (!sub.length) return this.run("lim", "plain");
+			return new Omml(below ? "m:limLow" : "m:sSub", [arg([this.run("lim", "plain")]), new Omml(below ? "m:lim" : "m:sub", sub)]);
 		}
 		if (["sum", "prod", "int", "iint", "iiint"].includes(name))
 		{
@@ -213,9 +217,9 @@ class LatexParser
 			return delimiter(body, begin, this.readDelimiter());
 		}
 		if (name == "begin") return this.matrix(style);
-		if (symbols[name]) return run(symbols[name]!, style);
-		if (operators[name]) return run(operators[name]!, "plain");
-		if (["quad", "qquad"].includes(name)) return run(name == "quad" ? "\u2003" : "\u2003\u2003", style);
+		if (symbols[name]) return this.run(symbols[name]!, style);
+		if (operators[name]) return this.run(operators[name]!, "plain");
+		if (["quad", "qquad"].includes(name)) return this.run(name == "quad" ? "\u2003" : "\u2003\u2003", style);
 		throw new Error(`unsupported command \\${name}`);
 	}
 	private readDelimiter(): string

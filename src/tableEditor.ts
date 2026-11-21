@@ -1,7 +1,8 @@
 import fs from "fs";
 import path from "path";
 import * as vscode from "vscode";
-import { repeat } from "./utils";
+import { parseTable, stringifyTable as formatMarkdownTable, type MarkdownTable } from "./markdownTable";
+export { parseTable } from "./markdownTable";
 import { RangeTracker } from "./rangeTracker";
 import { TextEditorDecorationBlock } from "./textEditorDecorationBlock";
 
@@ -147,103 +148,13 @@ function serializeWebviewData(value: unknown)
 		.replaceAll("\u2029", "\\u2029");
 }
 
-interface Table
+export function stringifyTable(table: MarkdownTable)
 {
-	align: ("l" | "c" | "r")[],
-	rows: string[][],
-	bordered: boolean,
-}
-
-export function parseTable(text: string)
-{
-	const table: Table = { rows: [], align: [], bordered: false };
-	const lines = text.split("\n");
-	const trim = (line: string) =>
-	{
-		line = line.trim();
-		if (line.at(0) == "|") line = line.slice(1);
-		if (line.at(-1) == "|") line = line.slice(0, -1);
-		return line.trim();
-	};
-
-	while (lines[lines.length - 1].trim() == "")
-		lines.pop();
-
-	for (let i = 0; i < lines.length; i++)
-	{
-		if (i == 1 && lines[i][0] == "|" && lines[i].trim().at(-1) == "|") table.bordered = true;
-		const line = trim(lines[i]);
-		if (i == 1)
-			table.align = line.split("|").map(v => v.trim()).map(v =>
-				v.startsWith(":") && v.endsWith(":") ? "c" :
-					v.endsWith(":") ? "r" : "l" as const);
-		else
-			table.rows.push(line.split(/(?<!\\)\|/).map(v => v.trim()
-				.split("`").map((v, i) => i % 2 == 0 ? v
-					.replaceAll("<br>", "\n")
-					.replaceAll("\\|", "|")
-					.replaceAll("&lt;", "<")
-					.replaceAll("&gt;", ">")
-					: v.replaceAll("\\|", "|"),
-				).join("`"),
-			));
-	}
-	const cols = Math.max(...table.rows.map(l => l.length));
-	for (const row of table.rows)
-		while (row.length < cols) row.push("");
-
-	return table;
-}
-
-export function stringifyTable(table: Table)
-{
-	if (table.rows.length == 0) return "";
-	const cols = Math.max(...table.rows.map(l => l.length));
-	const lens = repeat(cols, 1);
-	for (let i = 0; i < table.rows.length; i++)
-	{
-		const row = table.rows[i];
-		for (let j = 0; j < row.length; j++)
-		{
-			row[j] = row[j].trim()
-				.split("`").map((v, i) => i % 2 == 0 ? v
-					.replaceAll("|", "\\|")
-					.replaceAll("<", "&lt;")
-					.replaceAll(">", "&gt;")
-					.replaceAll("\n", "<br>")
-					: v.replaceAll("|", "\\|").replaceAll(/(\n+)/g, s => `\`${repeat(s.length, "<br>").join("")}\``),
-				).join("`");
-			lens[j] = Math.max(lens[j], row[j].length);
-		}
-	}
-
-	while (table.align.length < cols) table.align.push("l");
-	while (table.align.length > cols) table.align.pop();
-
 	const config = vscode.workspace.getConfiguration("md2gost");
-	const borderStyle = config.get<"enclosed" | "none" | "preserve">("tables.borderStyle");
-	const compact = config.get<boolean>("tables.compact");
-	const alwaysAddLeftColon = config.get<boolean>("tables.alwaysAddLeftColon");
-	const userPreferBorder = borderStyle == "enclosed" || borderStyle == "preserve" && table.bordered;
-
-	const border = userPreferBorder || cols == 1 ||
-		table.rows.some(row => !row[0]) || !table.rows[0].at(-1);
-	const prefix = border ? "| " : "";
-	const postfix = border ? " |" : "";
-	let res = "";
-	for (let i = 0; i < table.rows.length; i++)
-	{
-		const row = table.rows[i];
-		while (row.length < cols) row.push("");
-		res += (prefix + row.map((v, i) =>
-			v + (compact ? "" : repeat(lens[i] - v.length, " ").join("")),
-		).join(" | ") + postfix).trim() + "\n";
-		if (i == 0)
-			res += prefix.replace(" ", "") + table.align.map((v, i) => ({
-				v, sep: (compact ? "---" : repeat(lens[i] + 1 + (i == 0 && !border ? 0 : 1), "-").join("")),
-			})).map(({ v, sep }) =>
-				v == "c" ? `:${sep.slice(2)}:` : v == "r" ? `${sep.slice(1)}:` : (alwaysAddLeftColon ? `:${sep.slice(1)}` : sep),
-			).join("|") + postfix.replace(" ", "") + "\n";
-	}
-	return res.trim();
+	return formatMarkdownTable(table, {
+		borderStyle: config.get("tables.borderStyle", "preserve"),
+		compact: config.get("tables.compact", false),
+		alwaysAddLeftColon: config.get("tables.alwaysAddLeftColon", false),
+		alignCellContents: config.get("tables.alignCellContents", true),
+	});
 }

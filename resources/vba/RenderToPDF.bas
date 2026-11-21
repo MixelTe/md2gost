@@ -26,18 +26,37 @@ Sub RenderSegmentsToPDF()
     UpdateAllFields
     mainDoc.Repaginate
 
+    ' Export the complete document once: Word drops cross-segment TOC links
+    ' when exporting page ranges. Node reorders these original page objects.
+    mainDoc.ExportAsFixedFormat _
+        OutputFileName:=fso.BuildPath(outDir, "000-main.pdf"), _
+        ExportFormat:=wdExportFormatPDF, _
+        OptimizeFor:=wdExportOptimizeForPrint, _
+        CreateBookmarks:=wdExportCreateHeadingBookmarks
+
+    Dim plan As String
+    plan = ""
+
     For Each p In mainDoc.Paragraphs
         Dim includeData As Object
         Set includeData = ParseIncludeSyntax(p.Range.Text)
 
         If Not includeData Is Nothing Then
             ' Export text before include
-            If ExportPagesAsPDF(mainDoc, startRange.Start, p.Range.Start - 1, outDir, segIndex) Then
+            If AppendMainPages(mainDoc, startRange.Start, p.Range.Start - 1, plan) Then
                 segIndex = segIndex + 1
             End If
 
             ' Export included file
             RenderIncludeToPDF includeData, outDir, segIndex
+            Dim includeName As String
+            includeName = Format(segIndex, "000")
+            If LCase$(Right$(CStr(includeData("path")), 4)) = ".pdf" Then
+                includeName = includeName & "-pdf.pdf"
+            Else
+                includeName = includeName & "-include.pdf"
+            End If
+            AppendPDFPart plan, "{""type"":""include"",""file"":""" & includeName & """}"
             segIndex = segIndex + 1
 
             Dim newStart As Long
@@ -49,8 +68,13 @@ Sub RenderSegmentsToPDF()
 
     ' Export trailing content
     If startRange.End < mainDoc.Content.End Then
-        ExportPagesAsPDF mainDoc, startRange.Start, mainDoc.Content.End, outDir, segIndex
+        AppendMainPages mainDoc, startRange.Start, mainDoc.Content.End, plan
     End If
+
+    Dim manifest As Object
+    Set manifest = fso.CreateTextFile(fso.BuildPath(outDir, "manifest.json"), True, False)
+    manifest.Write "{""version"":1,""main"":""000-main.pdf"",""parts"": [" & plan & "]}"
+    manifest.Close
 
     Exit Sub
 ErrorHandler:
@@ -148,8 +172,13 @@ Function SkipTrailingSectionBreaks(doc As Document, pos As Long) As Long
 
     SkipTrailingSectionBreaks = pos
 End Function
-Function ExportPagesAsPDF(srcDoc As Document, startPos As Long, endPos As Long, _
-                          outDir As String, index As Long) As Boolean
+Private Sub AppendPDFPart(ByRef plan As String, part As String)
+    If Len(plan) > 0 Then plan = plan & ","
+    plan = plan & part
+End Sub
+
+Private Function AppendMainPages(srcDoc As Document, startPos As Long, endPos As Long, _
+                                 ByRef plan As String) As Boolean
     On Error GoTo ErrorHandler
 
     If endPos >= srcDoc.Content.End Then
@@ -157,7 +186,7 @@ Function ExportPagesAsPDF(srcDoc As Document, startPos As Long, endPos As Long, 
     End If
 
     If startPos >= endPos Then
-        ExportPagesAsPDF = False
+        AppendMainPages = False
         Exit Function
     End If
 
@@ -167,28 +196,12 @@ Function ExportPagesAsPDF(srcDoc As Document, startPos As Long, endPos As Long, 
     fromPage = srcDoc.Range(startPos,startPos).Information(wdActiveEndPageNumber)
     toPage = srcDoc.Range(endPos,endPos).Information(wdActiveEndPageNumber)
 
-    Dim fso As Object
-    Dim pdfPath As String
-
-    Set fso = CreateObject("Scripting.FileSystemObject")
-
-    ' Unicode-safe PDF path
-    pdfPath = fso.BuildPath(outDir, Format(index, "000") & "-main.pdf")
-
-    srcDoc.ExportAsFixedFormat _
-        OutputFileName:=pdfPath, _
-        ExportFormat:=wdExportFormatPDF, _
-        OptimizeFor:=wdExportOptimizeForPrint, _
-        CreateBookmarks:=wdExportCreateHeadingBookmarks, _
-        Range:=wdExportFromTo, _
-        From:=fromPage, _
-        To:=toPage
-
-    ExportPagesAsPDF = True
+    AppendPDFPart plan, "{""type"":""main"",""from"":" & fromPage & ",""to"":" & toPage & "}"
+    AppendMainPages = True
     Exit Function
 
 ErrorHandler:
-    ExportPagesAsPDF = False
+    AppendMainPages = False
 
     LogError _
         "Error #" & Err.Number & _

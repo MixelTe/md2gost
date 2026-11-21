@@ -12,6 +12,14 @@ async function mathXml(latex: string): Promise<string>
 
 suite("math parser regressions", () =>
 {
+	test("assigns Cambria Math to every math run, including implicit italic variables", async () =>
+	{
+		const xml = await mathXml(String.raw`a_1^2 + \sqrt{x} + \mathbf{A}`);
+		const runs = xml.match(/<m:r>.*?<\/m:r>/g)!;
+		assert.ok(runs.length > 0);
+		for (const run of runs)
+			assert.ok(run.includes('<w:rFonts w:ascii="Cambria Math" w:hAnsi="Cambria Math"/>'));
+	});
 	test("ignores math whitespace around arguments and scripts", async () =>
 	{
 		assert.equal(await mathXml(String.raw`\frac {a _ i ^ 2} {\sqrt [3] {b}}`), await mathXml(String.raw`\frac{a_i^2}{\sqrt[3]{b}}`));

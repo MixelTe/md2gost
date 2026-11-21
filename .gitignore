@@ -12,3 +12,4 @@ bak_README.md
 git_sync.bat
 **/~$*
 **/$~*
+**/__pycache__/

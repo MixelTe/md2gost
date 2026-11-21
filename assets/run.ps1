@@ -47,11 +47,8 @@ try {
     $doc = $word.Documents.Open($InputDoc)
 
     # --- Generating -------------------------------------------
-    Write-Host "[*1] Generating continued listings..."
-    $word.Run("AutoListingContinuation")
-
-    Write-Host "[*2] Generating continued tables..."
-    $word.Run("AutoTableContinuation")
+    Write-Host "[*1] Generating continued tables and listings in document order..."
+    $word.Run("AutoContinuation")
 
     # --- Saving -----------------------------------------------
     $doc.SaveAs($OutputDoc, 16)

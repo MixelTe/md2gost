@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, master]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build:chat-guide -- --check
+      - run: npm run check-types
+      - run: npm run lint
+      - run: npm run test:unit
+      - run: npm run build:npm
+      - run: node src/test/e2e/run.cjs
+      - run: npm run build:ext

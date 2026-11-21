@@ -138,6 +138,18 @@
 
 .md2gost_toc-entry a {
 	color: inherit;
+	display: inline-flex;
+	align-items: flex-start;
+	gap: 0.4em;
+	min-width: 0;
+}
+
+.md2gost_toc-number {
+	flex-shrink: 0;
+}
+
+.md2gost_toc-title {
+	min-width: 0;
 }
 
 .md2gost_toc-dots {

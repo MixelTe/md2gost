@@ -14,10 +14,15 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 		imgs: 0,
 		tables: 0,
 		formulas: 0,
-		titles: { l1: 0, l2: 0, l3: 0, l4: 0, l5: 0 },
+		titles: { l1: 0, l2: 0, l3: 0, l4: 0, l5: 0, l6: 0 },
 	};
 	type TtKeys = keyof typeof counter["titles"];
-	const named: { [name: string]: { n: number, prefix: string } | { f: (n: number, prefix: string) => void, i: number, sourceLine?: number }[] } = {};
+	type ObjNum = { n: number, prefix: string };
+	const relRefs = new Map<string, {
+		prev?: ObjNum,
+		next: { resolve: (number: ObjNum) => void, warn: () => void }[],
+	}>(["i#", "t#", "c#", "f#"].map(tag => [tag, { next: [] }]));
+	const named: { [name: string]: ObjNum | { f: (n: number, prefix: string) => void, i: number, sourceLine?: number }[] } = {};
 	const warnAt = (line: number | undefined, message: string) => logwarn(`${line ? `Line ${doc.mapSourceLine(line)}: ` : ""}${message}`);
 	const vals: { [name: string]: ((n: number) => void)[] } = {};
 	let lastRefI = 0;
@@ -31,12 +36,13 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 	let appendix = false;
 
 	if (doc.numberingLazy) addLazyNumbering(doc);
+	const sectionPrefixes = getSectionPrefixes();
 
 	doc.nodes.forEach((node, i) =>
 	{
 		if (nextNum < 0)
 		{
-			let l1 = counter.titles.l1;
+			let currentPrefix = prefix;
 			let codes = counter.codes;
 			let imgs = counter.imgs;
 			let tables = counter.tables;
@@ -48,18 +54,17 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 				if (n.type == "image") nextNum = imgs + 1;
 				if (n.type == "table") nextNum = tables + 1;
 				if (n.type == "math") nextNum = formulas + 1;
-				if (n.type == "title" && n.level == 1 && doc.numberingSections)
+				const sectionPrefix = n.type == "title" ? sectionPrefixes.get(n) : undefined;
+				if (sectionPrefix !== undefined)
 				{
-					const num = getTitleNum(n);
-					if (num) l1 = num;
-					else l1++;
+					currentPrefix = sectionPrefix;
 					codes = 0;
 					imgs = 0;
 					tables = 0;
 					formulas = 0;
 				}
 			}
-			nextPrefix = l1 > 0 && doc.numberingSections ? `${l1}.` : "";
+			nextPrefix = currentPrefix;
 		}
 
 		if (node.tags && node.type == "text" && node.tags.includes("synopsis"))
@@ -67,12 +72,12 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 
 		if (node.type == "title")
 		{
-			for (let i = 1; i <= 5; i++)
+			for (let i = 1; i <= 6; i++)
 			{
 				if (i == node.level) counter.titles[`l${i}` as TtKeys]++;
 				if (i > node.level) counter.titles[`l${i}` as TtKeys] = 0;
 			}
-			if (node.level == 0 && node.text.map(r => r.text).join("").trim().toUpperCase() == "ПРИЛОЖЕНИЯ")
+			if (isAppendixHeading(node))
 			{
 				appendix = true;
 				counter.titles.l1 = 0;
@@ -81,15 +86,15 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 			{
 				const num = getTitleNum(node);
 				if (num) counter.titles.l1 = num;
-				if ((doc.numberingSections || appendix))
-				{
-					counter.codes = 0;
-					counter.imgs = 0;
-					counter.tables = 0;
-					counter.formulas = 0;
-				}
-				prefix = doc.numberingSections ? `${counter.titles.l1}.` : "";
-				if (appendix) prefix = APPENDIX_NAME[counter.titles.l1 - 1] + ".";
+			}
+			const sectionPrefix = sectionPrefixes.get(node);
+			if (sectionPrefix !== undefined)
+			{
+				counter.codes = 0;
+				counter.imgs = 0;
+				counter.tables = 0;
+				counter.formulas = 0;
+				prefix = sectionPrefix;
 			}
 		}
 
@@ -97,13 +102,22 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 
 		if (node.type == "code" || node.type == "image" || node.type == "table" || node.type == "math")
 		{
-			if (node.type == "code") { counter.codes++; counter.codesAll++; }
-			if (node.type == "image") { counter.imgs++; counter.imgsAll++; }
-			if (node.type == "table" && !node.tags?.includes("definitions_table")) { counter.tables++; counter.tablesAll++; }
-			if (node.type == "math") { counter.formulas++; counter.formulasAll++; }
+			if (node.type == "code") { counter.codes++; counter.codesAll++; updRef("c#", counter.codes); }
+			if (node.type == "image") { counter.imgs++; counter.imgsAll++; updRef("i#", counter.imgs); }
+			if (node.type == "table" && !node.tags?.includes("definitions_table")) { counter.tables++; counter.tablesAll++; updRef("t#", counter.tables); }
+			if (node.type == "math") { counter.formulas++; counter.formulasAll++; updRef("f#", counter.formulas); }
 			prevNum = nextNum;
 			prevPrefix = prefix;
 			nextNum = -1;
+
+			function updRef(tag: string, n: number)
+			{
+				const ref = relRefs.get(tag)!;
+				const num = { n, prefix };
+				ref.prev = num;
+				ref.next.forEach(r => r.resolve(num));
+				ref.next = [];
+			}
 		}
 	});
 
@@ -114,6 +128,8 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 	}
 
 	const sourcesCount = crystallizeSources();
+	for (const refs of relRefs.values())
+		refs.next.forEach(r => r.warn());
 
 	vals["codes"]?.forEach(f => f(counter.codesAll));
 	vals["imgs"]?.forEach(f => f(counter.imgsAll));
@@ -140,12 +156,59 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 		].filter(v => !!v).map((text, i) => ({ text: text as string, type: i == 1 ? "val" : "text" }));
 	}
 
+	function isAppendixHeading(node: Runify<DocNode>)
+	{
+		return node.type == "title" && node.level == 0 && node.text.map(r => r.text).join("").trim().toUpperCase() == "ПРИЛОЖЕНИЯ";
+	}
+
+	function getSectionPrefixes()
+	{
+		const numbers = new Map<Runify<NodeTitle>, number>();
+		if (doc.numberingSections)
+			for (const node of doc.nodes)
+			{
+				if (isAppendixHeading(node)) break;
+				if (node.type != "title" || node.level == 0) continue;
+				const text = node.text.map(rune => !rune.type || rune.type == "text" ? rune.text : "\uFFFC").join("");
+				const match = /^\s*(\d+)\.?(?=\s|$)/.exec(text);
+				const num = Number(match?.[1]);
+				if (Number.isFinite(num) && num > 0) numbers.set(node, num);
+			}
+
+		const prefixes = new Map<Runify<NodeTitle>, string>();
+		let l1 = 0;
+		let inAppendix = false;
+		for (const node of doc.nodes)
+		{
+			if (node.type != "title") continue;
+			if (node.level == 0) l1 = 0;
+			if (isAppendixHeading(node))
+			{
+				inAppendix = true;
+			}
+			if (node.level == 1)
+				l1 = getTitleNum(node) || l1 + 1;
+			if (inAppendix)
+			{
+				if (node.level == 1) prefixes.set(node, APPENDIX_NAME[l1 - 1] + ".");
+				continue;
+			}
+			if (!doc.numberingSections) continue;
+			const num = numbers.get(node);
+			const firstRune = node.text.find(rune => rune.text.trim());
+			const tag = firstRune?.text.replaceAll(/\s+/g, "").replace(/[-+]\d+$/, "") || "";
+			const autoNumber = firstRune?.type == "ref" && !relRefs.has(tag);
+			if (num || node.level == 1 && (!numbers.size || autoNumber))
+				prefixes.set(node, `${num || l1}.`);
+		}
+		return prefixes;
+	}
+
 	function getTitleNum(node: Runify<NodeTitle>)
 	{
-		if (node.text.some(r => r.type == "ref")) return null;
-		const text = node.text[0]?.text;
-		if (!text) return null;
-		const m = /^\s*(\d+)/.exec(text);
+		const rune = node.text.find(r => r.text.trim());
+		if (!rune || rune.type == "ref") return null;
+		const m = /^\s*(\d+)/.exec(rune.text);
 		const num = parseInt(m?.[1] || "");
 		if (!isFinite(num)) return null;
 		return num;
@@ -179,6 +242,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 
 	function materializeRunes(runes: Rune[], node: Runify<DocNode>)
 	{
+		const firstRune = runes.find(rune => rune.text.trim());
 		runes.forEach((rune, i) =>
 		{
 			if (rune.type == "val")
@@ -205,7 +269,25 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 				if (mathSubstarct) return n - v;
 				return n + v;
 			};
-			if (type == "title")
+			const refs = relRefs.get(tag);
+			if (refs)
+			{
+				const ref = rune.text;
+				const warn = () => warnAt(node.sourceLine, `Неизвестная ссылка [${ref}]`);
+				const resolve = ({ n, prefix }: ObjNum) =>
+				{
+					rune.type = "text";
+					rune.text = `${prefix}${applyMath(n)}`;
+				};
+				if (mathSubstarct)
+				{
+					if (refs.prev) resolve({ ...refs.prev, n: refs.prev.n + 1 });
+					else warn();
+				}
+				else refs.next.push({ resolve, warn });
+				return;
+			}
+			if (type == "title" && rune == firstRune)
 			{
 				const num = counter.titles[`l${node.level}` as TtKeys];
 				if (appendix)
@@ -214,7 +296,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 					if (v instanceof Array) v.forEach(fn => fn.f(-1, char));
 					named[tag] = { n: -1, prefix: char };
 					rune.type = "text";
-					rune.text = char;
+					rune.text = "ПРИЛОЖЕНИЕ" + (doc.typography.nbsp.references ? "\u00A0" : " ") + char;
 					return;
 				}
 				const prefix = node.level <= 1 ? "" : repeat(node.level - 1, i => counter.titles[`l${i + 1}` as TtKeys]).join(".") + ".";
@@ -237,16 +319,26 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 					const prevRune = runes[i - 1];
 					if (prevRune && prevRune.text.trim().toLowerCase() == text.toLowerCase())
 						prevRune.text = "";
-					const nextRune = runes[i + 1];
-					if (nextRune)
+					let removeSeparator = true;
+					for (let j = i + 1; j < runes.length; j++)
 					{
+						const nextRune = runes[j]!;
+						if ((nextRune.type && nextRune.type != "text") || nextRune.mono) break;
 						nextRune.text = nextRune.text.trimStart();
-						if (nextRune.text[0] == "-") nextRune.text = nextRune.text.slice(1);
-						if (nextRune.text[0] == "\u2013") nextRune.text = nextRune.text.slice(1);
-						nextRune.text = nextRune.text.trimStart();
+						if (!nextRune.text) continue;
+						if (removeSeparator)
+						{
+							if (nextRune.text[0] == "-") nextRune.text = nextRune.text.slice(1);
+							if (nextRune.text[0] == "\u2013") nextRune.text = nextRune.text.slice(1);
+							nextRune.text = nextRune.text.trimStart();
+							removeSeparator = false;
+							if (!nextRune.text) continue;
+						}
 						nextRune.text = toCapitalCase(nextRune.text);
+						break;
 					}
-					text = `${text} ${prefix}${num} \u2013 `;
+					const hasTitle = runes.some((other, index) => index != i && other.text.trim());
+					text = `${text} ${prefix}${num}${hasTitle ? " \u2013 " : ""}`;
 					if (type == "math") text = `${prefix}${num}`;
 				}
 				else text = `${prefix}${num}`;
@@ -280,7 +372,7 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 			else
 			{
 				rune.type = "text";
-				rune.text = `${v.prefix}${applyMath(v.n)}`;
+				rune.text = v.n < 0 ? v.prefix : `${v.prefix}${applyMath(v.n)}`;
 			}
 		});
 	}
@@ -331,13 +423,14 @@ export function alchemist(doc: RunicDoc, logwarn: (msg: string) => void = consol
 
 function addLazyNumbering(doc: RunicDoc)
 {
+	const reTypedRef = /^[itcf]#(?:\s*[-+]\s*\d+)?$/;
 	doc.nodes.forEach(node =>
 	{
 		if (node.type == "math" && !node.title) node.title = [{ text: "(", type: "text" }, { text: "#", type: "ref" }, { text: ")", type: "text" }];
 		const runes = (node.type == "code" || node.type == "table") ? node.title
 			: node.type == "image" ? node.text : null;
-		if (!runes) return;
-		if (runes.find(rune => rune.type == "ref")) return;
+		if (!runes?.some(rune => rune.text.trim())) return;
+		if (runes.some(rune => rune.type == "ref" && !reTypedRef.test(rune.text))) return;
 		runes.splice(0, 0, { text: "#", type: "ref" });
 	});
 }

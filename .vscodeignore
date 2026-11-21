@@ -1,4 +1,7 @@
 .github
+Dockerfile
+.dockerignore
+**/__pycache__/**
 .vscode/**
 .vscode-test/**
 out/**
@@ -19,6 +22,8 @@ vsc-extension-quickstart.md
 resources/**
 *.tgz
 md-patch.js
+build-chat-guide.js
+md2gost-report-chat.md
 check-package-files.js
 file-snapshot.json
 pack.cmd

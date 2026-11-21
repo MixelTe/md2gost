@@ -58,6 +58,8 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 
 	for (const section of docSections)
 	{
+		const contentWidth = convertMillimetersToTwip(section.orientation == "landscape" ? 297 : 210)
+			- convertMillimetersToTwip(30) - convertMillimetersToTwip(15);
 		const children: FileChild[] = [];
 		const header = renderHeaderFooter(section.header, false);
 		const footer = renderHeaderFooter(section.footer, true);
@@ -94,7 +96,12 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 
 		function renderHeaderFooter(value: Runify<DocHeaderFooter>, isFooter: boolean): Header | Footer | undefined
 		{
-			if (value.type == "none") return undefined;
+			if (value.type == "none")
+			{
+				// An omitted reference inherits the previous section's header/footer.
+				const empty = [new Paragraph({ spacing: { after: 0, line: 20 } })];
+				return isFooter ? new Footer({ children: empty }) : new Header({ children: empty });
+			}
 			if (value.type == "auto")
 			{
 				if (!isFooter) return undefined;
@@ -123,7 +130,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 		function renderHeaderFooterTable(node: Runify<NodeTable>): Table
 		{
 			return new Table({
-				width: { type: "dxa", size: convertMillimetersToTwip(section.orientation == "landscape" ? 255.8 : 168.8) },
+				width: { type: "dxa", size: contentWidth },
 				borders: {
 					top: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
 					bottom: { style: BorderStyle.SINGLE, size: 4, color: "808080" },
@@ -236,7 +243,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 							// width: { type: "pct", size: 100 },
 							width: {
 								type: "dxa",
-								size: convertMillimetersToTwip(section.orientation === "landscape" ? 255.8 : 168.8),
+								size: contentWidth,
 							},
 							rows: node.rows.map((row, rowI) => new TableRow({
 								tableHeader: node.header !== false && rowI == 0,
@@ -245,7 +252,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 									children: item.type != "text" ? renderNodeL(item) : [
 										new Paragraph({
 											children: renderText(item.text, node.sourceLine, node.normalFontSize ? undefined : doc.table.text.size),
-											alignment: node.header !== false && rowI == 0 ? doc.table.heading.align :
+											alignment: node.header !== false && rowI == 0 && doc.table.heading.align != "keep" ? doc.table.heading.align :
 												node.align[colI] == "c" ? "center"
 													: node.align[colI] == "r" ? "right" : "left",
 											indent: { firstLine: 0 },
@@ -265,21 +272,31 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						new Paragraph({ children: [new PageBreak()] }),
 					];
 				case "image":
-					const type = (node.src.split(".").at(-1) || "").toLowerCase();
-					if (!["jpg", "png", "gif", "bmp", "svg"].includes(type))
-						throw new UserInputError(`Unsupported image format: "${type}", file: ${node.src}`);
-					const img_path = getPath(node.src);
-					if (!fs.existsSync(img_path))
-						throw new UserInputError(`File not exist: ${node.src}`);
-					const data = fs.readFileSync(img_path);
-					const dimensions = imageSize(data);
-					const [MaxW, MaxH] = (section.orientation == "landscape" ? [950, 600] : [600, 900]);
-					let [width, height] = [dimensions.width, dimensions.height];
-					if (node.width && node.height) [width, height] = [node.width, node.height];
-					if (node.width) [width, height] = [node.width, height / width * node.width];
-					if (node.height) [width, height] = [width / height * node.height, node.height];
-					if (height > MaxH) [width, height] = [width / height * MaxH, MaxH];
-					if (width > MaxW) [width, height] = [MaxW, height / width * MaxW];
+					const img_path = node.src ? getPath(node.src) : undefined;
+					let image: ImageRun | undefined;
+					if (!img_path || !fs.existsSync(img_path))
+						logwarn(`Line ${doc.mapSourceLine(node.sourceLine)}: ${node.src ? `Image file not found: "${node.src}"` : "Image path is empty"}`);
+					else
+					{
+						const type = (node.src.split(".").at(-1) || "").toLowerCase();
+						if (!["jpg", "png", "gif", "bmp", "svg"].includes(type))
+							throw new UserInputError(`Unsupported image format: "${type}", file: ${node.src}`);
+						const data = fs.readFileSync(img_path);
+						const dimensions = imageSize(data);
+						const [MaxW, MaxH] = (section.orientation == "landscape" ? [950, 600] : [600, 900]);
+						let [width, height] = [dimensions.width, dimensions.height];
+						if (node.width && node.height) [width, height] = [node.width, node.height];
+						if (node.width) [width, height] = [node.width, height / width * node.width];
+						if (node.height) [width, height] = [width / height * node.height, node.height];
+						if (height > MaxH) [width, height] = [width / height * MaxH, MaxH];
+						if (width > MaxW) [width, height] = [MaxW, height / width * MaxW];
+						image = new ImageRun({
+							type: type as any,
+							data,
+							transformation: { width, height },
+							...(type == "svg" ? { fallback: { data: "", type: "png" } } : {}),
+						});
+					}
 					return [
 						new Paragraph({
 							alignment: "center",
@@ -291,14 +308,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 								...(doc.img.spacing.before !== undefined ? { before: doc.img.spacing.before * 20 } : {}),
 							},
 							keepNext: !!node.text,
-							children: [
-								new ImageRun({
-									type: type as any,
-									data,
-									transformation: { width, height },
-									...(type == "svg" ? { fallback: { data: "", type: "png" } } : {}),
-								}),
-							],
+							children: image ? [image] : [],
 						}),
 						...(node.text ? [
 							new Paragraph({
@@ -333,7 +343,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						),
 					];
 				case "math":
-					const formulaWidth = convertMillimetersToTwip(section.orientation == "landscape" ? 255.8 : 168.8);
+					const formulaWidth = contentWidth;
 					const number = node.title?.map(rune => rune.text).join("") || "";
 					const sideWidth = Math.max(
 						convertMillimetersToTwip(5),
@@ -451,6 +461,12 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 		// creator: doc.author,
 		// lastModifiedBy: doc.author,
 	});
+	if (doc.formula.font != "Cambria Math")
+	{
+		const math = new RawXml("m:mathPr");
+		math.addChildElement(new RawXml("m:mathFont", { "m:val": doc.formula.font }));
+		docx.Settings.addChildElement(math);
+	}
 	const buffer = await Packer.toBuffer(docx, undefined, [
 		{ path: "docProps/app.xml", data: genXml_app({ totalTime: doc.etime }) },
 		{
@@ -518,13 +534,13 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 				...(rune.linebreak ? { break: 1 } : {}),
 				...(rune.bold ? { bold: true } : {}),
 				...(rune.italic ? { italics: true } : {}),
-				...(link ? { color: "0563c1", underline: { type: "single" } } : {}),
+				...(link ? { color: doc.link.color, underline: { type: doc.link.underline ? "single" : "none" } } : {}),
 				...(rune.color ? { color: rune.color } : {}),
 				...(size && size > 0 ? { size: size * 2 } : {}),
 				...(rune.type && rune.type != "text" ? { highlight: "black", color: "ffffff" } : {}),
 				...(rune.mono ? (
-					doc.backtickMono == "outline" ? { font: "consolas", size: (doc.text.size - 1) * 2, border: { style: "single", space: 2 } }
-						: doc.backtickMono == "on" ? { font: "consolas", size: (doc.text.size - 1) * 2 }
+					doc.backtickMono == "outline" ? { font: doc.code.text.font, size: (doc.text.size - 1) * 2, border: { style: "single", space: 2 } }
+						: doc.backtickMono == "on" ? { font: doc.code.text.font, size: (doc.text.size - 1) * 2 }
 							: doc.backtickMono == "italic" ? { italics: true } : {}
 				) : {}),
 			});
@@ -542,7 +558,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 				const rune = runes[r];
 				const text = rune.text;
 
-				if (!text || text.length === 0)
+				if (!text || text.length === 0 || rune.type == "math")
 				{
 					result.push(rune);
 					continue;
@@ -599,10 +615,10 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 	}
 	function renderMath(latex: string, para: boolean, sourceLine?: number): XmlComponent
 	{
-		try { return latexToOmml(latex, para); }
+		try { return latexToOmml(latex, para, doc.formula.font); }
 		catch (error)
 		{
-			logwarn(`${sourceLine ? `Line ${doc.mapSourceLine(sourceLine + 1)}: ` : ""}Formula was not converted: ${error instanceof Error ? error.message : String(error)}`);
+			logwarn(`${sourceLine ? `Line ${doc.mapSourceLine(sourceLine)}: ` : ""}Formula was not converted: ${error instanceof Error ? error.message : String(error)}`);
 			return new TextRun(latex) as unknown as XmlComponent;
 		}
 	}
@@ -1030,6 +1046,26 @@ function genXml_core({ title, creator, createdAt, modifiedAt }: { title?: string
 function genXml_style(assets: string, doc: RunicDoc): string
 {
 	let xml = fs.readFileSync(path.join(assets, "styles.xml"), { encoding: "utf8" });
+	if (doc.text.font)
+	{
+		const font = escapeXml(doc.text.font);
+		const fonts = `<w:rFonts w:ascii="${font}" w:hAnsi="${font}" w:eastAsia="${font}" w:cs="${font}"/>`;
+		xml = xml.replace(/<w:rFonts\b[^>]*\/>/, () => fonts)
+			.replace(/w:(ascii|hAnsi|eastAsia|cs)="Times New Roman"/g, (_, script: string) => `w:${script}="${font}"`);
+	}
+	if (doc.code.text.font)
+	{
+		const font = escapeXml(doc.code.text.font);
+		for (const [type, id] of [["paragraph", "ListingCode"], ["character", "ListingCode0"]])
+			xml = editStyle(`<w:style w:type="${type}" w:customStyle="1" w:styleId="${id}">`, style =>
+				style.replace(/<w:rFonts\b[^>]*\/>/, () => `<w:rFonts w:ascii="${font}" w:hAnsi="${font}" w:eastAsia="${font}" w:cs="${font}"/>`));
+	}
+	for (const id of ["af0", "af8"])
+	{
+		xml = editStyle(`<w:style w:type="character" w:styleId="${id}">`, style =>
+			style.replace(/<w:color\b[^>]*\/>/, `<w:color w:val="${doc.link.color}"/>`)
+				.replace(/<w:u\b[^>]*\/>/, `<w:u w:val="${doc.link.underline ? "single" : "none"}"/>`));
+	}
 
 	xml = editStyle(`<w:style w:type="paragraph" w:default="1" w:styleId="a2">`, xml =>
 	{
@@ -1045,14 +1081,16 @@ function genXml_style(assets: string, doc: RunicDoc): string
 			xml = replaceTag(xml, `<w:spacing w:after="0" w:line="240" w:lineRule="auto" w:before="${doc.code.spacing.before * 20}"/>`);
 		if (doc.code.title.style != "normal")
 			xml = addrPrStyle(xml, doc.code.title.style == "bold" ? "<w:b/>" : "<w:i/>");
+		if (doc.code.title.align !== undefined)
+			xml = replaceTagOrInsertInOrder(xml, "w:pPr", `<w:jc w:val="${doc.code.title.align}"/>`);
 		return xml;
 	});
 
 	xml = editStyle(`<w:style w:type="paragraph" w:customStyle="1" w:styleId="ListingCode">`, xml =>
 	{
 		xml = replaceTag(xml, `<w:sz w:val="${doc.code.text.size * 2}"/>`);
-		if (doc.code.spacing.after !== undefined)
-			xml = replaceTag(xml, `<w:spacing w:line="240" w:lineRule="auto" w:after="${doc.code.spacing.after * 20}"/>`);
+		xml = replaceTag(xml, `<w:szCs w:val="${doc.code.text.size * 2}"/>`);
+		xml = replaceTag(xml, `<w:spacing w:line="${doc.code.text.line_spacing * 240}" w:lineRule="auto" w:after="${(doc.code.spacing.after ?? doc.text.spacing.after) * 20}"/>`);
 		return xml;
 	});
 
@@ -1060,6 +1098,8 @@ function genXml_style(assets: string, doc: RunicDoc): string
 	{
 		if (doc.table.title.style != "normal")
 			xml = addrPrStyle(xml, doc.table.title.style == "bold" ? "<w:b/>" : "<w:i/>");
+		if (doc.table.title.align !== undefined)
+			xml = replaceTagOrInsertInOrder(xml, "w:pPr", `<w:jc w:val="${doc.table.title.align}"/>`);
 		return xml;
 	});
 
@@ -1072,13 +1112,13 @@ function genXml_style(assets: string, doc: RunicDoc): string
 		const style = doc.admonition[type];
 		xml = editStyle(styleTag, xml =>
 		{
-			xml = replaceTagOrInsertAfter(xml, "<w:pPr>", `<w:spacing w:before="${style.spacing.before * 20}" w:after="${style.spacing.after * 20}"/>`);
-			xml = replaceTagOrInsertAfter(xml, "<w:pPr>", `<w:ind w:left="${convertMillimetersToTwip(style.indent * 10)}" w:firstLine="0"/>`);
+			xml = replaceTagOrInsertInOrder(xml, "w:pPr", `<w:spacing w:before="${style.spacing.before * 20}" w:after="${style.spacing.after * 20}"/>`);
+			xml = replaceTagOrInsertInOrder(xml, "w:pPr", `<w:ind w:left="${convertMillimetersToTwip(style.indent * 10)}" w:firstLine="0"/>`);
 			xml = replaceBorder(xml, "top", style.padding.top, "FFFFFF", 2);
 			xml = replaceBorder(xml, "right", style.padding.right, "FFFFFF", 2);
 			xml = replaceBorder(xml, "bottom", style.padding.bottom, "FFFFFF", 2);
 			xml = replaceBorder(xml, "left", style.padding.left, style.color, Math.max(1, Math.round(style.bar_width * 8)));
-			xml = replaceTagOrInsertAfter(xml, "<w:pPr>", `<w:shd w:val="clear" w:color="auto" w:fill="${style.background}"/>`);
+			xml = replaceTagOrInsertInOrder(xml, "w:pPr", `<w:shd w:val="clear" w:color="auto" w:fill="${style.background}"/>`);
 			return xml;
 		});
 	}
@@ -1087,14 +1127,32 @@ function genXml_style(assets: string, doc: RunicDoc): string
 
 	function replaceBorder(xml: string, side: "top" | "right" | "bottom" | "left", space: number, color: string, size: number)
 	{
-		return replaceTagOrInsertAfter(xml, "<w:pBdr>", `<w:${side} w:val="single" w:sz="${size}" w:space="${space}" w:color="${color}"/>`);
+		return replaceTagOrInsertInOrder(xml, "w:pBdr", `<w:${side} w:val="single" w:sz="${size}" w:space="${space}" w:color="${color}"/>`);
 	}
-	function replaceTagOrInsertAfter(xml: string, insertAfter: string, tag: string)
+	function replaceTagOrInsertInOrder(xml: string, parent: "w:pPr" | "w:pBdr", tag: string)
 	{
 		const tagName = /<([^\s>]+)/.exec(tag)?.[1];
 		if (!tagName) throw err();
-		const regex = new RegExp(`<${tagName}\\b[^>]*/>`);
-		return regex.test(xml) ? xml.replace(regex, tag) : xml.replace(insertAfter, `${insertAfter}${tag}`);
+		// OOXML properties are sequences: insert before the first following property,
+		// keeping both existing template properties and newly added ones in schema order.
+		const order = parent == "w:pBdr" ?
+			["top", "left", "bottom", "right", "between", "bar"] :
+			["pStyle", "keepNext", "keepLines", "pageBreakBefore", "framePr", "widowControl", "numPr", "suppressLineNumbers",
+				"pBdr", "shd", "tabs", "suppressAutoHyphens", "kinsoku", "wordWrap", "overflowPunct", "topLinePunct",
+				"autoSpaceDE", "autoSpaceDN", "bidi", "adjustRightInd", "snapToGrid", "spacing", "ind", "contextualSpacing",
+				"mirrorIndents", "suppressOverlap", "jc", "textDirection", "textAlignment", "textboxTightWrap", "outlineLvl",
+				"divId", "cnfStyle", "rPr", "sectPr", "pPrChange"];
+		const index = order.indexOf(tagName.slice(2));
+		if (index < 0) throw err();
+		return xml.replace(new RegExp(`(<${parent}\\b[^>]*>)([\\s\\S]*?)(</${parent}>)`), (_, open: string, body: string, close: string) =>
+		{
+			const regex = new RegExp(`<${tagName}\\b[^>]*/>`);
+			if (regex.test(body)) return open + body.replace(regex, tag) + close;
+			const following = order.slice(index + 1);
+			const next = following.length ? new RegExp(`<(?:${following.map(name => "w:" + name).join("|")})\\b`).exec(body) : null;
+			const position = next?.index ?? body.length;
+			return open + body.slice(0, position) + tag + body.slice(position) + close;
+		});
 	}
 	function replaceTag(xml: string, tag: string): string
 	{

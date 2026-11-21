@@ -1,6 +1,8 @@
-import { CodeLens, InlineCompletionItem, type TextDocument, type Position, CompletionItem, CompletionItemKind, DocumentDropEdit, Hover, InlayHint, SnippetString, MarkdownString, Range, InlayHintKind, type CodeLensProvider, workspace, EventEmitter, type ExtensionContext, Diagnostic, languages, DiagnosticSeverity, window, type TextEditor, type DocumentDropEditProvider, type DataTransfer, type CancellationToken, Uri } from "vscode";
-import { choice, repeat } from "./utils";
 import path from "path";
+import { CodeLens, CompletionItem, CompletionItemKind, Diagnostic, DiagnosticSeverity, DocumentDropEdit, EventEmitter, Hover, InlayHint, InlayHintKind, InlineCompletionItem, languages, MarkdownString, Range, SnippetString, Uri, window, workspace, type CancellationToken, type CodeLensProvider, type DataTransfer, type DocumentDropEditProvider, type ExtensionContext, type Position, type TextDocument, type TextEditor } from "vscode";
+import type { NbspGroup } from "./doc";
+import { isEscaped } from "./inline";
+import { choice, repeat } from "./utils";
 
 export function md_completion(document: TextDocument, position: Position): CompletionItem[] | undefined
 {
@@ -158,12 +160,12 @@ export function md_completion(document: TextDocument, position: Position): Compl
 				const option = r.options.find(o => rule.startsWith(`${r.keyword} ${o} `));
 				if (!option) return;
 				Object.values(r.rules).forEach(rl => addHintByRule({ ...rl,
-					keyword: typeof rl.keyword == "string" ? `${r.keyword} ${option} ${rl.keyword}` : rl.keyword.map(k => `${option} ${k}`),
+					keyword: prefixRuleKeyword(`${r.keyword} ${option}`, rl.keyword),
 				}));
 				return;
 			}
 			if (r.deprecated) return;
-			addHint(rule, r.keyword, r.short, r.doc, r.default, r.options, it =>
+			addHint(rule, r.keyword, r.short, r.doc, r.default, r.type == "bool" ? ["on", "off"] : r.options, it =>
 			{
 				it.sortText = r.sortText;
 			});
@@ -209,6 +211,33 @@ export function md_completion(document: TextDocument, position: Position): Compl
 			item.range = range;
 			item.sortText = `!${kind}`;
 			item.documentation = new MarkdownString(`Настраивает ${kind == "header" ? "верхний" : "нижний"} колонтитул текущего раздела.`);
+			res.push(item);
+		}
+	}
+	const relativeReferences: Record<string, string> = {
+		"#": "любой тип",
+		"i#": "рисунок",
+		"t#": "таблица",
+		"c#": "листинг",
+		"f#": "формула",
+	};
+	const referencePrefix = /\[[itcf]?#?$/.exec(linePrefix);
+	if (referencePrefix && !isEscaped(linePrefix, referencePrefix.index))
+	{
+		for (const [tag, name] of Object.entries(relativeReferences))
+		{
+			const reference = `[${tag}]`;
+			if (!reference.startsWith(referencePrefix[0])) continue;
+			const item = new CompletionItem({ label: reference, description: `Следующий элемент: ${name}` }, CompletionItemKind.Reference);
+			item.insertText = reference;
+			const closingLength = /^#?\]/.exec(line.text.slice(position.character))?.[0].length || 0;
+			item.range = new Range(position.translate(0, referencePrefix.index - position.character), position.translate(0, closingLength));
+			item.documentation = new MarkdownString(
+				(tag == "#"
+					? "В начале заголовка или в подписи задаёт номер элемента. В тексте ссылается на следующий рисунок, таблицу, листинг или формулу."
+					: `Ссылка на следующий элемент типа «${name}», пропуская элементы других типов.`) +
+				` Поддерживает смещения: [${tag}+2], [${tag}-1].`,
+			);
 			res.push(item);
 		}
 	}
@@ -711,6 +740,12 @@ interface RuleBlock {
 	rules: Record<string, Rule>,
 }
 
+function prefixRuleKeyword(prefix: string, keyword: Rule["keyword"]): Rule["keyword"]
+{
+	const qualify = (word: string) => [prefix, word].filter(Boolean).join(" ");
+	return typeof keyword == "string" ? qualify(keyword) : keyword.map(qualify);
+}
+
 const Rules: Record<string, RuleBlock | Rule> = {
 	numbering_lazy: {
 		keyword: "numbering lazy",
@@ -812,8 +847,8 @@ const Rules: Record<string, RuleBlock | Rule> = {
 	numbering_sections: {
 		keyword: "numbering sections",
 		type: "bool",
-		short: "Автонумерация в формате 1.1",
-		doc: "Автонумерация в формате 1.1",
+		short: "Нумерация объектов по разделам",
+		doc: "Нумерация объектов в формате 1.1. Номер раздела берётся из начала заголовка любого уровня: `# 1 …`, `## 1. …`. Подразделы `1.1` и `1.1.` не сбрасывают счётчики. Без явных номеров разделов учитываются заголовки первого уровня.",
 	},
 	admonition: {
 		keyword: "admonition",
@@ -924,6 +959,13 @@ const Rules: Record<string, RuleBlock | Rule> = {
 		doc: "Установить размер шрифта для основного текста\n\n- Синтаксис: `!!rule text size <int>`\n- Пример: `!!rule text size 12`\n- По умолчанию: `14` пт",
 		default: "14",
 	},
+	text_font: {
+		keyword: "text font",
+		type: "string",
+		short: "Шрифт основного текста",
+		doc: "Семейство шрифта для текста, заголовков, подписей, таблиц и колонтитулов. Например: `!!rule text font Liberation Serif`. По умолчанию: Times New Roman.",
+		default: "Times New Roman",
+	},
 	text_line_spacing: {
 		keyword: "text line_spacing",
 		type: "float",
@@ -942,7 +984,7 @@ const Rules: Record<string, RuleBlock | Rule> = {
 		keyword: "text spacing after",
 		type: "int",
 		short: "Интервал после абзаца",
-		doc: "Установить отступ после обычных абзацев\n\n- Синтаксис: `!!rule text spacing after <int>`\n- Пример: `!!rule text spacing after 0`\n- По умолчанию: `8` пт",
+		doc: "Установить отступ после обычных абзацев\n\n- Синтаксис: `!!rule text spacing after <int>`\n- Пример: `!!rule text spacing after 8`\n- По умолчанию: `0` пт",
 		default: "8",
 	},
 	headings_size: {
@@ -1012,6 +1054,14 @@ const Rules: Record<string, RuleBlock | Rule> = {
 		doc: "Установить размер шрифта для названий таблиц\n\n- Синтаксис: `!!rule table title size <int>`\n- Пример: `!!rule table title size 12`\n- По умолчанию: наследуется от текста",
 		default: "12",
 	},
+	table_title_align: {
+		keyword: "table title align",
+		type: "string",
+		short: "Выравнивание названия таблицы",
+		doc: "Установить выравнивание названий таблиц\n\n- Синтаксис: `!!rule table title align <left|center|right>`\n- Пример: `!!rule table title align right`\n- По умолчанию: влево",
+		default: "right",
+		options: ["left", "center", "right"],
+	},
 	table_spacing_before: {
 		keyword: "table spacing before",
 		type: "int",
@@ -1023,7 +1073,7 @@ const Rules: Record<string, RuleBlock | Rule> = {
 		keyword: "table spacing after",
 		type: "int",
 		short: "Интервал после таблицы",
-		doc: "Установить отступ после таблицы\n\n- Синтаксис: `!!rule table spacing after <int>`\n- Пример: `!!rule table spacing after 6`\n- По умолчанию: наследуется от текста",
+		doc: "Установить отступ после таблицы\n\n- Синтаксис: `!!rule table spacing after <int>`\n- Пример: `!!rule table spacing after 6`\n- По умолчанию: `8` пт",
 		default: "6",
 	},
 	table_heading_style: {
@@ -1038,9 +1088,9 @@ const Rules: Record<string, RuleBlock | Rule> = {
 		keyword: "table heading align",
 		type: "string",
 		short: "Выравнивание заголовка таблицы",
-		doc: "Установить выравнивание заголовков таблицы\n\n- Синтаксис: `!!rule table heading align <left|center|right>`\n- Пример: `!!rule table heading align left`\n- По умолчанию: `center`",
+		doc: "Установить выравнивание заголовков таблицы\n\n- Синтаксис: `!!rule table heading align <left|center|right|keep>`\n- Пример: `!!rule table heading align keep`\n- По умолчанию: `center`\n- `keep`: брать выравнивание столбцов из Markdown",
 		default: "left",
-		options: ["left", "center", "right"],
+		options: ["left", "center", "right", "keep"],
 	},
 	table_text_size: {
 		keyword: "table text size",
@@ -1071,6 +1121,14 @@ const Rules: Record<string, RuleBlock | Rule> = {
 		doc: "Установить размер шрифта для названия листингов (кода)\n\n- Синтаксис: `!!rule code title size <int>`\n- Пример: `!!rule code title size 12`\n- По умолчанию: наследуется от текста",
 		default: "12",
 	},
+	code_title_align: {
+		keyword: "code title align",
+		type: "string",
+		short: "Выравнивание названия листинга",
+		doc: "Установить выравнивание названий листингов\n\n- Синтаксис: `!!rule code title align <left|center|right>`\n- Пример: `!!rule code title align right`\n- По умолчанию: по ширине",
+		default: "right",
+		options: ["left", "center", "right"],
+	},
 	code_spacing_before: {
 		keyword: "code spacing before",
 		type: "int",
@@ -1082,7 +1140,7 @@ const Rules: Record<string, RuleBlock | Rule> = {
 		keyword: "code spacing after",
 		type: "int",
 		short: "Интервал после листинга",
-		doc: "Установить отступ после блока листинга\n\n- Синтаксис: `!!rule code spacing after <int>`\n- Пример: `!!rule code spacing after 6`\n- По умолчанию: наследуется от текста",
+		doc: "Установить отступ после блока листинга\n\n- Синтаксис: `!!rule code spacing after <int>`\n- Пример: `!!rule code spacing after 6`\n- По умолчанию: `8` пт",
 		default: "6",
 	},
 	code_highlight: {
@@ -1091,12 +1149,26 @@ const Rules: Record<string, RuleBlock | Rule> = {
 		short: "Подсветка кода",
 		doc: "Включить подсветку синтаксиса кода\n\n- Синтаксис: `!!rule code highlight`\n- По умолчанию: выключено",
 	},
+	code_font: {
+		keyword: "code text font",
+		type: "string",
+		short: "Шрифт листингов и моноширинных вставок",
+		doc: "Семейство шрифта для листингов и вставок при `backtick_mono on` или `outline`. Например: `!!rule code text font Liberation Mono`. По умолчанию: Courier New.",
+		default: "Courier New",
+	},
 	code_text_size: {
 		keyword: "code text size",
 		type: "int",
 		short: "Размер текста листинга",
 		doc: "Установить размер шрифта текста листинга\n\n- Синтаксис: `!!rule code text size <int>`\n- Пример: `!!rule code text size 10`\n- По умолчанию: `12` пт",
 		default: "12",
+	},
+	code_text_line_spacing: {
+		keyword: "code text line_spacing",
+		type: "float",
+		short: "Межстрочный интервал листинга",
+		doc: "Установить межстрочный интервал текста листинга\n\n- Синтаксис: `!!rule code text line_spacing <float>`\n- Пример: `!!rule code text line_spacing 1.25`\n- По умолчанию: `1`",
+		default: "1",
 	},
 	img_text_size: {
 		keyword: "img text size",
@@ -1116,8 +1188,15 @@ const Rules: Record<string, RuleBlock | Rule> = {
 		keyword: "img spacing after",
 		type: "int",
 		short: "Интервал после подписи картинки",
-		doc: "Установить отступ после абзаца подписи к рисунку\n\n- Синтаксис: `!!rule img spacing after <int>`\n- Пример: `!!rule img spacing after 6`\n- По умолчанию: наследуется от текста",
+		doc: "Установить отступ после абзаца подписи к рисунку или после изображения без подписи\n\n- Синтаксис: `!!rule img spacing after <int>`\n- Пример: `!!rule img spacing after 6`\n- По умолчанию: `8` пт",
 		default: "6",
+	},
+	formula_font: {
+		keyword: "formula font",
+		type: "string",
+		short: "Шрифт формул",
+		doc: "Математический шрифт для строчных и блочных формул. Например: `!!rule formula font STIX Two Math`. По умолчанию: Cambria Math.",
+		default: "Cambria Math",
 	},
 	formula_spacing_before: {
 		keyword: "formula spacing before",
@@ -1156,11 +1235,58 @@ const Rules: Record<string, RuleBlock | Rule> = {
 		doc: "Автоматически расставлять знаки препинания в элементах списка\n\n- Синтаксис: `!!rule list autopunctuation <on|off>`\n- Пример: `!!rule list autopunctuation off`\n- По умолчанию: `on`",
 		default: "off",
 	},
+	typography: (() =>
+	{
+		function nbspRule(keyword: NbspGroup | "", short: string, description: string): Rule
+		{
+			const fullKeyword = prefixRuleKeyword("typography nbsp", keyword);
+			return {
+				keyword,
+				type: "bool",
+				default: "on",
+				short,
+				doc: `${description}\n\n- Синтаксис: \`!!rule ${fullKeyword} <on|off>\`\n- По умолчанию: \`on\``,
+			};
+		}
+		return {
+			keyword: "typography",
+			type: "block",
+			options: ["nbsp"],
+			short: "Автоматическая типографика",
+			doc: "Управление автоматическими неразрывными пробелами. Явные `&nbsp;` сохраняются.",
+			rules: {
+				nbsp_short_words: nbspRule("short_words", "Короткие служебные слова", "Связывает короткие служебные слова со следующим словом: для работы, в таблице."),
+				nbsp_references: nbspRule("references", "Ссылки на элементы", "Связывает названия и номера элементов: рисунок 1, рис. 2; управляет пробелами перед [ref] и [!value]."),
+				nbsp_abbreviations: nbspRule("abbreviations", "Структурные сокращения", "Связывает структурные сокращения и обозначения с номером: п. 1, № 5, § 2."),
+				nbsp_standards: nbspRule("standards", "Стандарты", "Связывает обозначения стандартов: ГОСТ Р 123, ISO 9001."),
+				nbsp_addresses: nbspRule("addresses", "Адреса", "Связывает адресные сокращения со следующим словом или числом: ул. Ленина, д. 10."),
+				nbsp_years: nbspRule("years", "Годы", "Связывает год с сокращением: 2026 г., 2020–2026 гг."),
+				nbsp_initials: nbspRule("initials", "Инициалы", "Связывает инициалы и фамилию: А. С. Пушкин."),
+				nbsp_units: nbspRule("units", "Числа и единицы", "Связывает числа с единицами измерения: 10 кг, 25 %."),
+				nbsp: nbspRule("", "Все автоматические неразрывные пробелы", "Включает или отключает все восемь групп автоматических неразрывных пробелов."),
+			},
+		};
+	})(),
+	link_color: {
+		keyword: "link color",
+		type: "string",
+		short: "Цвет гиперссылок",
+		doc: "Цвет гиперссылок. \n\n- Синтаксис: `!!rule link color <RRGGBB>`. \n- По умолчанию `#0563c1`.",
+		default: "#000000",
+		checker: value => /^#[\da-f]{6}$/i.test(value) ? null : "цвет в формате #RRGGBB",
+	},
+	link_underline: {
+		keyword: "link underline",
+		type: "bool",
+		short: "Подчёркивание гиперссылок",
+		default: "off",
+		doc: "Подчёркивание гиперссылок. \n\n- Синтаксис: `!!rule link underline <on|off>`. \n- По умолчанию `on`.",
+	},
 };
 const RulesFlat = Object.values(Rules).map(rule => rule.type != "block" ? rule : rule.options.map(o =>
 	Object.values(rule.rules).map(r => ({
 		...r,
-		keyword: typeof r.keyword == "string" ? `${rule.keyword} ${o} ${r.keyword}` : r.keyword.map(k => o + " " + k),
+		keyword: prefixRuleKeyword(`${rule.keyword} ${o}`, r.keyword),
 	}) as Rule),
 )).flat(2);
 const Headings: {
@@ -1351,3 +1477,8 @@ Git    | Система контроля версий, позволяющая о
 \`\`\``,
 },
 ];
+for (const [alias, canonical] of [["СОДЕРЖАНИЕ", "ОГЛАВЛЕНИЕ"], ["СПИСОК ЛИТЕРАТУРЫ", "СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ"]])
+{
+	const heading = Headings.find(value => value.keyword == canonical)!;
+	Headings.push({ ...heading, keyword: alias, doc: heading.doc.replaceAll(canonical, alias) });
+}

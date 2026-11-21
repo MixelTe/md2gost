@@ -31,11 +31,52 @@ Sub UpdateAllFields()
     ' Обновить оглавление
     For Each toc In ActiveDocument.TablesOfContents
         toc.Update
+        AlignTableOfContents toc
     Next toc
 
     ' Поля/оглавление могли изменить длину документа
     ActiveDocument.Repaginate
     DoEvents
+End Sub
+Private Sub AlignTableOfContents(toc As TableOfContents)
+    Dim p As Paragraph, firstWord As Range
+    Dim re As Object, matches As Object
+    Dim baseIndent As Single, textIndent As Single
+    Set re = CreateObject("VBScript.RegExp")
+    re.Pattern = "^[0-9]+(\.[0-9]+)*\.?[ " & vbTab & ChrW(160) & "]+"
+    ' Markdown link settings must not change the automatic TOC's appearance.
+    toc.Range.Font.Color = wdColorAutomatic
+    toc.Range.Font.Underline = wdUnderlineNone
+    For Each p In toc.Range.Paragraphs
+        ' Reset direct indents before measuring, so repeated updates are stable.
+        With p.Style.ParagraphFormat
+            baseIndent = .LeftIndent + .FirstLineIndent
+        End With
+        p.LeftIndent = baseIndent
+        p.FirstLineIndent = 0
+        If re.Test(p.Range.Text) Then
+            Set matches = re.Execute(p.Range.Text)
+            Set firstWord = p.Range.Duplicate
+            ' Range offsets include hidden field codes; Find locates the visible prefix.
+            With firstWord.Find
+                .ClearFormatting
+                .Text = matches(0).Value
+                .Forward = True
+                .Wrap = wdFindStop
+                .Format = False
+                .MatchWildcards = False
+                .MatchWholeWord = False
+            End With
+            If firstWord.Find.Execute Then
+                firstWord.Collapse wdCollapseEnd
+                textIndent = firstWord.Information(wdHorizontalPositionRelativeToTextBoundary)
+                If textIndent > baseIndent Then
+                    p.LeftIndent = textIndent
+                    p.FirstLineIndent = baseIndent - textIndent
+                End If
+            End If
+        End If
+    Next p
 End Sub
 Sub LogError(msg As String)
     Dim fso As Object

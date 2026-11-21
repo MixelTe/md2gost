@@ -1,8 +1,10 @@
-import { Doc, tableRow, type AdmonitionType, type DocHeaderFooter, type DocNode, type NodeListItem, type NodeTable, type Rune, type RunicDoc } from "./doc";
 import fs from "fs/promises";
-import { hslToHex, toCapitalCase, trimEnd, trimStart, type JSONDict, type JSONValue } from "./utils";
 import path from "path";
-import { preprocess, type TemplateExecOptions } from "./preprocessor";
+import { Doc, NBSP_GROUPS, defaultNbspGroups, tableRow, type AdmonitionType, type DocHeaderFooter, type DocNode, type NbspGroups, type NodeListItem, type NodeTable, type Rune, type RunicDoc } from "./doc";
+import { findClosingBackticks, isEscaped, protectLinkAddresses } from "./inline";
+import { parseHeadingText } from "./sections";
+import { createBraceScanner, preprocess, type TemplateExecOptions } from "./preprocessor";
+import { hslToHex, toCapitalCase, trimEnd, trimStart, type JSONDict, type JSONValue } from "./utils";
 
 export async function parseMD(file: string, variables?: JSONDict, templateOptions: TemplateExecOptions = {}, checkFilesIsInsidePath: string | false = false, signal?: AbortSignal | null, logwarn: (msg: string) => void = console.warn)
 {
@@ -123,6 +125,52 @@ export async function parseMD(file: string, variables?: JSONDict, templateOption
 		node.code = code.join("\n");
 		return node;
 	}
+	async function parseExternalDoc(line: string, rawPath: string)
+	{
+		const sourceLine = lineI;
+		const header = `!!(${rawPath})`;
+		let nextLineI = lineI;
+		let parameters = line.slice(line.indexOf(header) + header.length);
+		while (/^(?:\s|<!-- -->)*$/.test(parameters) && nextLineI < lines.length)
+			parameters = lines[nextLineI++]!;
+		const opening = /^(?:\s|<!-- -->)*{/.exec(parameters);
+		if (!opening)
+		{
+			doc.appendText(line.trim(), sourceLine);
+			return;
+		}
+		parameters = parameters.slice(opening[0].length - 1);
+		const findEnd = createBraceScanner();
+		const parameterLines: string[] = [];
+		let end = findEnd(parameters + "\n");
+		while (end < 0 && nextLineI < lines.length)
+		{
+			parameterLines.push(parameters);
+			parameters = lines[nextLineI++]!;
+			end = findEnd(parameters + "\n");
+		}
+		if (end < 0)
+		{
+			warnAt(sourceLine, "Document insert is not closed");
+			doc.appendText(line.trim(), sourceLine);
+			return;
+		}
+		const { default: JSONC } = await import("jsonc-simple-parser");
+		parameterLines.push(parameters.slice(0, end + 1));
+		const parametersText = parameterLines.join("\n");
+		let dict = {};
+		try { dict = JSONC.parse(parametersText); }
+		catch { warnAt(sourceLine, `Cant parse doc dict: ${parametersText.replaceAll("\n", " ")}`); }
+		doc.appendNode({
+			type: "externalDoc",
+			path: trimEnd(trimStart(rawPath, "<", '"'), ">", '"'),
+			dict: stringifyDict(dict),
+			sourceLine,
+		});
+		lineI = nextLineI;
+		const tail = parameters.slice(end + 1).trim();
+		if (tail) doc.appendText(tail, lineI);
+	}
 	function parseSection(text: string): DocNode
 	{
 		text = text.toLowerCase();
@@ -164,7 +212,7 @@ export async function parseMD(file: string, variables?: JSONDict, templateOption
 				closed = true;
 				break;
 			}
-			content.push(line);
+			if (line.trim() != "<!-- -->") content.push(line);
 		}
 		if (!closed)
 		{
@@ -215,7 +263,7 @@ export async function parseMD(file: string, variables?: JSONDict, templateOption
 				closed = true;
 				break;
 			}
-			content.push(line);
+			if (line.trim() != "<!-- -->") content.push(line);
 		}
 		if (!closed) warnAt(initialLineI, `Admonition "${type}" is not closed`);
 		return { type: "admonition", admonitionType: type, title, text: content.filter(t => !!t.trim()).join("\n").trim(), attributes, sourceLine: initialLineI };
@@ -233,28 +281,32 @@ export async function parseMD(file: string, variables?: JSONDict, templateOption
 			"etime": v => doc.etime = tryParseInt(v),
 			"ctime": v => doc.ctime = tryParseDate(v),
 			"mtime": v => doc.mtime = tryParseDate(v),
-			"numbering lazy": v => { choices(v, "", "on", "off"); doc.numberingLazy = !v || v == "on"; },
-			"numbering sections": v => { choices(v, "", "on", "off"); doc.numberingSections = !v || v == "on"; },
-			"numbering autoprefix": v => { choices(v, "", "on", "off"); doc.numberingAutoprefix = v == "on"; },
+			"numbering lazy": v => doc.numberingLazy = tryParseBool(v, true),
+			"numbering sections": v => doc.numberingSections = tryParseBool(v, true),
+			"numbering autoprefix": v => doc.numberingAutoprefix = tryParseBool(v, true),
 			"backtick_mono": v => doc.backtickMono = choices(v, "italic", "off", "on", "outline"),
 			"hyphenation": v => doc.hyphenation = true,
 			"table title style": v => doc.table.title.style = choices(v, "normal", "bold", "italic"),
 			"table title size": v => doc.table.title.size = tryParseInt(v),
+			"table title align": v => doc.table.title.align = choices(v, "left", "center", "right"),
 			"table spacing before": v => doc.table.spacing.before = tryParseInt(v),
 			"table spacing after": v => doc.table.spacing.after = tryParseInt(v),
 			"table heading style": v => doc.table.heading.style = choices(v, "normal", "bold", "italic"),
-			"table heading align": v => doc.table.heading.align = choices(v, "left", "center", "right"),
+			"table heading align": v => doc.table.heading.align = choices(v, "left", "center", "right", "keep"),
 			"table text size": v => doc.table.text.size = tryParseInt(v),
 			"table text line_spacing": v => doc.table.text.line_spacing = tryParseFloat(v),
 			"code title style": v => doc.code.title.style = choices(v, "normal", "bold", "italic"),
 			"code title size": v => doc.code.title.size = tryParseInt(v),
+			"code title align": v => doc.code.title.align = choices(v, "left", "center", "right"),
 			"code spacing before": v => doc.code.spacing.before = tryParseInt(v),
 			"code spacing after": v => doc.code.spacing.after = tryParseInt(v),
-			"code highlight": v => { choices(v, "", "on", "off"); doc.code.highlight = !v || v == "on"; },
+			"code highlight": v => doc.code.highlight = tryParseBool(v, true),
+			"code text font": v => doc.code.text.font = v,
 			"code text size": v => doc.code.text.size = tryParseInt(v),
+			"code text line_spacing": v => doc.code.text.line_spacing = tryParseFloat(v),
 			"list ordered style": v => doc.list.ordered.style = choices(v, "bracket", "dot", "keep"),
 			"list unordered style": v => doc.list.unordered.style = choices(v, "dash", "bullet", "keep"),
-			"list autopunctuation": v => { choices(v, "", "on", "off"); doc.list.autopunctuation = v == "on"; },
+			"list autopunctuation": v => doc.list.autopunctuation = tryParseBool(v, true),
 			"headings alt_style_1": v =>
 			{
 				for (let i = 1 as 1 | 2 | 3 | 4 | 5 | 6; i <= 6; i++)
@@ -269,14 +321,20 @@ export async function parseMD(file: string, variables?: JSONDict, templateOption
 				doc.headings.h2.size = 16;
 			},
 			"text size": v => doc.text.size = tryParseInt(v),
+			"text font": v => doc.text.font = v,
 			"text line_spacing": v => doc.text.line_spacing = tryParseFloat(v),
 			"text indent": v => doc.text.indent = tryParseFloat(v),
 			"text spacing after": v => doc.text.spacing.after = tryParseInt(v),
 			"img text size": v => doc.img.text.size = tryParseInt(v),
 			"img spacing before": v => doc.img.spacing.before = tryParseInt(v),
 			"img spacing after": v => doc.img.spacing.after = tryParseInt(v),
+			"formula font": v => doc.formula.font = v,
 			"formula spacing before": v => doc.formula.spacing.before = tryParseInt(v),
 			"formula spacing after": v => doc.formula.spacing.after = tryParseInt(v),
+			...Object.fromEntries(NBSP_GROUPS.map(group => [`typography nbsp ${group}`, (v: string) => doc.typography.nbsp[group] = tryParseBool(v)])),
+			"typography nbsp": v => NBSP_GROUPS.forEach(group => doc.typography.nbsp[group] = tryParseBool(v)),
+			"link color": v => doc.link.color = tryParseColor(v),
+			"link underline": v => doc.link.underline = tryParseBool(v, true),
 		};
 		const reRules: { re: RegExp, n: (m: RegExpExecArray) => { rule: string, value: string }, f: (m: RegExpExecArray) => void }[] = [
 			{
@@ -382,12 +440,18 @@ export async function parseMD(file: string, variables?: JSONDict, templateOption
 		{
 			const color = /^#?([\da-f]{6})$/i.exec(v)?.[1];
 			if (!color) throw new RuleError("Only #RRGGBB colors are allowed");
-			return color;
+			return color.toLowerCase();
 		}
 		function choices<V extends string>(v: string, ...vars: V[]): V
 		{
 			if (vars.includes(v as any)) return v as unknown as V;
 			throw new RuleError("Allowed: " + vars.join(", "));
+		}
+		function tryParseBool(v: string, def: boolean | null = null)
+		{
+			if (def !== null && v == "") return def;
+			choices(v, "on", "off");
+			return v == "on";
 		}
 	}
 	function skipComment()
@@ -405,16 +469,22 @@ export async function parseMD(file: string, variables?: JSONDict, templateOption
 		{
 			switch (prefix)
 			{
-				case "#": doc.appendTitle(text, 1, lineI); break;
-				case "##": doc.appendTitle(text, 2, lineI); break;
-				case "###": doc.appendTitle(text, 3, lineI); break;
-				case "####": doc.appendTitle(text, 4, lineI); break;
-				case "#####": doc.appendTitle(text, 5, lineI); break;
-				case "######": doc.appendTitle(text, 6, lineI); break;
+				case "#":
+				case "##":
+				case "###":
+				case "####":
+				case "#####":
+				case "######":
+				{
+					const heading = parseHeadingText(text);
+					doc.appendTitle(heading.text, prefix.length, lineI, heading.notSpecial);
+					break;
+				}
 				case "*": doc.appendNode(parseList(text, parts, false)); break;
 				case "1)": doc.appendNode(parseList(text, parts, true)); break;
 				case "Img": doc.appendNode(parseImg(parts)); break;
 				case "Code": doc.appendNode(parseCode(text)); break;
+				case "Doc": await parseExternalDoc(line, parts[0]!); break;
 				case "Admonition": doc.appendNode(parseAdmonition(parts)); break;
 				case "Comment": skipComment(); break;
 				case "!!section": doc.appendNode(parseSection(text)); break;
@@ -453,14 +523,13 @@ export async function parseMD(file: string, variables?: JSONDict, templateOption
 			node.title = doc.admonition[node.admonitionType].title;
 	});
 	doc.nodes = doc.nodes.filter(n => n.type != "text" || n.text != "");
-	await findDocs(doc.nodes, warnAt);
 	findMath(doc.nodes, warnAt); // keep before table recognition so `|` inside LaTex is inert.
 	findTables(doc.nodes);
 
 	return doc;
 }
 
-type Prefix = "" | "#" | "##" | "###" | "####" | "#####" | "######" | "*" | "1)" | "---" | "\t" | "Img" | "Code" | "Comment" | "Admonition" | "!!section" | "!!header" | "!!footer" | "!!rule";
+type Prefix = "" | "#" | "##" | "###" | "####" | "#####" | "######" | "*" | "1)" | "---" | "\t" | "Img" | "Code" | "Doc" | "Comment" | "Admonition" | "!!section" | "!!header" | "!!footer" | "!!rule";
 export function parseLine(line: string): { prefix: Prefix, text: string, level: number, parts: string[] }
 {
 	let level = 0;
@@ -470,6 +539,8 @@ export function parseLine(line: string): { prefix: Prefix, text: string, level: 
 		else if (line.startsWith("\t")) line = line.slice(1);
 		level++;
 	}
+	const insert = /^!!\(([^{}\r\n]*)\)\s*(?:{|$)/.exec(line.trim());
+	if (insert) return { prefix: "Doc", text: line.trim(), level, parts: [insert[1]!] };
 	if (level > 0) return { prefix: "\t", text: line.trim(), level, parts: [] };
 	if (/^\s*---+\s*$/.test(line)) return { prefix: "---", text: "", level, parts: [] };
 	const splited = line.trim().split(/\s/);
@@ -491,7 +562,7 @@ export function parseLine(line: string): { prefix: Prefix, text: string, level: 
 		parts = ["", prefix];
 		prefix = "*";
 	}
-	if (prefix.endsWith(".") || prefix.endsWith(")"))
+	if ((prefix.endsWith(".") || prefix.endsWith(")")) && !isEscaped(prefix, prefix.length - 1))
 	{
 		const index = parseInt(prefix.slice(0, -1));
 		if (isFinite(index))
@@ -514,27 +585,6 @@ export function parseLine(line: string): { prefix: Prefix, text: string, level: 
 	return { prefix: "", text: line.trim(), level, parts };
 }
 
-async function findDocs(nodes: DocNode[], warnAt: (line: number, message: string) => void)
-{
-	const { default: JSONC } = await import("jsonc-simple-parser");
-	const re_doc = /^!!\(([^{}]*)\)\s*{(.*)}$/s;
-	for (let i = 0; i < nodes.length; i++)
-	{
-		const node = nodes[i]!;
-		if (node.type != "text") continue;
-		const m_doc = re_doc.exec(node.text.trimEnd());
-		if (!m_doc) continue;
-		let dict = {};
-		try { dict = JSONC.parse(`{${m_doc[2]!}}`); }
-		catch { warnAt(node.sourceLine ?? -1, `Cant parse doc dict: {${m_doc[2]!.replaceAll("\n", " ")}}`); }
-		nodes.splice(i, 1, {
-			type: "externalDoc",
-			path: trimEnd(trimStart(m_doc[1]!, "<", '"'), ">", '"'),
-			dict: stringifyDict(dict),
-			sourceLine: node.sourceLine,
-		});
-	}
-}
 export function stringifyDict(dict: Record<string, JSONValue>)
 {
 	const r = {} as Record<string, string>;
@@ -677,9 +727,9 @@ export function runifyDoc(doc: Doc): RunicDoc
 	function runifyNode(node: DocNode | NodeListItem)
 	{
 		if ("text" in node && node.text !== undefined)
-			node.text = runifyText(node.text, doc.rainbow) as any;
+			node.text = runifyText(node.text, doc.rainbow, doc.typography?.nbsp) as any;
 		if ("title" in node && node.title !== undefined)
-			node.title = runifyText(node.title, doc.rainbow) as any;
+			node.title = runifyText(node.title, doc.rainbow, doc.typography?.nbsp) as any;
 		if (node.type == "table")
 			node.rows.forEach(row => row.forEach(runifyNode));
 		if (node.type == "list")
@@ -703,35 +753,37 @@ export function runifyDoc(doc: Doc): RunicDoc
 }
 
 let rainbowI = 0;
-function runifyText(text: string, rainbow = false): Rune[]
+function runifyText(text: string, rainbow = false, nbsp: NbspGroups = defaultNbspGroups()): Rune[]
 {
 	const formulas: string[] = [];
 	const codeSpans: string[] = [];
-
-	function findClosingBackticks(from: number, count: number)
-	{
-		for (let i = from; i < text.length;)
-		{
-			const start = text.indexOf("`", i);
-			if (start < 0) return -1;
-			let end = start + 1;
-			while (text[end] == "`") end++;
-			if (end - start == count) return start;
-			i = end;
-		}
-		return -1;
-	};
+	const literals: string[] = [];
+	const protect = (value: string) => `\uE004${literals.push(value) - 1}\uE005`;
+	const restore = (value: string) => value.replace(/\uE004(\d+)\uE005/g, (_, index: string) => literals[Number(index)]!);
+	text = protectLinkAddresses(text, protect).replace(/<(\uE004\d+\uE005)>/g, "$1");
 
 	let preprocessedText = "";
 
 	for (let i = 0; i < text.length;)
 	{
+		if (text[i] == "\\" && /[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/.test(text[i + 1] || ""))
+		{
+			preprocessedText += protect(text[i + 1]!);
+			i += 2;
+			continue;
+		}
+		if (text[i] == NBSP)
+		{
+			preprocessedText += protect(NBSP);
+			i++;
+			continue;
+		}
 		if (text[i] == "`")
 		{
 			let delimiterEnd = i + 1;
 			while (text[delimiterEnd] == "`") delimiterEnd++;
 			const delimiterLength = delimiterEnd - i;
-			const end = findClosingBackticks(delimiterEnd, delimiterLength);
+			const end = findClosingBackticks(text, delimiterEnd, delimiterLength);
 			if (end >= 0)
 			{
 				codeSpans.push(text.slice(delimiterEnd, end));
@@ -743,10 +795,10 @@ function runifyText(text: string, rainbow = false): Rune[]
 			i = delimiterEnd;
 			continue;
 		}
-		if (text[i] == "$" && text[i - 1] != "\\" && text[i + 1] != "$")
+		if (text[i] == "$" && text[i + 1] != "$")
 		{
 			let end = i + 1;
-			while (end < text.length && text[end] != "\n" && (text[end] != "$" || text[end - 1] == "\\")) end++;
+			while (end < text.length && text[end] != "\n" && (text[end] != "$" || isEscaped(text, end))) end++;
 			if (end < text.length && text[end] == "$")
 			{
 				formulas.push(text.slice(i + 1, end));
@@ -757,12 +809,12 @@ function runifyText(text: string, rainbow = false): Rune[]
 		}
 		preprocessedText += text[i++];
 	}
-	text = preprocessedText.replaceAll("\\$", "$");
+	text = preprocessedText;
 	return replaceAmpCodes(text)
 		.replaceAll("\n", "&Tab;\n")
 		.replaceAll(/\s*<br>\s*/g, "\n")
 		.replaceAll("—", "-")
-		.replaceAll(" - ", " \u2013 ")
+		.replaceAll(/\[[itcf]#(?:\s*[-+]\s*\d+)?\]| - /g, value => value == " - " ? " \u2013 " : value)
 		.replaceAll(/(^|[^\p{L}\d_])"([\p{L}\d_])/gu, "$1«$2")
 		.replaceAll(/([\p{L}\d_])"([^\p{L}\d_]|$)/gu, "$1»$2")
 		.replaceAll(/(^|\s)(\*+)($|\s)/g, sub => sub.replaceAll("*", "&Star;"))
@@ -819,9 +871,9 @@ function runifyText(text: string, rainbow = false): Rune[]
 				linebreak: i == 0 && rune.linebreak,
 			} as Rune;
 		})).flat()
-		.map(rune => rune.link || rune.mono ? [rune] : rune.text.split(/(\[!?[a-zA-Zа-яА-ЯёЁ_\d#]+\s*[+-]?\s*\d*\])/g).map((p, i) =>
+		.map(rune => rune.link || rune.mono || rune.type == "math" ? [rune] : rune.text.split(/(\[!?[a-zA-Zа-яА-ЯёЁ_\d#]+\s*[+-]?\s*\d*\])/g).map((p, i) =>
 		{
-			const m = /\[(!?([a-zA-Zа-яА-ЯёЁ_\d]+|#)(\s*[-+]\s*\d+)?)\]/.exec(p);
+			const m = /\[(!?([itcf]?#|[a-zA-Zа-яА-ЯёЁ_\d]+)(\s*[-+]\s*\d+)?)\]/.exec(p);
 			const v = m && m[1];
 			const isVal = v?.at(0) == "!";
 			return {
@@ -833,14 +885,16 @@ function runifyText(text: string, rainbow = false): Rune[]
 		})).flat()
 		.map((rune, i, arr) => ({
 			...rune,
-			...(!rune.type || rune.type == "text" ? {
+			...(!rune.mono && (!rune.type || rune.type == "text") ? {
 				text: formatTypography(
-					(arr[i + 1]?.type == "ref" || arr[i + 1]?.type == "val") ? rune.text.replace(/[ \t]+$/, NBSP) : rune.text,
+					nbsp.references && (arr[i + 1]?.type == "ref" || arr[i + 1]?.type == "val") ? rune.text.replace(/[ \t]+$/, NBSP) : rune.text,
+					nbsp,
 				)
 					.replaceAll("&Star;", "*")
 					.replaceAll("&#x200B;", ""),
 			} : {}),
 		}) as Rune)
+		.map(rune => ({ ...rune, text: restore(rune.text), ...(rune.link ? { link: restore(rune.link).replace(/^<(.*)>$/, "$1") } : {}) }))
 		.map(rune => !rainbow || rune.mono || (rune.type && rune.type != "text") ? [rune] : rune.text.split("").map((p, i) => ({
 			...rune,
 			text: p,
@@ -979,153 +1033,42 @@ const unitsPattern = createAlternation(units);
  */
 const referenceIdentifierPattern = String.raw`(?:\(\s*\d+(?:\.\d+)*\s*\)|\d+(?:\.\d+)*|[А-ЯЁA-Z](?:[^\p{L}]|$))`;
 
-export function formatTypography(text: string): string
+export function formatTypography(text: string, groups: NbspGroups = defaultNbspGroups()): string
 {
-	return (
-		text
-		/*
-       * ------------------------------------------------------------
-       * КОРОТКИЕ СЛУЖЕБНЫЕ СЛОВА
-       * ------------------------------------------------------------
-       *
-       * в таблице
-       * на рисунке
-       * по формуле
-       */
-			.replace(
-				new RegExp(`(^|[^\\p{L}\\p{N}_])(${shortWordsPattern})[ \\t]+(?=\\S)`, "giu"),
-				(_, prefix: string, word: string) => `${prefix}${word}${NBSP}`,
-			)
-		/*
-       * ------------------------------------------------------------
-       * ССЫЛКИ НА ЭЛЕМЕНТЫ ДОКУМЕНТА
-       * ------------------------------------------------------------
-       *
-       * рисунок 1
-       * таблица 2.1
-       * формула (3)
-       * раздел 4.2
-       * приложение А
-       */
-			.replace(
-				new RegExp(`(^|[^\\p{L}\\p{N}_])(${referenceTermsPattern})[ \\t]+(?=${referenceIdentifierPattern})`, "giu"),
-				(_, prefix: string, term: string) => `${prefix}${term}${NBSP}`,
-			)
-		/*
-       * рис. 1
-       * табл. 2
-       * форм. (3)
-       * разд. 4.1
-       */
-			.replace(
-				new RegExp(`(^|[^\\p{L}\\p{N}_])(${referenceAbbreviationsPattern})\\.[ \\t]+(?=${referenceIdentifierPattern})`, "giu"),
-				(_, prefix: string, abbreviation: string) => `${prefix}${abbreviation}.${NBSP}`,
-			)
-		/*
-       * ------------------------------------------------------------
-       * СТРУКТУРНЫЕ СОКРАЩЕНИЯ
-       * ------------------------------------------------------------
-       *
-       * п. 2
-       * п. 2.1
-       * пп. 2–4
-       * ч. 3
-       * ст. 15
-       * с. 25
-       * стр. 25
-       * абз. 2
-       */
-			.replace(/\b(п|пп|ч|ст|с|стр|абз)\.[ \t]+(?=\d)/giu, `$1.${NBSP}`)
-		/*
-       * № 15
-       * № 123/45
-       */
+	if (groups.short_words)
+		text = text.replace(new RegExp(`(^|[^\\p{L}\\p{N}_])(${shortWordsPattern})[ \\t]+(?=\\S)`, "giu"), `$1$2${NBSP}`);
+	if (groups.references)
+	{
+		text = text
+			.replace(new RegExp(`(^|[^\\p{L}\\p{N}_])(${referenceTermsPattern})[ \\t]+(?=${referenceIdentifierPattern})`, "giu"), `$1$2${NBSP}`)
+			.replace(new RegExp(`(^|[^\\p{L}\\p{N}_])(${referenceAbbreviationsPattern})\\.[ \\t]+(?=${referenceIdentifierPattern})`, "giu"), `$1$2.${NBSP}`);
+	}
+	if (groups.abbreviations)
+	{
+		text = text
+			.replace(/(^|[^\p{L}\p{N}_])(п|пп|ч|ст|с|стр|абз)\.[ \t]+(?=\d)/giu, `$1$2.${NBSP}`)
 			.replace(/№[ \t]+(?=\d)/gu, `№${NBSP}`)
-		/*
-       * § 3
-       * §§ 3–5
-       */
-			.replace(/(§§?)[ \t]+(?=\d)/gu, `$1${NBSP}`)
-		/*
-       * ------------------------------------------------------------
-       * СТАНДАРТЫ И ТЕХНИЧЕСКИЕ ОБОЗНАЧЕНИЯ
-       * ------------------------------------------------------------
-       *
-       * ГОСТ 123
-       * ГОСТ Р 123
-       * ISO 9001
-       * IEC 61508
-       * IEEE 754
-       * RFC 8259
-       */
-			.replace(/\b(ГОСТ)[ \t]+(?=Р(?:[ \t]+\d)|\d)/giu, `$1${NBSP}`)
-		/*
-       * ГОСТ Р 123 → ГОСТ Р 123
-       */
-			.replace(/\b(ГОСТ\u00A0Р|ГОСТ Р)[ \t]+(?=\d)/giu,
-				(_, standard: string) => `${standard.replace(" ", NBSP)}${NBSP}`,
-			)
-			.replace(/\b(ISO|IEC|IEEE|RFC|DIN|EN)[ \t]+(?=\d)/g, `$1${NBSP}`)
-		/*
-       * ------------------------------------------------------------
-       * ГЕОГРАФИЧЕСКИЕ / АДРЕСНЫЕ СОКРАЩЕНИЯ
-       * ------------------------------------------------------------
-       *
-       * г. Москва
-       * ул. Ленина
-       * пр. Мира
-       * д. 10
-       * корп. 2
-       * кв. 15
-       */
-			.replace(/\b(г|ул|пр|просп|пер|бул|наб|пл|д|корп|стр|кв)\.[ \t]+(?=\S)/giu, `$1.${NBSP}`)
-		/*
-       * ------------------------------------------------------------
-       * ГОДЫ
-       * ------------------------------------------------------------
-       *
-       * 2026 г.
-       * 2020–2026 гг.
-       */
-			.replace(/(\d{4})[ \t]+(?=гг?\.)/gu, `$1${NBSP}`)
-		/*
-       * ------------------------------------------------------------
-       * ИНИЦИАЛЫ
-       * ------------------------------------------------------------
-       *
-       * А. С. Пушкин
-       */
+			.replace(/(§§?)[ \t]+(?=\d)/gu, `$1${NBSP}`);
+	}
+	if (groups.standards)
+	{
+		text = text
+			.replace(/(^|[^\p{L}\p{N}_])(ГОСТ)[ \t]+(?=Р(?:[ \t]+\d)|\d)/giu, `$1$2${NBSP}`)
+			.replace(/(^|[^\p{L}\p{N}_])(ГОСТ[ \u00A0]Р)[ \t]+(?=\d)/giu,
+				(_, prefix: string, standard: string) => `${prefix}${standard.replace(" ", NBSP)}${NBSP}`)
+			.replace(/\b(ISO|IEC|IEEE|RFC|DIN|EN)[ \t]+(?=\d)/g, `$1${NBSP}`);
+	}
+	if (groups.addresses)
+		text = text.replace(/(^|[^\p{L}\p{N}_])(г|ул|пр|просп|пер|бул|наб|пл|д|корп|стр|кв)\.[ \t]+(?=\S)/giu, `$1$2.${NBSP}`);
+	if (groups.years)
+		text = text.replace(/(\d{4})[ \t]+(?=гг?\.)/gu, `$1${NBSP}`);
+	if (groups.initials)
+	{
+		text = text
 			.replace(/([А-ЯЁA-Z])\.[ \t]+([А-ЯЁA-Z])\.[ \t]+(?=[А-ЯЁA-Z][\p{L}-]+)/gu, `$1.${NBSP}$2.${NBSP}`)
-		/*
-       * А. Пушкин
-       */
-			.replace(/([А-ЯЁA-Z])\.[ \t]+(?=[А-ЯЁA-Z][\p{L}-]+)/gu, `$1.${NBSP}`)
-		/*
-       * ------------------------------------------------------------
-       * ЧИСЛО + ЕДИНИЦА ИЗМЕРЕНИЯ
-       * ------------------------------------------------------------
-       *
-       * 10 кг
-       * 25 %
-       * 32 ГБ
-       * 100 Мбит/с
-       *
-       * Также:
-       * 10–15 кг
-       *
-       * Здесь NBSP окажется между 15 и кг.
-       */
-			.replace(new RegExp(`(\\d)[ \\t]+(?=(?:${unitsPattern})(?=$|[^\\p{L}]))`, "giu"), `$1${NBSP}`)
-		/*
-       * ------------------------------------------------------------
-       * ДЕФИСЫ ВНУТРИ СЛОВ / ИДЕНТИФИКАТОРОВ
-       * ------------------------------------------------------------
-       *
-       * веб-сервис
-       * UTF-8
-       * SHA-256
-       *
-       */
-			.replaceAll(/(?<=[\p{L}\p{N}])-(?=[\p{L}\p{N}])/gu, NON_BREAKING_HYPHEN)
-	);
+			.replace(/([А-ЯЁA-Z])\.[ \t]+(?=[А-ЯЁA-Z][\p{L}-]+)/gu, `$1.${NBSP}`);
+	}
+	if (groups.units)
+		text = text.replace(new RegExp(`(\\d)[ \\t]+(?=(?:${unitsPattern})(?=$|[^\\p{L}]))`, "giu"), `$1${NBSP}`);
+	return text.replaceAll(/(?<=[\p{L}\p{N}])-(?=[\p{L}\p{N}])/gu, NON_BREAKING_HYPHEN);
 }

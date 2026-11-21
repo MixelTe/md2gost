@@ -1,7 +1,12 @@
-import { type TextDocument, Range, type FormattingOptions, type CancellationToken, TextEdit, workspace } from "vscode";
+import { type CancellationToken, type FormattingOptions, type TextDocument, Range, TextEdit, workspace } from "vscode";
+import MarkdownIt, { type Token } from "markdown-it";
+import { protectCodeSpans, transformProse } from "./inline";
 import { parseLine } from "./parser";
-import { repeat, trimEnd } from "./utils";
+import { isSourceHeading, parseHeadingText, SPECIAL_HEADINGS } from "./sections";
 import { parseTable, stringifyTable } from "./tableEditor";
+import { repeat, trimEnd } from "./utils";
+
+const codeParser = new MarkdownIt();
 
 export async function md_formatter(document: TextDocument, range: Range, options: FormattingOptions, token: CancellationToken): Promise<TextEdit[]>
 {
@@ -18,16 +23,15 @@ export async function md_formatter(document: TextDocument, range: Range, options
 	const re_sep = /^\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/;
 	const re_sep_oneCol = /^\|\s*:?-+:?\s*\|$/;
 
-	let insideCodeBlock = false;
+	const { codeLines, listLines } = findCodeLines(document);
 
 	const edits = [] as TextEdit[];
 	for (let i = range.start.line; i <= range.end.line; i++)
 	{
 		if (token.isCancellationRequested) return [];
+		if (codeLines.has(i)) continue;
 		const line = document.lineAt(i);
 		const text = line.text;
-		if (text.startsWith("```")) insideCodeBlock = !insideCodeBlock;
-		if (insideCodeBlock) continue;
 		const textTrim = line.text.trim().replaceAll(/\s+/g, " ");
 
 		if (gmd)
@@ -42,7 +46,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 			];
 			if (keywords.some(kw => text.startsWith(kw)))
 			{
-				applyNewText(text.trim().split(/\s+/).join(" "));
+				applyNewText(transformProse(text.trim(), value => value.replaceAll(/\s+/g, " ")));
 				continue;
 			}
 			const m_doc = /(^!!\([^)]+\)\s*)({.*)/.exec(text);
@@ -55,7 +59,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 				while (true)
 				{
 					i++;
-					if (i >= document.lineCount) { isDoc = false; break; }
+					if (i > range.end.line || codeLines.has(i)) { isDoc = false; break; }
 					const line = document.lineAt(i);
 					const text = line.text.trim();
 					const { prefix } = parseLine(text);
@@ -99,7 +103,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 				while (true)
 				{
 					i++;
-					if (i >= document.lineCount) { i = startI; break; }
+					if (i > range.end.line || codeLines.has(i)) { i = startI; break; }
 					const line = document.lineAt(i);
 					const text = line.text.trim();
 					const { prefix } = parseLine(text);
@@ -107,33 +111,25 @@ export async function md_formatter(document: TextDocument, range: Range, options
 					if (text == "") continue;
 					edits.push(TextEdit.replace(
 						line.range,
-						trimEnd(text.toUpperCase(), "."),
+						transformProse(text, value => trimEnd(value.toUpperCase(), ".")),
 					));
 					break;
 				}
 				continue;
 			}
-			if (textTrim.toUpperCase() == "# СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ")
+			if (textTrim.startsWith("# ") && isSourceHeading(textTrim.slice(2)))
 			{
 				while (i < range.end.line)
 				{
 					i++;
+					if (codeLines.has(i)) { i--; break; }
 					const line = document.lineAt(i);
 					const text = line.text.trim();
 					const { prefix } = parseLine(text);
 					if (prefix != "") { i--; break; }
 				}
 			}
-			const header = [
-				"# РЕФЕРАТ",
-				"# ОГЛАВЛЕНИЕ",
-				"# ТЕРМИНЫ И ОПРЕДЕЛЕНИЯ",
-				"# ПЕРЕЧЕНЬ СОКРАЩЕНИЙ И ОБОЗНАЧЕНИЙ",
-				"# ВВЕДЕНИЕ",
-				"# ЗАКЛЮЧЕНИЕ",
-				"# СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ",
-				"# ПРИЛОЖЕНИЯ",
-			].find(v => v == textTrim.toUpperCase());
+			const header = SPECIAL_HEADINGS.map(value => "# " + value).find(value => value == textTrim.toUpperCase());
 			if (header)
 			{
 				applyNewText(header);
@@ -143,11 +139,12 @@ export async function md_formatter(document: TextDocument, range: Range, options
 		const m_header = /^(#+)\s+(.*)/.exec(text);
 		if (m_header)
 		{
-			applyNewText(`${m_header[1]} ${clearText(m_header[2])}`);
+			const heading = gmd ? parseHeadingText(m_header[2]) : { text: m_header[2] };
+			applyNewText(`${m_header[1]} ${heading.notSpecial ? "\\" : ""}${clearText(heading.text)}`);
 			continue;
 		}
 
-		if (i > 0 && (re_sep.test(tableTrim(text)) || re_sep_oneCol.test(text)))
+		if (i > range.start.line && !codeLines.has(i - 1) && (re_sep.test(tableTrim(text)) || re_sep_oneCol.test(text)))
 		{
 			const line = tableTrim(text);
 			const prevLine = document.lineAt(i - 1);
@@ -156,18 +153,18 @@ export async function md_formatter(document: TextDocument, range: Range, options
 			if (header.length != cols.length) continue;
 			const headerFooterBlock = i > 2 && /^!!(footer|header)/.exec(document.lineAt(i - 2).text);
 			const headerFooterBlockEnd = headerFooterBlock && `!!end${headerFooterBlock[1]}`;
-			while (i < document.lineCount)
+			while (i <= range.end.line && !codeLines.has(i))
 			{
 				const line = document.lineAt(i).text;
 				if (line.trim() == "" || (headerFooterBlockEnd && line.trim() == headerFooterBlockEnd)) break;
 				i++;
 			}
-			const range = new Range(prevLine.range.start, document.lineAt(i - 1).range.end);
-			const oldTable = clearText(document.getText(range));
-			const table = parseTable(oldTable);
+			const tableRange = new Range(prevLine.range.start, document.lineAt(i - 1).range.end);
+			const oldTable = document.getText(tableRange);
+			const table = parseTable(clearText(oldTable));
 			const newTable = stringifyTable(table);
 			if (oldTable != newTable)
-				edits.push(TextEdit.replace(range, newTable));
+				edits.push(TextEdit.replace(tableRange, newTable));
 			i--;
 			continue;
 		}
@@ -180,6 +177,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 		{
 			const line = document.lineAt(i);
 			const text = line.text;
+			const listIndent = leadingSpaces(text);
 			if (indentLevel(text) != level) return false;
 			const textT = text.trim();
 			let itemN = -1;
@@ -199,17 +197,22 @@ export async function md_formatter(document: TextDocument, range: Range, options
 				sign = m_olist[2];
 				txt = m_olist[3];
 			}
-			const indentS = repeat(level, indentChar).join("");
+			const indentS = listLines.has(i) ? /^[ \t]*/.exec(text)![0] : repeat(level, indentChar).join("");
 			txt = clearText(txt);
 			const newText = itemN < 0 ?
 				`${indentS}${sign} ${txt}` :
 				`${indentS}${itemN++}${sign} ${txt}`;
 			if (text != newText) edits.push(TextEdit.replace(line.range, newText));
 
-			while (++i < document.lineCount)
+			while (++i <= range.end.line)
 			{
 				const line = document.lineAt(i);
 				const text = line.text;
+				if (codeLines.has(i))
+				{
+					if (leadingSpaces(text) > listIndent) continue;
+					i--; break;
+				}
 				if (text.trim() == "") continue;
 				const m = /^(\s*)(((\d+[.)])|\*|-)\s+(.*)|([^\s].*))/.exec(text);
 				if (!m) { i--; break; }
@@ -218,7 +221,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 					const indent = indentLevel(m[1]);
 					if (indent <= level) { i--; break; }
 					// if (document.lineAt(i - 1).text.trim() == "") { i--; break; }
-					const indentS = repeat(level + 1, indentChar).join("");
+					const indentS = listLines.has(i) ? m[1] : repeat(level + 1, indentChar).join("");
 					const newText = indentS + clearText(m[6]);
 					if (text != newText) edits.push(TextEdit.replace(line.range, newText));
 					continue;
@@ -231,9 +234,10 @@ export async function md_formatter(document: TextDocument, range: Range, options
 				const sameListType = itemN < 0 ? (mark == "*" || mark == "-") : (mark == "." || mark == ")");
 				if (!sameListType) { i--; break; }
 				const txt = clearText(m[5]);
+				const prefix = listLines.has(i) ? m[1] : indentS;
 				const newText = itemN < 0 ?
-					`${indentS}${sign} ${txt}` :
-					`${indentS}${itemN++}${sign} ${txt}`;
+					`${prefix}${sign} ${txt}` :
+					`${prefix}${itemN++}${sign} ${txt}`;
 				if (text != newText) edits.push(TextEdit.replace(line.range, newText));
 			}
 			return true;
@@ -263,7 +267,7 @@ export async function md_formatter(document: TextDocument, range: Range, options
 		function clearText(text: string): string
 		{
 			if (replaceEmDash)
-				return text.replaceAll("—", "–");
+				return transformProse(text, value => value.replaceAll("—", "–"));
 			return text;
 		}
 	}
@@ -277,4 +281,50 @@ export async function md_formatter(document: TextDocument, range: Range, options
 		if (line.at(-1) == "|") line = line.slice(0, -1);
 		return line.trim();
 	};
+}
+
+function leadingSpaces(text: string): number
+{
+	return /^[ \t]*/.exec(text)![0].replaceAll("\t", "    ").length;
+}
+
+function findCodeLines(document: TextDocument): { codeLines: Set<number>, listLines: Set<number> }
+{
+	let source = document.getText().replace(/\r\n?/g, "\n");
+	// md2gost listing captions may contain backticks, unlike Markdown fence info.
+	if (document.fileName.endsWith(".g.md"))
+		source = source.replace(/^([ \t]*(?:>[ \t]*|(?:[*+-]|\d+[.)])[ \t]+)*`{3,})(.*)$/gm,
+			(_, fence: string, caption: string) => fence + caption.replaceAll("`", "'"));
+	const tokens: Token[] = [];
+	codeParser.block.parse(source, codeParser, {}, tokens);
+	const lines = new Set<number>();
+	for (const token of tokens)
+	{
+		if (!token.map) continue;
+		const [start, end] = token.map;
+		if (token.type == "fence" || token.type == "code_block")
+			for (let line = start; line < end; line++) lines.add(line);
+		else if (token.type == "inline")
+			protectCodeSpans(token.content, (value, from) =>
+			{
+				// A multiline code span cannot be formatted one line at a time.
+				if (value.includes("\n"))
+				{
+					const first = start + token.content.slice(0, from).split("\n").length - 1;
+					const last = first + value.split("\n").length - 1;
+					for (let line = first; line <= last; line++) lines.add(line);
+				}
+				return value;
+			});
+	}
+	// Keep list indentation consistent with the code that remains untouched.
+	const listLines = new Set<number>();
+	for (const token of tokens)
+		if ((token.type == "bullet_list_open" || token.type == "ordered_list_open") && token.map)
+		{
+			const [start, end] = token.map;
+			if (![...lines].some(line => line >= start && line < end)) continue;
+			for (let line = start; line < end; line++) listLines.add(line);
+		}
+	return { codeLines: lines, listLines };
 }

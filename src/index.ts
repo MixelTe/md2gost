@@ -1,10 +1,14 @@
 import path from "path";
+import fs from "fs/promises";
 import { render } from "./main";
 import { UserInputError } from "./errors";
 import type { JSONDict } from "./utils";
 import type { TemplateExecOptions } from "./preprocessor";
+import type { OfficeEngineType } from "./office";
 
-export { UserInputError, JSONDict, TemplateExecOptions };
+export { UserInputError, JSONDict, TemplateExecOptions, OfficeEngineType as OfficeEngine };
+export { reverseDocx, inspectDocx } from "./antirender";
+export type { MDReverseConfig, MDReverseResult, MDInspectConfig, MDInspectResult, DocxWarning } from "./antirender";
 
 declare const __MD2GOST_DIRNAME__: string;
 
@@ -24,7 +28,7 @@ export interface MDRenderConfig
 
 	/**
 	 * Target output format.
-	 * @note Generating `.pdf` files depends on a Windows environment with Microsoft Word.
+	 * @note Generating `.pdf` files requires Microsoft Word on Windows or LibreOffice with Python UNO.
 	 * @defaultValue inferred From the `output` filename extension if present, otherwise `"docx"`.
 	 */
 	format?: "docx" | "pdf";
@@ -36,24 +40,25 @@ export interface MDRenderConfig
 	keepIntermediateDocx?: boolean;
 
 	/**
-	 * Disables VBA macro execution. When `true`, a basic `.docx` render is performed entirely in Node.js
-	 * without requiring Microsoft Word or PowerShell.
+	 * Disables office postprocessing. When `true`, a basic `.docx` render is performed entirely in Node.js
+	 * without requiring Microsoft Word, LibreOffice or Python.
 	 * @note PDF generation is unavailable when macros are disabled.
 	 * @defaultValue `false`
 	 */
 	disableMacros?: boolean;
 
 	/**
-	 * DOES NOT WORK!
-	 * @experimental
+	 * Office postprocessor. Auto prefers registered Word on Windows, otherwise LibreOffice.
+	 * Linux and macOS use LibreOffice. Skipped when no postprocessing is needed.
+	 * @defaultValue `"auto"`
 	 */
-	useLibreOffice?: boolean;
+	engine?: OfficeEngineType;
 
 	/**
 	 * Maps internal outputs to specific log levels:
-	 * - **info**: Shadows {@link progress} and info in {@link MDRenderError.powershellLog}
+	 * - **info**: Shadows {@link progress} and info in {@link MDRenderError.officeLog}
 	 * - **warn**: Shadows {@link MDRenderResult.warnings} (and {@link MDRenderError.warnings})
-	 * - **error**: Shadows errors in {@link MDRenderError.powershellLog}
+	 * - **error**: Shadows errors in {@link MDRenderError.officeLog}
 	 */
 	logger?: { info: (msg: string) => void, warn: (msg: string) => void, error: (msg: string) => void };
 
@@ -141,7 +146,7 @@ export interface MDRenderResult
  * Renders a Markdown text file into a formatted `.docx` or `.pdf` document.
  * @param {MDRenderConfig} config - Configuration options for the renderer.
  * @returns {Promise<MDRenderResult>} A promise resolving to an {@link MDRenderResult} containing the generated file path and compilation warnings.
- * @throws {MDRenderError} Thrown if compilation fails. Inspect the `cause` property for the underlying native error, alongside custom fields like `code` and `powershellLog`.
+ * @throws {MDRenderError} Thrown if compilation fails. Inspect `cause`, `code` and `officeLog` for details.
  * @example
  * ```ts
  * const config: MDRenderConfig = {
@@ -168,8 +173,8 @@ export interface MDRenderResult
  *
  * 		error.warnings.forEach(w => console.warn(`[W] ${w}`));
  *
- * 		if (error.code.endsWith("PS") && error.powershellLog.length > 0)
- * 			console.error("PowerShell Logs:\n", error.powershellLog.join(""));
+ * 		if (error.officeLog.length > 0)
+ * 			console.error("Office Logs:\n", error.officeLog.join(""));
  * 	} else {
  * 		console.error("Unexpected runtime error:", error);
  * 	}
@@ -188,7 +193,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	assert(config.format == "docx" || config.format == "pdf" || typeof config.format == "undefined", "Format must be either 'docx' or 'pdf', or undefined.");
 	assert(typeof config.keepIntermediateDocx == "boolean" || typeof config.keepIntermediateDocx == "undefined", "keepIntermediateDocx must be a boolean or undefined.");
 	assert(typeof config.disableMacros == "boolean" || typeof config.disableMacros == "undefined", "disableMacros must be a boolean or undefined.");
-	assert(typeof config.useLibreOffice == "boolean" || typeof config.useLibreOffice == "undefined", "useLibreOffice must be a boolean or undefined.");
+	assert(config.engine === undefined || ["auto", "word", "libreoffice"].includes(config.engine), "engine must be auto, word or libreoffice.");
 	assert(typeof config.checkFilesIsInsidePath == "string" || config.checkFilesIsInsidePath === false || typeof config.checkFilesIsInsidePath == "undefined", "checkFilesIsInsidePath must be a string, false or undefined.");
 	assert(typeof config.progress == "function" || typeof config.progress == "undefined", "Progress callback must be a function or undefined.");
 	assert((typeof config.variables == "object" && config.variables !== null && !Array.isArray(config.variables)) || typeof config.variables == "undefined", "variables must be an object or undefined.");
@@ -210,7 +215,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	assert(config.abortSignal instanceof AbortSignal || typeof config.abortSignal == "undefined", "abortSignal must be an AbortSignal or undefined.");
 	{
 		const extraProps = getExtraProperties(config,
-			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "useLibreOffice", "progress", "logger", "abortSignal", "checkFilesIsInsidePath", "variables", "templateOptions"],
+			["input", "output", "format", "keepIntermediateDocx", "disableMacros", "engine", "progress", "logger", "abortSignal", "checkFilesIsInsidePath", "variables", "templateOptions"],
 		);
 		assert(extraProps.length == 0, `Found unknown properties in config: ${extraProps.join(", ")}`);
 	}
@@ -226,14 +231,24 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 		);
 	}
 
-	const outputExtension = config.output && path.extname(config.output).toLowerCase();
+	let outputIsDirectory = false;
+	if (config.output)
+	{
+		const info = await fs.stat(config.output).catch(error =>
+		{
+			if (error.code == "ENOENT" || error.code == "ENOTDIR") return undefined;
+			throw error;
+		});
+		outputIsDirectory = !!info?.isDirectory() || config.output.endsWith("/") || config.output.endsWith("\\") || !path.extname(config.output);
+	}
+	const outputExtension = !outputIsDirectory && config.output ? path.extname(config.output).toLowerCase() : undefined;
 	const renderPDF = config.format === "pdf" || (!config.format && outputExtension === ".pdf");
 	const removeIntermediateDocx = !config.keepIntermediateDocx;
 	const disableMacros = !!config.disableMacros;
-	const useLibreOffice = !!config.useLibreOffice;
+	const engine = config.engine ?? "auto";
 	const checkFilesIsInsidePath = config.checkFilesIsInsidePath === undefined ? "" : config.checkFilesIsInsidePath;
 
-	assert(!(disableMacros && renderPDF), "Macros must be enabled to render PDF output.");
+	assert(!(disableMacros && renderPDF), "Office postprocessing must be enabled to render PDF output.");
 	if (outputExtension && outputExtension !== ".docx" && outputExtension !== ".pdf")
 		throw new TypeError("Output file extension must be either '.docx' or '.pdf'.");
 	if (outputExtension && outputExtension !== (renderPDF ? ".pdf" : ".docx"))
@@ -245,8 +260,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	let resolvedOutput = config.output;
 	if (resolvedOutput)
 	{
-		const isDir = resolvedOutput.endsWith("/") || resolvedOutput.endsWith("\\") || !path.extname(resolvedOutput);
-		if (isDir)
+		if (outputIsDirectory)
 		{
 			const ext = renderPDF ? ".pdf" : ".docx";
 			resolvedOutput = path.join(resolvedOutput, fname + ext);
@@ -254,7 +268,7 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	}
 
 	const warnings: string[] = [];
-	const logPS: string[] = [];
+	const officeLog: string[] = [];
 	let totalPercent = 0;
 	const handleProgress = (increment: number, message: string) =>
 	{
@@ -272,33 +286,25 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 			renderPDF,
 			removeIntermediateDocx,
 			disableMacros,
-			useLibreOffice,
+			engine,
 			checkFilesIsInsidePath,
 			variables: config.variables,
 			templateOptions: config.templateOptions,
 			loginfo: logger?.info,
 			logwarn: msg => { logger?.warn(msg); warnings.push(msg); },
-			logPS: msg => { logger?.info(msg); logPS.push(msg); },
-			logPSError: msg => { logger?.error(msg); logPS.push(msg); },
+			logPS: msg => { logger?.info(msg); officeLog.push(msg); },
+			logPSError: msg => { logger?.error(msg); officeLog.push(msg); },
 			signal: config.abortSignal,
 		});
 		function throwMDE(code: MDRenderErrorCode, msg: string)
 		{
-			throw new MDRenderError(code, msg, fout, warnings, logPS, errS ? { cause: errS } : undefined);
+			throw new MDRenderError(code, msg, fout, warnings, officeLog, errS ? { cause: errS } : undefined);
 		}
-		if (useLibreOffice)
-		{
-			if (err == "noPS") throwMDE("noPS", `Failed to run the LibreOffice binary (soffice). Ensure LibreOffice is installed and added to your system's PATH environment variable.`);
-			if (err == "inPS") throwMDE("inPS", `An unexpected error occurred executing the LibreOffice conversion command. Verify that LibreOffice is properly installed, up to date, and has permission to access the target files.`);
-		}
-		else
-		{
-			if (err == "noPS") throwMDE("noPS", `Failed to initialize PowerShell. Ensure PowerShell is installed and explicitly added to your system's PATH environment variable.`);
-			if (err == "inPS") throwMDE("inPS", `An unexpected error occurred executing commands inside PowerShell. Verify that Microsoft Word is properly installed and licensed.`);
-		}
+		if (err == "noOffice" || err == "office") throwMDE(err, errS instanceof Error ? errS.message : String(errS));
+		if (err == "noPS") throwMDE("noPS", "Failed to initialize PowerShell. Ensure PowerShell is installed and added to PATH.");
+		if (err == "inPS") throwMDE("inPS", "Microsoft Word postprocessing failed. Check the office log and the Word installation.");
 		if (err == "vba") throwMDE("vba", `Microsoft Word VBA Macro execution failed: ${errS}`);
 		if (err == "pdf") throwMDE("pdf", `Failed to export document to PDF.`);
-		if (err == "noWin") throwMDE("noWin", `Platform restriction: Extended formatting macros and PDF rendering are only supported natively on Windows systems.`);
 		config.progress?.(100, "Done!");
 
 		let intermediateDocxPath: string | undefined;
@@ -317,14 +323,14 @@ export default async function renderMarkdown(config: MDRenderConfig): Promise<MD
 	catch (x)
 	{
 		if (x instanceof MDRenderError) throw x;
-		if (x instanceof UserInputError) throw new MDRenderError("userInput", x.message, null, warnings, logPS, { cause: x });
+		if (x instanceof UserInputError) throw new MDRenderError("userInput", x.message, null, warnings, officeLog, { cause: x });
 		const message = x instanceof Error ? x.message : String(x);
-		throw new MDRenderError("unknown", `An unhandled internal error occurred during rendering: ${message}`, null, warnings, logPS, { cause: x });
+		throw new MDRenderError("unknown", `An unhandled internal error occurred during rendering: ${message}`, null, warnings, officeLog, { cause: x });
 	}
 }
 
 /** Error codes identifying unique failure points in the compilation. */
-export type MDRenderErrorCode = "unknown" | "userInput" | "noPS" | "inPS" | "vba" | "pdf" | "noWin";
+export type MDRenderErrorCode = "unknown" | "userInput" | "noPS" | "inPS" | "vba" | "pdf" | "noWin" | "noOffice" | "office";
 
 /**
  * Custom error thrown when compilation or rendering fails.
@@ -344,8 +350,10 @@ export class MDRenderError extends Error
 	 * - `noPS`: PowerShell could not be started or found in the system PATH.
 	 * - `inPS`: A failure occurred inside PowerShell; MS Word may be missing or corrupt.
 	 * - `vba`: An error occurred during the execution of internal Word VBA macros.
+	 * - `noOffice`: The selected office engine or its Python UNO dependency is unavailable.
+	 * - `office`: LibreOffice postprocessing failed.
 	 * - `pdf`: A failure occurred specifically during the PDF export phase.
-	 * - `noWin`: The operation requires Windows capabilities that are unavailable on the host OS.
+	 * - `noWin`: Legacy platform restriction code retained for compatibility.
 	 */
 	public code: MDRenderErrorCode;
 
@@ -355,26 +363,26 @@ export class MDRenderError extends Error
 	public warnings: string[];
 
 	/**
-	 * Standard output and error streams aggregated from the underlying PowerShell shell session.
+	 * Standard output and diagnostics from the selected office engine.
 	 */
-	public powershellLog: string[];
+	public officeLog: string[];
 
 	/**
 	 * @param code - Machine-readable error code.
 	 * @param message - Human-readable error details.
 	 * @param renderedFile - Path to a partial output file, if any.
 	 * @param warnings - List of non-fatal warnings gathered prior to the exception.
-	 * @param powershellLog - List of shell execution strings collected during execution.
+	 * @param officeLog - Output and diagnostics collected from the selected office engine.
 	 * @param options - Standard native error options (e.g., to preserve the error `cause`).
 	 */
-	constructor(code: MDRenderErrorCode, message: string, renderedFile: string | null, warnings: string[] = [], powershellLog: string[], options?: ErrorOptions)
+	constructor(code: MDRenderErrorCode, message: string, renderedFile: string | null, warnings: string[] = [], officeLog: string[], options?: ErrorOptions)
 	{
 		super(message, options);
 		this.name = "MDRenderError";
 		this.code = code;
 		this.renderedFile = renderedFile;
 		this.warnings = warnings;
-		this.powershellLog = powershellLog;
+		this.officeLog = officeLog;
 
 		if (Error.captureStackTrace)
 			Error.captureStackTrace(this, MDRenderError);

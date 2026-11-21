@@ -159,9 +159,9 @@
 <w:style w:type="paragraph" w:default="1" w:styleId="a2">
 <w:name w:val="Normal"/>
 <w:qFormat/>
-<w:rsid w:val="00591D69"/>
+<w:rsid w:val="00626182"/>
 <w:pPr>
-<w:spacing w:line="360" w:lineRule="auto"/>
+<w:spacing w:after="0" w:line="360" w:lineRule="auto"/>
 <w:ind w:firstLine="709"/>
 <w:jc w:val="both"/>
 </w:pPr>
@@ -290,7 +290,7 @@
 <w:pPr>
 <w:keepNext/>
 <w:keepLines/>
-<w:spacing w:before="40" w:after="0"/>
+<w:spacing w:before="40"/>
 <w:outlineLvl w:val="5"/>
 </w:pPr>
 <w:rPr>
@@ -313,7 +313,7 @@
 <w:pPr>
 <w:keepNext/>
 <w:keepLines/>
-<w:spacing w:before="40" w:after="0"/>
+<w:spacing w:before="40"/>
 <w:outlineLvl w:val="6"/>
 </w:pPr>
 <w:rPr>
@@ -334,7 +334,6 @@
 <w:pPr>
 <w:keepNext/>
 <w:keepLines/>
-<w:spacing w:after="0"/>
 <w:outlineLvl w:val="7"/>
 </w:pPr>
 <w:rPr>
@@ -357,7 +356,6 @@
 <w:pPr>
 <w:keepNext/>
 <w:keepLines/>
-<w:spacing w:after="0"/>
 <w:outlineLvl w:val="8"/>
 </w:pPr>
 <w:rPr>
@@ -708,11 +706,10 @@
 <w:rsid w:val="006334D2"/>
 <w:pPr>
 <w:tabs>
-<w:tab w:val="left" w:pos="426"/>
 <w:tab w:val="right" w:leader="dot" w:pos="9345"/>
 </w:tabs>
 <w:spacing w:after="100"/>
-<w:ind w:firstLine="0"/>
+<w:ind w:left="283" w:hanging="283"/>
 </w:pPr>
 </w:style>
 <w:style w:type="character" w:styleId="af0">
@@ -764,7 +761,7 @@
 <w:tab w:val="center" w:pos="4677"/>
 <w:tab w:val="right" w:pos="9355"/>
 </w:tabs>
-<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>
+<w:spacing w:line="240" w:lineRule="auto"/>
 </w:pPr>
 </w:style>
 <w:style w:type="character" w:customStyle="1" w:styleId="af3">
@@ -790,7 +787,7 @@
 <w:tab w:val="center" w:pos="4677"/>
 <w:tab w:val="right" w:pos="9355"/>
 </w:tabs>
-<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>
+<w:spacing w:line="240" w:lineRule="auto"/>
 </w:pPr>
 </w:style>
 <w:style w:type="character" w:customStyle="1" w:styleId="af5">
@@ -817,7 +814,7 @@
 <w:tab w:val="right" w:leader="dot" w:pos="9345"/>
 </w:tabs>
 <w:spacing w:after="100"/>
-<w:ind w:left="993" w:hanging="709"/>
+<w:ind w:left="709" w:hanging="425"/>
 </w:pPr>
 </w:style>
 <w:style w:type="paragraph" w:customStyle="1" w:styleId="ListingCode">
@@ -867,11 +864,10 @@
 <w:rsid w:val="00FE5C06"/>
 <w:pPr>
 <w:tabs>
-<w:tab w:val="left" w:pos="1701"/>
 <w:tab w:val="right" w:leader="dot" w:pos="9345"/>
 </w:tabs>
 <w:spacing w:after="100"/>
-<w:ind w:left="560" w:firstLine="291"/>
+<w:ind w:left="1134" w:hanging="567"/>
 </w:pPr>
 </w:style>
 <w:style w:type="paragraph" w:styleId="af6">
@@ -978,7 +974,7 @@
 <w:unhideWhenUsed/>
 <w:rsid w:val="00F33CE4"/>
 <w:pPr>
-<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>
+<w:spacing w:line="240" w:lineRule="auto"/>
 </w:pPr>
 <w:rPr>
 <w:rFonts w:ascii="Tahoma" w:hAnsi="Tahoma" w:cs="Tahoma"/>
@@ -1024,7 +1020,7 @@
 <w:rsid w:val="00B70A2E"/>
 <w:pPr>
 <w:keepNext/>
-<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>
+<w:spacing w:line="240" w:lineRule="auto"/>
 <w:ind w:firstLine="0"/>
 </w:pPr>
 </w:style>
@@ -1077,7 +1073,7 @@
 <w:link w:val="aff"/>
 <w:rsid w:val="00B17F5E"/>
 <w:pPr>
-<w:spacing w:after="0" w:line="259" w:lineRule="auto"/>
+<w:spacing w:line="259" w:lineRule="auto"/>
 <w:ind w:firstLine="0"/>
 <w:jc w:val="left"/>
 </w:pPr>
@@ -1127,7 +1123,7 @@
 <w:rsid w:val="008D4793"/>
 <w:pPr>
 <w:keepNext/>
-<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>
+<w:spacing w:line="240" w:lineRule="auto"/>
 <w:ind w:firstLine="0"/>
 </w:pPr>
 </w:style>

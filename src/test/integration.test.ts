@@ -9,6 +9,140 @@ import { withTempDir, writeMarkdown, writePng } from "./helpers/fixtures";
 
 suite("main logic integration", () =>
 {
+	test("exports section numbers from second-level headings and keeps reference prefixes through appendices", async () => withTempDir(async dir =>
+	{
+		await writePng(dir, "figure.png");
+		const objects = (id: string) => [
+			`![[image_${id}] Figure](figure.png){20}`, "",
+			`[table_${id}] Data`, "", "| Name | Value |", "|---|---|", "| Item | 1 |", "",
+			`\`\`\`text [code_${id}] Code`, "CODE_CONTENT", "```", "",
+			`[formula_${id}]`, "$$", "x = 1", "$$", "",
+		];
+		const input = await writeMarkdown(dir, [
+			"!!rule numbering sections", "!!rule numbering lazy", "",
+			"# СОДЕРЖАНИЕ", "", "# ВВЕДЕНИЕ", "",
+			"First: [#], [i#]. Last: [image_last], [table_last], [code_last], [formula_last]. Appendix: [appendix_image].", "",
+			"# ХОД РАБОТЫ", "", "## 3. Реализация [i#]", "",
+			...objects("first"),
+			"### 3.1. Проверка", "", "![Within subsection](figure.png){20}", "",
+			"Next: [#], [i#]. Previous: [#-1], [i#-1].", "",
+			"## 7. Испытания", "", ...objects("last"),
+			"# ЗАКЛЮЧЕНИЕ", "", "Completed.", "",
+			"# ПРИЛОЖЕНИЯ", "", "## [app] Appendix", "",
+			"![[appendix_image] Appendix](figure.png){20}",
+		].join("\n"));
+		const doc = await parseMD(input);
+		enrichDoc(doc);
+		const warnings: string[] = [];
+		const runic = runifyDoc(doc);
+		alchemist(runic, warning => warnings.push(warning));
+		const output = path.join(dir, "section-numbers.docx");
+		await serializeDocx(runic, output, dir, path.resolve(process.cwd(), "assets"), dir, warning => warnings.push(warning));
+		const document = xml(openDocx(output), "word/document.xml");
+		const text = document.replace(/<[^>]+>/g, "").replaceAll("\u00a0", " ");
+		for (const expected of [
+			"First: 3.1, 3.1. Last: 7.1, 7.1, 7.1, 7.1. Appendix: А.1.",
+			"3. Реализация 3.1", "Рисунок 3.1 – Figure", "Рисунок 3.2 – Within subsection",
+			"Next: 7.1, 7.1. Previous: 3.2, 3.2.", "Рисунок 7.1 – Figure", "Рисунок А.1 – Appendix",
+			"Таблица 3.1 – Data", "Листинг 3.1 – Code", "(3.1)",
+			"Таблица 7.1 – Data", "Листинг 7.1 – Code", "(7.1)",
+		]) assert.ok(text.includes(expected), expected);
+		assert.deepEqual(warnings, []);
+	}));
+
+	test("exports number-only captions without dashes and retains named references", async () => withTempDir(async dir =>
+	{
+		await writePng(dir, "figure.png");
+		const input = await writeMarkdown(dir, [
+			"!!rule numbering lazy", "",
+			"See figure [figure], table [data], and listing [listing].", "",
+			"![[figure]](figure.png){20}", "",
+			"[data]", "", "| Name | Value |", "|---|---|", "| TABLE_CONTENT | 1 |", "",
+			"```text [listing]", "LISTING_CONTENT", "```", "",
+			"Again: [figure], [data], [listing].",
+		].join("\n"));
+		const doc = await parseMD(input);
+		enrichDoc(doc);
+		const runic = runifyDoc(doc);
+		const warnings: string[] = [];
+		alchemist(runic, warning => warnings.push(warning));
+		const output = path.join(dir, "number-only.docx");
+		await serializeDocx(runic, output, dir, path.resolve(process.cwd(), "assets"), dir, warning => warnings.push(warning));
+		const document = xml(openDocx(output), "word/document.xml");
+		const text = document.replace(/<[^>]+>/g, "").replaceAll("\u00a0", " ");
+		for (const caption of ["Рисунок 1", "Таблица 1", "Листинг 1"])
+		{
+			assert.ok(text.includes(caption), caption);
+			assert.ok(!text.includes(caption + " –"), caption);
+		}
+		for (const expected of ["See figure 1, table 1, and listing 1.", "Again: 1, 1, 1.", "TABLE_CONTENT", "LISTING_CONTENT"])
+			assert.ok(text.includes(expected), expected);
+		assert.deepEqual(warnings, []);
+	}));
+
+	for (const lazy of [false, true])
+		for (const separate of [false, true])
+			test(`preserves an introduction before a captionless table (lazy=${lazy}, separate=${separate})`, async () => withTempDir(async dir =>
+			{
+				const input = await writeMarkdown(dir, [
+					...(lazy ? ["!!rule numbering lazy", ""] : []),
+					"INTRO_KEEP", "", "<br>", ...(separate ? [""] : []),
+					"| Name | Value |", "|---|---|", "| first | 1 |", "",
+					"AFTER_TABLE", "", "[named] Named caption<br>continued", "",
+					"| Name | Value |", "|---|---|", "| second | 2 |", "",
+					"See table [named]. Total [!tables].",
+				].join("\n"));
+				const warnings: string[] = [];
+				const doc = await parseMD(input);
+				assert.ok(doc.nodes.some(node => node.type == "text" && node.text == "INTRO_KEEP"));
+				enrichDoc(doc);
+				const runic = runifyDoc(doc);
+				alchemist(runic, warning => warnings.push(warning));
+				const tables = runic.nodes.filter(node => node.type == "table");
+				assert.equal(tables.length, 2);
+				assert.ok(tables[0]!.title?.every(rune => !rune.text.trim()));
+				assert.equal(tables[1]!.title?.map(rune => rune.text).join(""), "Таблица 2 – Named captioncontinued");
+				const output = path.join(dir, "captionless-table.docx");
+				await serializeDocx(runic, output, dir, path.resolve(process.cwd(), "assets"), dir, warning => warnings.push(warning));
+				const document = xml(openDocx(output), "word/document.xml");
+				const text = document.replace(/<[^>]+>/g, "").replaceAll("\u00a0", " ");
+				for (const expected of ["INTRO_KEEP", "AFTER_TABLE", "first", "second", "Таблица 2", "See table 2. Total 2."])
+					assert.ok(text.includes(expected), expected);
+				assert.ok(!text.includes("Таблица 1"));
+				assert.deepEqual(warnings, []);
+			}));
+
+	test("preserves missing image captions and references while exporting available images", async () => withTempDir(async dir =>
+	{
+		await writePng(dir, "figure.png");
+		const input = await writeMarkdown(dir, [
+			"!!rule numbering lazy", "",
+			"См. рисунки [i#], [i#+1] и [i#+2]. Всего [!imgs].", "",
+			"![Пустой путь]()", "",
+			"![Отсутствующий файл](missing.png)", "",
+			"![Готовый рисунок](figure.png){20x}", "",
+			"После рисунков.",
+		].join("\n"));
+		const warnings: string[] = [];
+		const doc = await parseMD(input);
+		enrichDoc(doc);
+		const runic = runifyDoc(doc);
+		alchemist(runic, warning => warnings.push(warning));
+		const output = path.join(dir, "missing-images.docx");
+		await serializeDocx(runic, output, dir, path.resolve(process.cwd(), "assets"), dir, warning => warnings.push(warning));
+		assert.deepEqual(warnings, ["Line 5: Image path is empty", 'Line 7: Image file not found: "missing.png"']);
+		const zip = openDocx(output);
+		const document = xml(zip, "word/document.xml");
+		const text = document.replace(/<[^>]+>/g, "").replaceAll("\u00a0", " ");
+		assert.ok(text.includes("См. рисунки 1, 2 и 3. Всего 3."));
+		assert.ok(text.includes("Рисунок 1 – Пустой путь"));
+		assert.ok(text.includes("Рисунок 2 – Отсутствующий файл"));
+		assert.ok(text.includes("Рисунок 3 – Готовый рисунок"));
+		assert.ok(text.includes("После рисунков."));
+		assert.equal((document.match(/<w:drawing>/g) || []).length, 1);
+		assert.equal(zip.file(/^word\/media\/[^/]+$/).length, 1);
+	}));
+
 	test("builds a valid DOCX report from Markdown through all core stages", async () => withTempDir(async dir =>
 	{
 		await writePng(dir, "figure.png");
@@ -45,6 +179,51 @@ suite("main logic integration", () =>
 		assert.ok(document.includes("m:rad"));
 		assert.ok(document.includes("1.1"));
 	}));
+
+	test("preserves appendix headings and forward and backward references through DOCX export", async () => withTempDir(async dir =>
+	{
+		await writePng(dir, "figure.png");
+		const input = await writeMarkdown(dir, "!!rule numbering sections on\n# [main] Main\n\nСм. приложение [app] и рисунок [cat].\n\n# ПРИЛОЖЕНИЯ\n\n## [app] Graphic [cat]\n\n![[cat] Cat](figure.png){20x}\n\nПриложение [app].");
+		const warnings: string[] = [];
+		const doc = await parseMD(input);
+		enrichDoc(doc);
+		const runic = runifyDoc(doc);
+		alchemist(runic, warning => warnings.push(warning));
+		const heading = runic.nodes.find(node => node.type == "title" && node.text.some(rune => rune.text.startsWith("ПРИЛОЖЕНИЕ")));
+		assert.ok(heading?.type == "title");
+		assert.equal(heading.text.map(rune => rune.text).join(""), "ПРИЛОЖЕНИЕ\u00a0А");
+		const text = runic.nodes.filter(node => node.type == "text").map(node => node.text.map(rune => rune.text).join("").replaceAll("\u00a0", " "));
+		assert.ok(text.includes("См. приложение А и рисунок А.1."));
+		assert.ok(text.includes("Приложение А."));
+		assert.ok(text.some(value => value.trim() == "Graphic А.1"));
+		assert.deepEqual(warnings, []);
+		const output = path.join(dir, "appendix-references.docx");
+		await serializeDocx(runic, output, dir, path.resolve(process.cwd(), "assets"), dir);
+		const document = xml(openDocx(output), "word/document.xml");
+		assert.ok(document.includes("ПРИЛОЖЕНИЕ\u00a0А"));
+		assert.equal(document.includes("А-1"), false);
+	}));
+
+	for (const [name, rules, space] of [
+		["reference spaces disabled", "!!rule typography nbsp references off", " "],
+		["all spaces disabled", "!!rule typography nbsp off", " "],
+		["reference spaces re-enabled", "!!rule typography nbsp off\n!!rule typography nbsp references on", "\u00a0"],
+	])
+		test(`respects ${name} in appendix headings`, async () => withTempDir(async dir =>
+		{
+			const input = await writeMarkdown(dir, `${rules}\n!!rule numbering autoprefix off\n\n# ПРИЛОЖЕНИЯ\n\n## [a] First\n\nFirst appendix.\n\n## [b] Second\n\nSecond appendix.`);
+			const doc = await parseMD(input);
+			enrichDoc(doc);
+			const runic = runifyDoc(doc);
+			alchemist(runic);
+			const headings = runic.nodes.flatMap(node => node.type == "title" && node.level == 1 ? [node.text.map(rune => rune.text).join("")] : []);
+			assert.deepEqual(headings, [`ПРИЛОЖЕНИЕ${space}А`, `ПРИЛОЖЕНИЕ${space}Б`]);
+			const output = path.join(dir, "appendix-spacing.docx");
+			await serializeDocx(runic, output, dir, path.resolve(process.cwd(), "assets"), dir);
+			const document = xml(openDocx(output), "word/document.xml");
+			assert.ok(document.includes(`ПРИЛОЖЕНИЕ${space}А`));
+			assert.ok(document.includes(`ПРИЛОЖЕНИЕ${space}Б`));
+		}));
 
 	test("uses a manually supplied formula number without changing counter behavior", async () => withTempDir(async dir =>
 	{

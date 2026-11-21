@@ -3,6 +3,7 @@
         "package/CHANGELOG.md",
         "package/LICENSE",
         "package/README.md",
+        "package/assets/macro_engine.py",
         "package/assets/run.ps1",
         "package/assets/styles.xml",
         "package/assets/template.dotm",
@@ -13,7 +14,11 @@
         "package/dist/index.js.map",
         "package/dist/index.mjs",
         "package/dist/index.mjs.map",
-        "package/package.json"
+        "package/package.json",
+        "package/skills/md2gost-report/SKILL.md",
+        "package/skills/md2gost-report/references/rendering.md",
+        "package/skills/md2gost-report/references/styles.md",
+        "package/skills/md2gost-report/references/syntax.md"
     ],
     "vsixFiles": [
         "[Content_Types].xml",
@@ -23,6 +28,7 @@
         "extension/assets/grammars-expressions.json",
         "extension/assets/grammars.copy.json",
         "extension/assets/grammars.json",
+        "extension/assets/macro_engine.py",
         "extension/assets/markdown.css",
         "extension/assets/run.ps1",
         "extension/assets/styles.xml",
@@ -58,6 +64,10 @@
         "extension/imgs/table_edit.svg",
         "extension/imgs/table_edit_white.svg",
         "extension/package.json",
-        "extension/readme.md"
+        "extension/readme.md",
+        "extension/skills/md2gost-report/SKILL.md",
+        "extension/skills/md2gost-report/references/rendering.md",
+        "extension/skills/md2gost-report/references/styles.md",
+        "extension/skills/md2gost-report/references/syntax.md"
     ]
 }

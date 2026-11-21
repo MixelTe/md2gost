@@ -15,6 +15,8 @@ export class Doc
 	public mtime: Date | undefined;
 	public hyphenation = false;
 	public totalPagesOffset = 0;
+	public typography = { nbsp: defaultNbspGroups() };
+	public link = { color: "0563c1", underline: true };
 	public headings: DocHeadings = {
 		h1: { size: 14, spacing: { before: 18, after: 4 }, indent_full: false, uppercase: false },
 		h3: { size: 14, spacing: { before: 8, after: 4 }, indent_full: false, uppercase: false },
@@ -24,21 +26,23 @@ export class Doc
 		h6: { size: 14, spacing: { before: 8, after: 4 }, indent_full: false, uppercase: false },
 	};
 	public text = {
+		font: undefined as string | undefined,
 		size: 14,
 		line_spacing: 1.5,
 		indent: 1.25,
-		spacing: { after: 8 },
+		spacing: { after: 0 },
 	};
 	public table = {
 		title: {
 			style: "normal" as "normal" | "bold" | "italic",
 			size: undefined as undefined | number,
+			align: "left" as undefined | "left" | "center" | "right",
 		},
 		heading: {
 			style: "normal" as "normal" | "bold" | "italic",
-			align: "center" as "left" | "center" | "right",
+			align: "center" as "left" | "center" | "right" | "keep",
 		},
-		spacing: { before: undefined as undefined | number, after: undefined as undefined | number },
+		spacing: { before: undefined as undefined | number, after: 8 as undefined | number },
 		text: {
 			size: 12,
 			line_spacing: 1.25,
@@ -48,10 +52,11 @@ export class Doc
 		title: {
 			style: "normal" as "normal" | "bold" | "italic",
 			size: undefined as undefined | number,
+			align: undefined as undefined | "left" | "center" | "right",
 		},
-		spacing: { before: undefined as undefined | number, after: undefined as undefined | number },
+		spacing: { before: undefined as undefined | number, after: 8 as undefined | number },
 		highlight: false,
-		text: { size: 12 },
+		text: { size: 12, font: "Courier New", line_spacing: 1 },
 	};
 	public list = {
 		ordered: { style: "bracket" as "bracket" | "dot" | "keep" },
@@ -59,10 +64,11 @@ export class Doc
 		autopunctuation: true,
 	};
 	public img = {
-		spacing: { before: undefined as undefined | number, after: undefined as undefined | number },
+		spacing: { before: undefined as undefined | number, after: 8 as undefined | number },
 		text: { size: undefined as undefined | number },
 	};
 	public formula = {
+		font: "Cambria Math",
 		spacing: { before: 8, after: 8 },
 	};
 	public admonition: Record<AdmonitionType, DocAdmonitionStyle> = {
@@ -77,9 +83,9 @@ export class Doc
 	{
 		this.nodes.push({ type: "text", text, sourceLine });
 	}
-	public appendTitle(text: string, level: number, sourceLine: number)
+	public appendTitle(text: string, level: number, sourceLine: number, notSpecial?: boolean)
 	{
-		this.nodes.push({ type: "title", text, level, sourceLine });
+		this.nodes.push({ type: "title", text, level, sourceLine, notSpecial });
 	}
 	public appendNode(node: DocNode)
 	{
@@ -96,6 +102,14 @@ export class Doc
 			if (ln <= line) line -= d;
 		return line;
 	}
+}
+
+export const NBSP_GROUPS = ["short_words", "references", "abbreviations", "standards", "addresses", "years", "initials", "units"] as const;
+export type NbspGroup = typeof NBSP_GROUPS[number];
+export type NbspGroups = Record<NbspGroup, boolean>;
+export function defaultNbspGroups(): NbspGroups
+{
+	return Object.fromEntries(NBSP_GROUPS.map(group => [group, true])) as NbspGroups;
 }
 
 export interface DocHeadingStyle
@@ -169,6 +183,8 @@ export interface NodeTitle
 	text: string,
 	level: number,
 	center?: boolean,
+	/** Keeps a conventional section name as an ordinary heading. */
+	notSpecial?: boolean,
 }
 
 export interface NodePageBreak

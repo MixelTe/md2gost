@@ -3,6 +3,7 @@ import type MarkdownIt from "markdown-it";
 import { type Token } from "markdown-it";
 import { toCapitalCase, trimEnd, trimStart } from "./utils";
 import { stringifyDict } from "./parser";
+import { isSourceHeading, isTocHeading, parseHeadingText } from "./sections";
 
 export function markdownItPlugin(md: MarkdownIt)
 {
@@ -192,6 +193,8 @@ export function markdownItPlugin(md: MarkdownIt)
 
 				if ((i == 0 || children[i - 1]?.type == "softbreak") && token.type == "text" && token.content.startsWith("!!rule "))
 				{
+					while (i + 1 < children.length && children[i + 1]?.type != "softbreak")
+						i++;
 					if (children[i + 1]?.type == "softbreak")
 						i++;
 					continue;
@@ -203,6 +206,22 @@ export function markdownItPlugin(md: MarkdownIt)
 			blockToken.content = newChildren.map(t => t.content).join("");
 		});
 
+		return true;
+	});
+
+	md.core.ruler.before("inline", "md2gost_heading_escape", state =>
+	{
+		if (!isGostyMd(state.env)) return true;
+		for (let i = 0; i < state.tokens.length - 1; i++)
+		{
+			const token = state.tokens[i]!;
+			const inline = state.tokens[i + 1]!;
+			if (token.type != "heading_open" || inline.type != "inline") continue;
+			const heading = parseHeadingText(inline.content);
+			if (!heading.notSpecial) continue;
+			inline.content = heading.text;
+			token.meta = { ...token.meta, md2gost_notSpecialHeading: true };
+		}
 		return true;
 	});
 
@@ -219,14 +238,14 @@ export function markdownItPlugin(md: MarkdownIt)
 			const token = tokens[i];
 			if (token.type != "heading_open") continue;
 
-			if (tocIndex < 0 && token.tag == "h1"
-				&& tokens[i + 1]?.content.trim().toLowerCase() == "оглавление")
+			if (tocIndex < 0 && token.tag == "h1" && !token.meta?.md2gost_notSpecialHeading
+				&& isTocHeading(tokens[i + 1]?.content || ""))
 			{
 				tocIndex = i;
 				continue;
 			}
 
-			if (token.tag == "h1" && tokens[i + 1]?.content.trim().toLowerCase() == "реферат")
+			if (token.tag == "h1" && !token.meta?.md2gost_notSpecialHeading && tokens[i + 1]?.content.trim().toLowerCase() == "реферат")
 				continue;
 
 			const level = parseInt(token.tag.slice(1), 10);
@@ -247,8 +266,16 @@ export function markdownItPlugin(md: MarkdownIt)
 
 			const linkOpen = new state.Token("link_open", "a", 1);
 			linkOpen.attrPush(["href", `#${item.slug}`]);
-			const text = new state.Token("text", "", 0);
-			text.content = item.title;
+			const titleTokens: Token[] = [];
+			const number = /^(\d+(?:\.\d+)*\.?)[ \t\u00a0]+(.*)$/.exec(item.title);
+			for (const [index, content] of (number ? [number[1]!, number[2]!] : [item.title]).entries())
+			{
+				const open = new state.Token("span_open", "span", 1);
+				open.attrSet("class", number && index == 0 ? "md2gost_toc-number" : "md2gost_toc-title");
+				const text = new state.Token("text", "", 0);
+				text.content = content;
+				titleTokens.push(open, text, new state.Token("span_close", "span", -1));
+			}
 			const linkClose = new state.Token("link_close", "a", -1);
 
 			const dots = new state.Token("span_open", "span", 1);
@@ -264,7 +291,7 @@ export function markdownItPlugin(md: MarkdownIt)
 
 			tocTokens.push(
 				containerOpen,
-				linkOpen, text, linkClose,
+				linkOpen, ...titleTokens, linkClose,
 				dots, dotsClose,
 				pageOpen, pageText, pageClose,
 				containerClose,
@@ -288,7 +315,7 @@ export function markdownItPlugin(md: MarkdownIt)
 		for (let i = tokens.length - 1; i >= 0; i--)
 		{
 			const token = tokens[i];
-			if (token.type != "heading_open" || token.tag != "h1") continue;
+			if (token.type != "heading_open" || token.tag != "h1" || token.meta?.md2gost_notSpecialHeading) continue;
 			const title = tokens[i + 1]?.content.trim().toLowerCase();
 			if (title == "реферат")
 			{
@@ -350,7 +377,7 @@ export function markdownItPlugin(md: MarkdownIt)
 			{
 				insertParagraph(i + 3, "В настоящем отчете применяют следующие сокращения и обозначения.");
 			}
-			else if (title == "список использованных источников")
+			else if (isSourceHeading(title || ""))
 			{
 				i += 3;
 				const startI = i;
@@ -481,6 +508,34 @@ export function markdownItPlugin(md: MarkdownIt)
 	{
 		return self.renderToken(tokens, idx, options);
 	};
+
+	md.core.ruler.before("md2gost_hide_rule_paragraphs", "md2gost_link_style", state =>
+	{
+		if (!isGostyMd(state.env)) return;
+		let color: string | undefined = state.env.md2gostLinkStyle?.color;
+		let underline: string | undefined = state.env.md2gostLinkStyle?.underline;
+		for (const token of state.tokens)
+		{
+			if (token.type != "inline") continue;
+			for (const line of token.content.split("\n"))
+			{
+				const rule = /^!!rule\s+link\s+(color|underline)\s+(\S+)\s*$/i.exec(line);
+				if (!rule) continue;
+				if (rule[1]!.toLowerCase() == "color" && /^#?[\da-f]{6}$/i.test(rule[2]!)) color = "#" + rule[2]!.replace(/^#/, "");
+				if (rule[1]!.toLowerCase() == "underline" && /^(on|off)$/i.test(rule[2]!)) underline = rule[2]!.toLowerCase() == "on" ? "underline" : "none";
+			}
+		}
+		for (const token of state.tokens)
+		{
+			if (token.type == "md2gost_admonition" || token.type == "md2gost_header_footer")
+				token.meta = { ...token.meta, md2gostLinkStyle: { color, underline } };
+			token.children?.forEach(child =>
+			{
+				if (child.type != "link_open") return;
+				if (color || underline) child.attrJoin("style", `${color ? "color: " + color + ";" : ""}${underline ? "text-decoration: " + underline + ";" : ""}`);
+			});
+		}
+	});
 
 	const defaultImageRender = md.renderer.rules.image || defaultRender;
 	md.renderer.rules.image = (tokens, idx, options, env, self) =>
@@ -664,14 +719,15 @@ export function markdownItPlugin(md: MarkdownIt)
 	md.renderer.rules.md2gost_admonition = (tokens, idx, options, env) =>
 	{
 		const token = tokens[idx]!;
+		const nestedEnv = { ...env, md2gostLinkStyle: token.meta.md2gostLinkStyle };
 		const { type, title, icon: showIcon, titleColor } = token.meta as { type: string, title: string, icon: boolean, titleColor: boolean };
 		const icon = admonitionIcons[type]?.("currentColor") || admonitionIcons.note("currentColor");
 		return `<div class="md2gost_admonition md2gost_admonition_${type}">` +
 					(title == "" ? "" : `<div class="md2gost_admonition_title${titleColor ? " md2gost_admonition_title_color" : ""}">` +
 						`${showIcon ? `<span class="md2gost_admonition_icon" aria-hidden="true">${icon}</span>` : ""}` +
-						`<span>${md.renderInline(title, env)}</span>` +
+						`<span>${md.renderInline(title, nestedEnv)}</span>` +
 					`</div>`) +
-					`<div class="md2gost_admonition_content">${md.render(token.content, env)}</div>` +
+					`<div class="md2gost_admonition_content">${md.render(token.content, nestedEnv)}</div>` +
 				`</div>`;
 	};
 
@@ -722,6 +778,7 @@ export function markdownItPlugin(md: MarkdownIt)
 	md.renderer.rules.md2gost_header_footer = (tokens, idx, options, env) =>
 	{
 		const token = tokens[idx]!;
+		const nestedEnv = { ...env, md2gostLinkStyle: token.meta.md2gostLinkStyle };
 		const { kind, align, state } = token.meta as { kind: "header" | "footer", align?: "left" | "center" | "right", state?: "none" | "auto" };
 		const label = kind == "header" ? "Верхний колонтитул" : "Нижний колонтитул";
 		if (state)
@@ -732,7 +789,7 @@ export function markdownItPlugin(md: MarkdownIt)
 		const alignLabel = align == "center" ? "по центру" : align == "right" ? "справа" : "слева";
 		return `<div class="md2gost_header_footer md2gost_${kind}">` +
 			`<div class="md2gost_header_footer_title"><span>${label}</span><span>${alignLabel}</span></div>` +
-			`<div class="md2gost_header_footer_content md2gost_align_${align}">${md.render(token.content, env)}</div>` +
+			`<div class="md2gost_header_footer_content md2gost_align_${align}">${md.render(token.content, nestedEnv)}</div>` +
 			`</div>`;
 	};
 }

@@ -2,6 +2,7 @@ import fs from "fs/promises";
 import { deepOverwrite, getSafePathResolver, isLocalFilePath, trimEnd, trimStart, type JSONDict } from "./utils";
 import path from "path";
 import { UserInputError } from "./errors";
+import { findClosingBackticks, isEscaped, protectLinkAddresses } from "./inline";
 
 export interface TemplateExecOptions
 {
@@ -91,6 +92,7 @@ async function processInclude(node: INodeInclude, variables: JSONDict | undefine
 		throw new UserInputError(`Failed to read included file "${relativePath}": ${reason}`);
 	}
 
+	rawContent = stripComments(rawContent);
 	let content = rawContent;
 	if (variables)
 	{
@@ -775,36 +777,121 @@ function parseIncludePath(value: string)
 
 function findClosingBrace(content: string, start: number)
 {
+	return createBraceScanner()(content, start);
+}
+
+// For incremental scans, pass complete lines with their line endings.
+export function createBraceScanner()
+{
 	let depth = 0;
 	let inString = false;
 	let lineComment = false;
 	let blockComment = false;
-	for (let i = start; i < content.length; i++)
+	return (content: string, start: number = 0) =>
 	{
-		const ch = content[i];
-		if (lineComment)
+		for (let i = start; i < content.length; i++)
 		{
-			if (ch == "\n") lineComment = false;
+			const ch = content[i];
+			if (lineComment)
+			{
+				if (ch == "\n") lineComment = false;
+				continue;
+			}
+			if (blockComment)
+			{
+				if (ch == "*" && content[i + 1] == "/") { blockComment = false; i++; }
+				continue;
+			}
+			if (inString)
+			{
+				if (ch == "\\") i++;
+				else if (ch == '"') inString = false;
+				continue;
+			}
+			if (ch == '"') { inString = true; continue; }
+			if (ch == "/" && content[i + 1] == "/") { lineComment = true; i++; continue; }
+			if (ch == "/" && content[i + 1] == "*") { blockComment = true; i++; continue; }
+			if (ch == "{") depth++;
+			else if (ch == "}" && --depth == 0) return i;
+		}
+		return -1;
+	};
+}
+
+function stripComments(content: string): string
+{
+	const literals: string[] = [];
+	content = protectLinkAddresses(content, value => `\uE016${literals.push(value) - 1}\uE017`);
+	const commentLines = new Set<number>();
+	let result = "";
+	let line = 0;
+	let codeFence = 0;
+	let mathFence = false;
+	for (let i = 0; i < content.length;)
+	{
+		let end = i + 1;
+		const blockPrefix = content.startsWith("```", i) || content.startsWith("$$", i) ? result.slice(result.lastIndexOf("\n") + 1) : undefined;
+		if (i == 0 || content[i - 1] == "\n" || blockPrefix !== undefined && /^ {0,3}$/.test(blockPrefix))
+		{
+			const newline = content.indexOf("\n", i);
+			const lineText = content.slice(i, newline < 0 ? content.length : newline).replace(/\r$/, "");
+			const fence = /^( {0,3})(`{3,})([^`]*)$/.exec(lineText);
+			let literal = false;
+			if (fence && !mathFence)
+			{
+				if (!codeFence) { codeFence = fence[2].length; literal = true; }
+				else if (fence[2].length >= codeFence && !fence[3].trim()) { codeFence = 0; literal = true; }
+			}
+			if (!codeFence && !literal && lineText.trim() == "$$") { mathFence = !mathFence; literal = true; }
+			if (codeFence || mathFence || literal)
+			{
+				end = newline < 0 ? content.length : newline + 1;
+				result += content.slice(i, end);
+				if (newline >= 0) line++;
+				i = end;
+				continue;
+			}
+		}
+		if (content.startsWith("<!--", i) && !isEscaped(content, i))
+		{
+			const close = content.indexOf("-->", i + 4);
+			end = close < 0 ? content.length : close + 3;
+			const comment = content.slice(i, end);
+			commentLines.add(line);
+			for (const char of comment)
+				if (char == "\n") commentLines.add(++line);
+			result += comment.replace(/[^\r\n]/g, "");
+			i = end;
 			continue;
 		}
-		if (blockComment)
+		if (content[i] == "`" && !isEscaped(content, i))
 		{
-			if (ch == "*" && content[i + 1] == "/") { blockComment = false; i++; }
-			continue;
+			while (content[end] == "`") end++;
+			const count = end - i;
+			const close = findClosingBackticks(content, end, count);
+			if (close >= 0) end = close + count;
 		}
-		if (inString)
+		else if (content[i] == "$" && content[i + 1] != "$" && !isEscaped(content, i))
 		{
-			if (ch == "\\") i++;
-			else if (ch == '"') inString = false;
-			continue;
+			let close = end;
+			while (close < content.length && content[close] != "\n" && (content[close] != "$" || isEscaped(content, close))) close++;
+			if (content[close] == "$") end = close + 1;
 		}
-		if (ch == '"') { inString = true; continue; }
-		if (ch == "/" && content[i + 1] == "/") { lineComment = true; i++; continue; }
-		if (ch == "/" && content[i + 1] == "*") { blockComment = true; i++; continue; }
-		if (ch == "{") depth++;
-		else if (ch == "}" && --depth == 0) return i;
+		else
+		{
+			const insert = content.startsWith("!!(", i) ? /^!!\([^{}\r\n]*\)\s*{/.exec(content.slice(i)) : null;
+			const brace = insert ? i + insert[0].length - 1 : content.startsWith("{{", i) && !isEscaped(content, i) ? i : -1;
+			const close = brace >= 0 ? findClosingBrace(content, brace) : -1;
+			if (close >= 0) end = close + 1;
+		}
+		const text = content.slice(i, end);
+		result += text;
+		line += text.split("\n").length - 1;
+		i = end;
 	}
-	return -1;
+	// Keep comment-only lines skippable without turning them into paragraph breaks.
+	return result.split("\n").map((text, i) => commentLines.has(i) && !text.trim() ? "<!-- -->" : text).join("\n")
+		.replace(/\uE016(\d+)\uE017/g, (_, index: string) => literals[Number(index)]!);
 }
 
 async function parseIncludes(content: string, logwarn: (msg: string) => void): Promise<INode[]>
