@@ -31,12 +31,14 @@ suite("office errors and recovered DOCX", () =>
 			let result: Awaited<ReturnType<typeof render>>;
 			try
 			{
-				Object.defineProperty(process, "platform", { ...descriptor, value: platform });
 				office.resolveOfficeEngine = async () => "libreoffice";
 				office.runLibreOffice = async options =>
 				{
 					assert.equal(options.sofficePath, paths.sofficePath);
 					assert.equal(options.unoPythonPath, paths.unoPythonPath);
+					// Keep the host platform during parsing and serialization.
+					// Switch platforms at the point where the office call fails.
+					Object.defineProperty(process, "platform", { ...descriptor, value: platform });
 					throw original;
 				};
 				result = await render({ file: input, output, assets: path.resolve("assets"), engine, ...paths,
