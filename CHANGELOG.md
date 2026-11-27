@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
+## [1.7.2] - 2026-11-27
+### Fixed
+- left-align table-of-contents entries and reserve room for dotted leaders and page numbers when long headings wrap
+
 ## [1.7.1] - 2026-11-27
 ### Changed
 - make a brief practical-work report the default in `md2gost-report` when the report type is unspecified

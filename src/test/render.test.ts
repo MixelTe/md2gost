@@ -10,6 +10,34 @@ import { withTempDir, writeMarkdown } from "./helpers/fixtures";
 // without launching Word or LibreOffice. Restore globals before the next test.
 const office = require("../office") as typeof Office;
 
+suite("Word table of contents", () =>
+{
+	test("keeps heading and page-number tabs separate", async function ()
+	{
+		if (process.platform != "win32" || process.env.MD2GOST_TEST_WORD != "1") return this.skip();
+		this.timeout(180000);
+		await withTempDir(async dir =>
+		{
+			const input = await writeMarkdown(dir, "# СОДЕРЖАНИЕ\n\n# 2&Tab;NUMBERED CHAPTER\n\n## X\n\n### Y");
+			const output = path.join(dir, "toc.docx");
+			const result = await render({ file: input, output, assets: path.resolve("assets"), engine: "word" });
+			assert.equal(result.err, undefined);
+			const entries = xml(openDocx(output), "word/document.xml").match(/<w:p\b[^>]*>.*?<\/w:p>/gs)!
+				.filter(paragraph => paragraph.includes("PAGEREF"));
+			const chapter = entries.find(paragraph => paragraph.includes("NUMBERED CHAPTER"))!;
+			const leftTab = /<w:tab\b[^>]*w:val="(?:left|start)"[^>]*w:pos="(\d+)"/.exec(chapter);
+			assert.ok(leftTab && Number(leftTab[1]) > 0 && Number(leftTab[1]) < 850);
+			assert.equal((chapter.match(/<w:tab\/>/g) ?? []).length, 2);
+			for (const title of ["X", "Y"])
+			{
+				const entry = entries.find(paragraph => paragraph.includes(`>${title}</w:t>`))!;
+				assert.doesNotMatch(entry, /<w:tab\b[^>]*w:val="(?:left|start)"/);
+				assert.equal((entry.match(/<w:tab\/>/g) ?? []).length, 1);
+			}
+		});
+	});
+});
+
 suite("office errors and recovered DOCX", () =>
 {
 	for (const [platform, engine, code, contextual] of [

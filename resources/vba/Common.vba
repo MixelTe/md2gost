@@ -41,7 +41,8 @@ End Sub
 Private Sub AlignTableOfContents(toc As TableOfContents)
     Dim p As Paragraph, firstWord As Range
     Dim re As Object, matches As Object
-    Dim baseIndent As Single, textIndent As Single
+    Dim baseIndent As Single, styleTextIndent As Single, textIndent As Single
+    Dim entryText As String, prefix As String, hasLabelTab As Boolean
     Set re = CreateObject("VBScript.RegExp")
     re.Pattern = "^[0-9]+(\.[0-9]+)*\.?[ " & vbTab & ChrW(160) & "]+"
     ' Markdown link settings must not change the automatic TOC's appearance.
@@ -51,16 +52,21 @@ Private Sub AlignTableOfContents(toc As TableOfContents)
         ' Reset direct indents before measuring, so repeated updates are stable.
         With p.Style.ParagraphFormat
             baseIndent = .LeftIndent + .FirstLineIndent
+            styleTextIndent = .LeftIndent
         End With
         p.LeftIndent = baseIndent
         p.FirstLineIndent = 0
-        If re.Test(p.Range.Text) Then
-            Set matches = re.Execute(p.Range.Text)
+        entryText = p.Range.Text
+        If re.Test(entryText) Then
+            Set matches = re.Execute(entryText)
+            prefix = matches(0).Value
+            hasLabelTab = InStr(prefix, vbTab) > 0 And InStrRev(entryText, vbTab) > Len(prefix)
             Set firstWord = p.Range.Duplicate
             ' Range offsets include hidden field codes; Find locates the visible prefix.
             With firstWord.Find
                 .ClearFormatting
-                .Text = matches(0).Value
+                .Text = prefix
+                If hasLabelTab Then .Text = Trim$(Replace(Replace(prefix, vbTab, " "), ChrW(160), " "))
                 .Forward = True
                 .Wrap = wdFindStop
                 .Format = False
@@ -70,6 +76,11 @@ Private Sub AlignTableOfContents(toc As TableOfContents)
             If firstWord.Find.Execute Then
                 firstWord.Collapse wdCollapseEnd
                 textIndent = firstWord.Information(wdHorizontalPositionRelativeToTextBoundary)
+                If hasLabelTab Then
+                    textIndent = textIndent + 4
+                    If textIndent < styleTextIndent Then textIndent = styleTextIndent
+                    p.TabStops.Add Position:=textIndent, Alignment:=wdAlignTabLeft, Leader:=wdTabLeaderSpaces
+                End If
                 If textIndent > baseIndent Then
                     p.LeftIndent = textIndent
                     p.FirstLineIndent = baseIndent - textIndent

@@ -22,6 +22,25 @@ function fixedDoc()
 
 suite("DOCX serializer", () =>
 {
+	test("gives TOC entries their own alignment and room for page numbers", async () => withTempDir(async dir =>
+	{
+		const doc = fixedDoc();
+		doc.nodes = [{ type: "tableOfContents", sourceLine: 1 }];
+		const output = path.join(dir, "toc.docx");
+		await serializeDocx(runifyDoc(doc), output, dir, assets, dir);
+		const zip = openDocx(output);
+		const styles = xml(zip, "word/styles.xml").match(/<w:style\b[^>]*>.*?<\/w:style>/gs)!;
+		assert.match(styles.find(style => style.includes('w:name w:val="Normal"'))!, /<w:jc w:val="both"\/>/);
+		for (let level = 1; level <= 3; level++)
+		{
+			const entryStyle = styles.find(style => style.includes(`w:name w:val="toc ${level}"`))!;
+			assert.match(entryStyle, /<w:jc w:val="left"\/>/);
+			assert.match(entryStyle, /<w:ind\b[^>]*w:right="[1-9][0-9]*"/);
+			assert.match(entryStyle, /<w:tab w:val="right" w:leader="dot"/);
+		}
+		assert.match(xml(zip, "word/document.xml"), /<w:instrText\b[^>]*>TOC\b/);
+	}));
+
 	test("keeps block gaps when body paragraphs have no after-spacing", async () => withTempDir(async dir =>
 	{
 		await writePng(dir, "figure.PNG");

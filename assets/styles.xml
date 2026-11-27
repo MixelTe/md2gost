@@ -709,7 +709,8 @@
 <w:tab w:val="right" w:leader="dot" w:pos="9345"/>
 </w:tabs>
 <w:spacing w:after="100"/>
-<w:ind w:left="283" w:hanging="283"/>
+<w:ind w:left="283" w:right="425" w:hanging="283"/>
+<w:jc w:val="left"/>
 </w:pPr>
 </w:style>
 <w:style w:type="character" w:styleId="af0">
@@ -814,7 +815,8 @@
 <w:tab w:val="right" w:leader="dot" w:pos="9345"/>
 </w:tabs>
 <w:spacing w:after="100"/>
-<w:ind w:left="709" w:hanging="425"/>
+<w:ind w:left="709" w:right="425" w:hanging="425"/>
+<w:jc w:val="left"/>
 </w:pPr>
 </w:style>
 <w:style w:type="paragraph" w:customStyle="1" w:styleId="ListingCode">
@@ -867,7 +869,8 @@
 <w:tab w:val="right" w:leader="dot" w:pos="9345"/>
 </w:tabs>
 <w:spacing w:after="100"/>
-<w:ind w:left="1134" w:hanging="567"/>
+<w:ind w:left="1134" w:right="425" w:hanging="567"/>
+<w:jc w:val="left"/>
 </w:pPr>
 </w:style>
 <w:style w:type="paragraph" w:styleId="af6">
