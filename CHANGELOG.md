@@ -13,8 +13,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 ### Security
 
-## [1.7.0] - 2026-11-##
+## [1.7.1] - 2026-11-27
+### Changed
+- make a brief practical-work report the default in `md2gost-report` when the report type is unspecified
+- clarify how the report skill handles requested example results and describes limitations that affect the findings
+- create DOCX and PDF reports only on explicit request, with visual review on request or when a layout fix requires it
+### Fixed
+- preserve spacing after tables and around display formulas, using the larger configured gap at a shared boundary
+- apply spacing before untitled listings, including consecutive listings and those with syntax highlighting
+- remove the empty caption paragraph above captionless tables
 
+## [1.7.0] - 2026-11-22
 ### Added
 - DOCX/PDF export through LibreOffice on Windows and Linux, office engine selection, and Docker support; macOS integration is untested
 - a DOCX viewer in VS Code that works without Word or LibreOffice
@@ -23,13 +32,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - typed relative references `[i#]`, `[t#]`, `[c#]`, and `[f#]` for images, tables, listings, and formulas
 - formatting rules for fonts, caption alignment, listing line spacing, hyperlink appearance, and non-breaking spaces
 - section aliases `СОДЕРЖАНИЕ` and `СПИСОК ЛИТЕРАТУРЫ`, and heading escapes such as `# \РЕФЕРАТ` to disable special section handling
-
 ### Changed
 - set default spacing after body paragraphs to 0 pt and left-align table captions; inline monospace text shares the listing font, Courier New by default
 - warn instead of failing when images are missing; keep empty captions unnumbered and omit the dash from number-only captions
 - align Markdown table cell contents according to column alignment by default, configurable through `md2gost.tables.alignCellContents`
 - replace `MDRenderConfig.useLibreOffice` with `engine` and rename `MDRenderError.powershellLog` to `officeLog`
-
 ### Fixed
 - heading and element numbering, including references in headings, manually numbered sections at any heading level, and appendices
 - preserve code and its indentation during formatting, including fenced blocks inside lists and inline code

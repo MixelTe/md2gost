@@ -55,6 +55,34 @@ suite("DOCX serializer", () =>
 		assert.match(heading, /<w:spacing\b[^>]*w:after="80"/);
 	}));
 
+	for (const [tableAfter, imageBefore, expected] of [
+		[undefined, undefined, 8],
+		[6, 3, 6],
+		[6, 12, 12],
+		[0, 0, 0],
+	] as const)
+		test(`applies a ${expected} pt gap between a table and an image`, async () => withTempDir(async dir =>
+		{
+			await writePng(dir, "figure.png");
+			const file = await writeMarkdown(dir, [
+				...(tableAfter === undefined ? [] : [`!!rule table spacing after ${tableAfter}`]),
+				...(imageBefore === undefined ? [] : [`!!rule img spacing before ${imageBefore}`]),
+				"", "| Name | Value |", "|---|---|", "| Item | 1 |",
+				"", "![After the table](figure.png){20}",
+				"", "Ordinary text.",
+				"", "![After text](figure.png){20}",
+			].join("\n"));
+			const output = path.join(dir, "table-image.docx");
+			await serializeDocx(runifyDoc(await parseMD(file)), output, dir, assets, dir);
+			const document = xml(openDocx(output), "word/document.xml");
+			const images = document.match(/<w:p\b[^>]*>.*?<\/w:p>/gs)!.filter(p => p.includes("<w:drawing>"));
+			assert.equal(images.length, 2);
+			assert.ok(document.includes(`</w:tbl>${images[0]}`));
+			assert.match(images[0]!, new RegExp(`<w:spacing\\b[^>]*w:before="${expected * 20}"`));
+			if (imageBefore === undefined) assert.doesNotMatch(images[1]!, /<w:spacing\b[^>]*w:before=/);
+			else assert.match(images[1]!, new RegExp(`<w:spacing\\b[^>]*w:before="${imageBefore * 20}"`));
+		}));
+
 	for (const highlight of [false, true])
 		test(`applies custom listing line spacing independently of body and block gaps (${highlight ? "highlighted" : "plain"})`, async () => withTempDir(async dir =>
 		{
@@ -76,6 +104,41 @@ suite("DOCX serializer", () =>
 			assert.equal(paragraphs.length, 3);
 			for (const paragraph of paragraphs) assert.doesNotMatch(paragraph, /<w:spacing\b[^>]*w:line=/);
 			assert.equal(paragraphs.some(p => /<w:color\b/.test(p)), highlight);
+		}));
+
+	for (const [name, firstBlock, secondBlock, boundary, expected] of [
+		["table to heading", "| Head |\n|---|\n| Cell |", "## Next", "paragraph", 18],
+		["table to listing caption", "| Head |\n|---|\n| Cell |", "```js Caption\nconst value = 1;\n```", "paragraph", 18],
+		["table to note", "| Head |\n|---|\n| Cell |", ":::note[Next]\nBody.\n:::", "paragraph", 18],
+		["table to formula", "| Head |\n|---|\n| Cell |", "$$\nx = 1\n$$", "separator", 18],
+		["formula to text", "$$\nx = 1\n$$", "Next paragraph.", "paragraph", 16],
+		["formula to formula", "$$\nx = 1\n$$", "$$\ny = 2\n$$", "separator", 16],
+		["text to highlighted listing", "Intro.", "```js\nconst value = 1;\n```", "listing", 11],
+		["listing to listing", "```js\nconst first = 1;\n```", "```js\nconst second = 2;\n```", "listing separator", 11],
+	] as const)
+		test(`preserves external spacing from ${name}`, async () => withTempDir(async dir =>
+		{
+			const file = await writeMarkdown(dir, [
+				"!!rule table spacing after 18",
+				"!!rule formula spacing before 4",
+				"!!rule formula spacing after 16",
+				"!!rule code spacing before 11",
+				"!!rule code highlight on",
+				"", firstBlock, "", secondBlock,
+			].join("\n"));
+			const output = path.join(dir, "boundary.docx");
+			await serializeDocx(runifyDoc(await parseMD(file)), output, dir, assets, dir);
+			const document = xml(openDocx(output), "word/document.xml");
+			const tableEnd = document.indexOf("</w:tbl>");
+			const afterFirstBlock = tableEnd < 0 ? document : document.slice(tableEnd + "</w:tbl>".length);
+			const paragraphs = afterFirstBlock.match(/<w:p\b[^>]*>.*?<\/w:p>/gs)!;
+			const next = boundary.startsWith("listing") ? paragraphs[1]! : paragraphs[0]!;
+			assert.match(next, new RegExp(`<w:spacing\\b[^>]*w:before="${expected * 20}"`));
+			if (boundary.includes("separator"))
+			{
+				assert.match(next, /<w:spacing\b[^>]*w:lineRule="exact"/);
+				assert.doesNotMatch(next, /<w:r>/);
+			}
 		}));
 
 	test("exports mixed Latin and Cyrillic inline formulas as complete native math", async () => withTempDir(async dir =>

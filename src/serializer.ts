@@ -1,10 +1,10 @@
+import { AlignmentType, Bookmark, BorderStyle, convertMillimetersToTwip, Document, ExternalHyperlink, Footer, Header, ImageRun, InternalHyperlink, LevelFormat, LineRuleType, Packer, PageBreak, PageNumber, PageOrientation, Paragraph, Table, TableCell, TableOfContents, TableRow, TextRun, VerticalAlignTable, XmlComponent, type FileChild, type INumberingOptions, type ISectionOptions, type ParagraphChild } from "docx";
 import * as fs from "fs";
-import { AlignmentType, BorderStyle, Document, Footer, Header, convertMillimetersToTwip, Packer, PageBreak, PageNumber, Paragraph, TableOfContents, TextRun, type FileChild, type ISectionOptions, type INumberingOptions, LevelFormat, type ParagraphChild, Table, TableRow, TableCell, ImageRun, ExternalHyperlink, InternalHyperlink, Bookmark, XmlComponent, LineRuleType, PageOrientation, VerticalAlignTable } from "docx";
-import type { AdmonitionType, DocHeaderFooter, DocPageOrientation, NodeList, NodeListMark, NodeTable, Rune, RunicDoc, RunicNode, Runify } from "./doc";
-import { getSafePathResolver, randomInt, type DeepWriteable } from "./utils";
 import { imageSize } from "image-size";
 import path from "path";
+import type { AdmonitionType, DocHeaderFooter, DocPageOrientation, NodeList, NodeListMark, NodeTable, Rune, RunicDoc, RunicNode, Runify } from "./doc";
 import { latexToOmml } from "./math";
+import { getSafePathResolver, randomInt, type DeepWriteable } from "./utils";
 
 const STYLE_list = "afc";
 const STYLE_table_title = "TableCaption";
@@ -154,6 +154,15 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 
 		function renderNode(node: RunicNode, prevChild?: FileChild, prevNode?: RunicNode): FileChild | FileChild[]
 		{
+			const previousTableAfter = prevChild instanceof Table
+				? prevNode?.type == "math" ? doc.formula.spacing.after : doc.table.spacing.after ?? doc.text.spacing.after
+				: undefined;
+			function spacingBefore(points?: number)
+			{
+				if (previousTableAfter !== undefined) points = Math.max(previousTableAfter, points ?? 0);
+				return points === undefined ? {} : { before: points * 20 };
+			}
+
 			switch (node.type)
 			{
 				case "text":
@@ -163,7 +172,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						...(node.center ? { alignment: "center", indent: { firstLine: 0 } } : {}),
 						spacing: {
 							...(node.noMargin ? { after: 0 } : {}),
-							...(prevChild instanceof Table ? { before: (doc.table.spacing.after ?? doc.text.spacing.after) * 20 } : {}),
+							...spacingBefore(),
 						},
 					});
 				case "title":
@@ -177,7 +186,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						...(node.center ? { alignment: "center", indent: { firstLine: 0 } } : {}),
 						...(!node.center && node.level != 0 && styles.indent_full ? { indent: { firstLine: 0, left: convertMillimetersToTwip(12.5) } } : {}),
 						spacing: {
-							before: styles.spacing.before * 20,
+							...spacingBefore(styles.spacing.before),
 							after: styles.spacing.after * 20,
 						},
 					});
@@ -195,7 +204,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					};
 					numbering.push(list);
 					const items: FileChild[] = [];
-					let addMargin = prevChild instanceof Table;
+					let firstItem = true;
 					renderList(node);
 					function renderList(node: Runify<NodeList>, level: number = 0)
 					{
@@ -212,11 +221,9 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 									children: renderText(item.text, item.sourceLine ?? node.sourceLine),
 									style: STYLE_list,
 									numbering: { reference: id, level },
-									spacing: {
-										...(addMargin ? { before: (doc.table.spacing.after ?? doc.text.spacing.after) * 20 } : {}),
-									},
+									spacing: firstItem ? spacingBefore() : {},
 								}));
-								addMargin = false;
+								firstItem = false;
 							}
 						}
 					}
@@ -224,20 +231,16 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 				case "table":
 					if (node.header !== false && node.rows[0] && doc.table.heading.style == "italic") node.rows[0].forEach(n => n.type == "text" ? n.text.forEach(r => r.italic = true) : 0);
 					if (node.header !== false && node.rows[0] && doc.table.heading.style == "bold") node.rows[0].forEach(n => n.type == "text" ? n.text.forEach(r => r.bold = true) : 0);
-					const spacingInner = Math.max(doc.table.spacing.after ?? doc.text.spacing.after, doc.table.spacing.before ?? 0);
+					const tableSpacing = spacingBefore(doc.table.spacing.before);
 					return [
-						...(node.title ? [
+						...(node.title?.some(rune => rune.text.trim()) ? [
 							new Paragraph({
 								children: renderText(node.title, node.sourceLine, doc.table.title.size),
 								style: STYLE_table_title,
-								...(prevChild instanceof Table ? { spacing: { before: spacingInner * 20 } } :
-									doc.table.spacing.before ? { spacing: { before: doc.table.spacing.before * 20 } } : {}
-								),
+								spacing: tableSpacing,
 							}),
-						] : prevChild instanceof Table ? [
-							new Paragraph({ spacing: { line: 20, before: spacingInner * 20, after: 0 } }),
-						] : doc.table.spacing.before ? [
-							new Paragraph({ spacing: { line: 20, before: doc.table.spacing.before * 20, after: 0 } }),
+						] : prevChild instanceof Table || tableSpacing.before ? [
+							blockSeparator(tableSpacing),
 						] : []),
 						new Table({
 							// width: { type: "pct", size: 100 },
@@ -265,6 +268,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					];
 				case "tableOfContents":
 					return [
+						...(previousTableAfter ? [blockSeparator(spacingBefore())] : []),
 						new TableOfContents("Оглавление", {
 							hyperlink: true,
 							headingStyleRange: "1-3",
@@ -305,7 +309,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 								line: 240,
 								lineRule: LineRuleType.AT_LEAST, // For LibreOffice to not shrink image
 								...(!node.text && doc.img.spacing.after !== undefined ? { after: doc.img.spacing.after * 20 } : {}),
-								...(doc.img.spacing.before !== undefined ? { before: doc.img.spacing.before * 20 } : {}),
+								...spacingBefore(doc.img.spacing.before),
 							},
 							keepNext: !!node.text,
 							children: image ? [image] : [],
@@ -323,24 +327,25 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						] : []),
 					];
 				case "code":
-					const code = doc.code.highlight && renderCodeHighlighting(node.code, node.lang);
+					const highlighted = doc.code.highlight ? highlightCodeLines(node.code, node.lang) : null;
+					const codeLines = highlighted ?? node.code.split("\n").map(line => [new TextRun(line)]);
+					const separateListings = !node.title && prevNode?.type == "code";
+					const codeSpacing = spacingBefore(doc.code.spacing.before);
 					return [
 						...(node.title ? [
 							new Paragraph({
 								children: renderText(node.title, node.sourceLine, doc.code.title.size),
 								style: STYLE_code_title,
+								spacing: codeSpacing,
 							}),
-						] : prevNode?.type == "code" ? [
-							new Paragraph({ spacing: { line: 20 } }),
+						] : separateListings ? [
+							blockSeparator(codeSpacing),
 						] : []),
-						...(code ? code :
-							node.code.split("\n").map((p, i) =>
-								new Paragraph({
-									children: [new TextRun(p)],
-									style: STYLE_code,
-									...(i == 0 && !node.title && doc.code.spacing.before && prevNode?.type != "code" ? { spacing: { before: doc.code.spacing.before * 20 } } : {}),
-								}))
-						),
+						...codeLines.map((line, i) => new Paragraph({
+							children: line,
+							style: STYLE_code,
+							...(i == 0 && !node.title && !separateListings ? { spacing: codeSpacing } : {}),
+						})),
 					];
 				case "math":
 					const formulaWidth = contentWidth;
@@ -349,9 +354,10 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						convertMillimetersToTwip(5),
 						Math.ceil(estimateNumberWidthPt(number, doc.text.size) * 20 + convertMillimetersToTwip(3)),
 					);
+					const formulaSpacing = spacingBefore(doc.formula.spacing.before);
 					return [
-						...(prevNode?.type != "math" ? [
-							new Paragraph({ indent: { firstLine: 0 }, spacing: { line: 20, after: doc.formula.spacing.before * 20 } }),
+						...(prevChild instanceof Table || formulaSpacing.before ? [
+							blockSeparator(formulaSpacing),
 						] : []),
 						new Table({
 							width: { type: "dxa", size: formulaWidth },
@@ -369,7 +375,6 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 								],
 							})],
 						}),
-						new Paragraph({ indent: { firstLine: 0 }, spacing: { line: 20, after: doc.formula.spacing.after * 20 } }),
 					];
 				case "externalDoc":
 					const doc_path = getPath(node.path);
@@ -382,6 +387,7 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						text: `!!(${doc_path})${JSON.stringify(node.dict)}`,
 						indent: { firstLine: 0 },
 						alignment: "left",
+						spacing: spacingBefore(),
 					});
 				case "admonition":
 					const style = `xAdmonition${node.admonitionType == "note" ? "" : node.admonitionType}`;
@@ -397,23 +403,24 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 						},
 					}), new TextRun(" ")] : [];
 					const prevIsSameType = prevNode?.type == "admonition" && prevNode.admonitionType == node.admonitionType;
+					const admonitionSpacing = spacingBefore(admonition.spacing.before);
 					const showTitle = node.title.map(r => r.text).join("") != "";  // "empty" title with space allows showing only icon
 					return [
 						...(prevIsSameType ? [
-							new Paragraph({ spacing: { line: 20, before: 0, after: 0 } }),
+							blockSeparator(admonitionSpacing),
 						] : []),
 						...(showTitle ? [
 							new Paragraph({
 								style,
 								children: [...icon, ...renderText(admonition.title_color ? node.title.map(r =>  ({ ...r, color })) : node.title, node.sourceLine)],
 								keepNext: true,
-								...(prevIsSameType ? { spacing: { before: 0 } } : {}),
+								spacing: prevIsSameType ? { before: 0 } : admonitionSpacing,
 							}),
 						] : []),
 						new Paragraph({
 							style,
 							children: renderText(node.text, node.sourceLine),
-							...(prevIsSameType && !showTitle ? { spacing: { before: 0 } } : {}),
+							...(!showTitle ? { spacing: prevIsSameType ? { before: 0 } : admonitionSpacing } : {}),
 						}),
 					];
 				case "sectionBreak":
@@ -422,6 +429,11 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 					node satisfies never;
 					throw new Error("switch default");
 			}
+		}
+		function blockSeparator(spacing: { before?: number })
+		{
+			// Keep adjacent tables and bordered blocks separate without a visible blank line.
+			return new Paragraph({ spacing: { ...spacing, after: 0, line: 1, lineRule: LineRuleType.EXACT } });
 		}
 		function renderNodeL(node: RunicNode, prevChild?: FileChild, prevNode?: RunicNode)
 		{
@@ -439,8 +451,13 @@ export async function serializeDocx(doc: RunicDoc, fout: string, workdir: string
 			}
 		}
 
-		for (let i = 0; i < section.nodes.length; i++)
-			children.push(...renderNodeL(section.nodes[i], children.at(-1), section.nodes[i - 1]));
+		let prevNode: RunicNode | undefined;
+		for (const node of section.nodes)
+		{
+			const rendered = renderNodeL(node, children.at(-1), prevNode);
+			children.push(...rendered);
+			if (rendered.length > 0 || node.type == "pageBreak") prevNode = node;
+		}
 	}
 
 	const docx = new Document({
@@ -748,35 +765,35 @@ class RawXml extends XmlComponent
 import Prism from "prismjs";
 import "prismjs/components/prism-clike.js";
 
-import "prismjs/components/prism-markup.js"; // html, xml
-import "prismjs/components/prism-css.js";
-import "prismjs/components/prism-javascript.js";
-import "prismjs/components/prism-typescript.js";
-import "prismjs/components/prism-jsx.js";
-import "prismjs/components/prism-tsx.js";
-import "prismjs/components/prism-json.js";
 import "prismjs/components/prism-bash.js";
-import "prismjs/components/prism-powershell.js";
-import "prismjs/components/prism-python.js";
-import "prismjs/components/prism-java.js";
 import "prismjs/components/prism-c.js";
 import "prismjs/components/prism-cpp.js";
 import "prismjs/components/prism-csharp.js";
-import "prismjs/components/prism-go.js";
-import "prismjs/components/prism-rust.js";
-import "prismjs/components/prism-php.js";
-import "prismjs/components/prism-ruby.js";
-import "prismjs/components/prism-swift.js";
-import "prismjs/components/prism-kotlin.js";
-import "prismjs/components/prism-sql.js";
-import "prismjs/components/prism-yaml.js";
-import "prismjs/components/prism-markdown.js";
+import "prismjs/components/prism-css.js";
 import "prismjs/components/prism-docker.js";
+import "prismjs/components/prism-go.js";
+import "prismjs/components/prism-java.js";
+import "prismjs/components/prism-javascript.js";
+import "prismjs/components/prism-json.js";
+import "prismjs/components/prism-jsx.js";
+import "prismjs/components/prism-kotlin.js";
+import "prismjs/components/prism-markdown.js";
+import "prismjs/components/prism-markup.js"; // html, xml
 import "prismjs/components/prism-nginx.js";
+import "prismjs/components/prism-php.js";
+import "prismjs/components/prism-powershell.js";
+import "prismjs/components/prism-python.js";
+import "prismjs/components/prism-ruby.js";
+import "prismjs/components/prism-rust.js";
+import "prismjs/components/prism-sql.js";
+import "prismjs/components/prism-swift.js";
+import "prismjs/components/prism-tsx.js";
+import "prismjs/components/prism-typescript.js";
+import "prismjs/components/prism-yaml.js";
 import { UserInputError } from "./errors";
 
 
-function renderCodeHighlighting(code: string, lang: string)
+function highlightCodeLines(code: string, lang: string)
 {
 	const language = lang.trim().toLowerCase();
 	const grammar = Prism.languages[language];
@@ -925,11 +942,11 @@ function renderCodeHighlighting(code: string, lang: string)
 	// }
 
 	const tokens = Prism.tokenize(code, grammar);
-	return tokensToParagraphs(tokens);
+	return tokensToLines(tokens);
 
-	function tokensToParagraphs(tokens: (string | Prism.Token)[])
+	function tokensToLines(tokens: (string | Prism.Token)[])
 	{
-		const paragraphs: Paragraph[] = [];
+		const highlightedLines: ParagraphChild[][] = [];
 		let currentRuns: ParagraphChild[] = [];
 		type TokenStyle = { color: string, bold: boolean, italics: boolean, strike: boolean };
 		const plainStyle: TokenStyle = { color: themeColors.plain, bold: false, italics: false, strike: false };
@@ -952,7 +969,7 @@ function renderCodeHighlighting(code: string, lang: string)
 
 				if (index < lines.length - 1)
 				{
-					paragraphs.push(new Paragraph({ children: currentRuns, style: STYLE_code }));
+					highlightedLines.push(currentRuns);
 					currentRuns = [];
 				}
 			});
@@ -992,10 +1009,10 @@ function renderCodeHighlighting(code: string, lang: string)
 
 		if (currentRuns.length > 0)
 		{
-			paragraphs.push(new Paragraph({ children: currentRuns, style: STYLE_code }));
+			highlightedLines.push(currentRuns);
 		}
 
-		return paragraphs;
+		return highlightedLines;
 	}
 
 }

@@ -109,6 +109,7 @@ suite("main logic integration", () =>
 				for (const expected of ["INTRO_KEEP", "AFTER_TABLE", "first", "second", "Таблица 2", "See table 2. Total 2."])
 					assert.ok(text.includes(expected), expected);
 				assert.ok(!text.includes("Таблица 1"));
+				assert.equal((document.match(/<w:pStyle w:val="TableCaption"\/>/g) ?? []).length, 1);
 				assert.deepEqual(warnings, []);
 			}));
 
